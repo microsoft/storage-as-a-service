@@ -1,0 +1,28 @@
+.directoriesTable th, .directoriesTable td {
+    vertical-align: middle;
+}
+
+.directoriesTable td.spaceused, .directoriesTable td.costs, .directoriesTable td.actions {
+    text-align: center;
+}
+
+.directoriesTable .action {
+    margin: 3px;
+}
+
+.directoriesTable .action:hover {
+    cursor: pointer;
+}
+
+.member-chip {
+    margin: 3px;
+}
+
+.members-popover {
+    padding: 5px 10px;
+}
+
+.member-text {
+    font-size: small;
+    padding: 2px 0;
+}

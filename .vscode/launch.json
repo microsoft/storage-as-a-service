@@ -1,0 +1,44 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Edge - Debug GUI + API",
+			"request": "launch",
+			"type": "pwa-msedge",
+			"url": "http://localhost:4280",
+			"preLaunchTask": "Start SWA and Launch Edge",
+			"presentation": {
+				"hidden": false,
+				"group": "",
+				"order": 1
+			},
+			"postDebugTask": "Terminate All Tasks"
+		},
+		{
+			"name": "Attach to .NET Functions",
+			"type": "coreclr",
+			"request": "attach",
+			"processId": "${command:azureFunctions.pickProcess}",
+			"presentation": {
+				"hidden": false,
+				"group": "Debug",
+				"order": 2
+			}
+		}
+	],
+	"compounds": [
+		{
+			"name": "Debug Az Fx and Launch Edge",
+			"stopAll": true,
+			"configurations": [
+				"Edge - Debug GUI + API",
+				"Attach to .NET Functions"
+			],
+			"presentation": {
+				"hidden": false,
+				"group": "Debug",
+				"order": 1
+			}
+		}
+	]
+}

@@ -1,0 +1,11 @@
+{
+	"configurations": {
+		"app": {
+			"context": "http://localhost:3000",
+			"apiLocation": "http://localhost:7071",
+			"appLocation": "src/front",
+			"run": "npm start",
+			"devserverTimeout": 900000
+		}
+	}
+}

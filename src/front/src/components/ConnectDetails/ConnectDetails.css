@@ -1,0 +1,42 @@
+.connectDetails {
+    margin-top: 25px;
+}
+
+.connectDetails .title {
+    font-size: larger;
+    font-weight: 600;
+}
+
+.connectDetails .storageExplorer-title {
+    font-size: 0.9em;
+    font-weight: 600;
+    display: inline-block;
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.connectDetails .storageExplorer-steps {
+    display: flex;
+    flex-direction: column;
+}
+
+.connectDetails .storageExplorer-steps .step {
+    margin-top: 5px;
+    margin-bottom: 15px;
+}
+
+.connectDetails .storageExplorer-steps .step-label {
+    margin-bottom: 10px;
+}
+
+.connectDetails .storageExplorer-steps .step-content {
+    text-align: center;
+}
+
+.step-divider {
+    margin: 30px 30px;
+    padding: 1px;
+    min-width: 2px;
+    background-color: #1976d2;
+    border-radius: 2px;
+}
