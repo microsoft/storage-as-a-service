@@ -1,6 +1,6 @@
 {
-	"azureFunctions.projectSubpath": "src/sas.api",
-	"azureFunctions.deploySubpath": "src/sas.api/bin/Release/net6.0/publish",
+	"azureFunctions.projectSubpath": "src/api",
+	"azureFunctions.deploySubpath": "src/api/bin/Release/net6.0/publish",
 	"azureFunctions.projectLanguage": "C#",
 	"azureFunctions.projectRuntime": "~4",
 	"debug.internalConsoleOptions": "neverOpen",

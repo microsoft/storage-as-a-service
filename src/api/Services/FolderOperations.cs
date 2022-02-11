@@ -8,7 +8,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
-namespace sas.api.Services
+namespace Microsoft.UsEduCsu.Saas.Services
 {
 	internal class FolderOperations
 	{

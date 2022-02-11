@@ -12,7 +12,7 @@
 			"type": "process",
 			"problemMatcher": "$msCompile",
 			"options": {
-				"cwd": "${workspaceFolder}/src/sas.api"
+				"cwd": "${workspaceFolder}/src/api"
 			}
 		},
 		{
@@ -31,7 +31,7 @@
 			},
 			"problemMatcher": "$msCompile",
 			"options": {
-				"cwd": "${workspaceFolder}/src/sas.api"
+				"cwd": "${workspaceFolder}/src/api"
 			}
 		},
 		{
@@ -47,7 +47,7 @@
 			"type": "process",
 			"problemMatcher": "$msCompile",
 			"options": {
-				"cwd": "${workspaceFolder}/src/sas.api"
+				"cwd": "${workspaceFolder}/src/api"
 			}
 		},
 		{
@@ -64,27 +64,16 @@
 			"dependsOn": "clean release (functions)",
 			"problemMatcher": "$msCompile",
 			"options": {
-				"cwd": "${workspaceFolder}/src/sas.api"
+				"cwd": "${workspaceFolder}/src/api"
 			}
 		},
-		// {
-		// 	"label": "Start Az Fx",
-		// 	"type": "func",
-		// 	"dependsOn": "build (functions)",
-		// 	"options": {
-		// 		"cwd": "${workspaceFolder}/src/sas.api"
-		// 	},
-		// 	"command": "func host start",
-		// 	"isBackground": true,
-		// 	"problemMatcher": "$func-dotnet-watch"
-		// },
 		{
 			"label": "build",
 			"command": "dotnet",
 			"type": "process",
 			"args": [
 				"build",
-				"${workspaceFolder}/src/sas.api/sas.api.csproj",
+				"${workspaceFolder}/src/api/api.csproj",
 				"/property:GenerateFullPaths=true",
 				"/consoleloggerparameters:NoSummary"
 			],
@@ -96,7 +85,7 @@
 			"type": "process",
 			"args": [
 				"publish",
-				"${workspaceFolder}/src/sas.api/sas.api.csproj",
+				"${workspaceFolder}/src/api/api.csproj",
 				"/property:GenerateFullPaths=true",
 				"/consoleloggerparameters:NoSummary"
 			],
@@ -109,7 +98,7 @@
 			"args": [
 				"watch",
 				"run",
-				"${workspaceFolder}/src/sas.api/sas.api.csproj",
+				"${workspaceFolder}/src/api/api.csproj",
 				"/property:GenerateFullPaths=true",
 				"/consoleloggerparameters:NoSummary"
 			],
@@ -133,11 +122,11 @@
 			"type": "shell",
 			"label": "Launch Edge with Az Fx (non-debug)",
 			// TODO: Enable SSL
-			"command": "swa start http://localhost:3000 --api-location ../sas.api --run 'npm start' --swa-config-location ../..",
+			"command": "swa start http://localhost:3000 --api-location ../api --run 'npm start' --swa-config-location ../..",
 			"isBackground": false,
 			"problemMatcher": [],
 			"options": {
-				"cwd": "${workspaceFolder}/src/sas.front/"
+				"cwd": "${workspaceFolder}/src/front/"
 			},
 			"dependsOn": []
 		},

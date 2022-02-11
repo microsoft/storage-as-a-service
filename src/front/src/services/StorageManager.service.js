@@ -64,7 +64,7 @@ const getOptions = (method) => {
  * Create a new folder in the storage account container
  */
 export const createFolder = async (storageAccount, fileSystem, owner, content) => {
-	const endpoint = URLS.listDirectories.endpoint.replace('{account}', storageAccount).replace('{filesystem}', fileSystem)
+	const endpoint = URLS.createFolder.endpoint.replace('{account}', storageAccount).replace('{filesystem}', fileSystem)
 	const options = getOptions(URLS.createFolder.method)
 	options.body = JSON.stringify({
 		Folder: content.name,

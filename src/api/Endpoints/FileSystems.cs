@@ -5,7 +5,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using sas.api.Services;
+using Microsoft.UsEduCsu.Saas.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,7 +15,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 
-namespace sas.api
+namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
 	{
@@ -28,20 +28,20 @@ namespace sas.api
 				return await FileSystemsPOST(req, log, account);
 
 			if (req.Method == HttpMethods.Get)
-				return await FileSystemsGET(req, log, account);
+				return FileSystemsGET(req, log, account);
 
 			// TODO: If this is even possible (accepted methods are defined above?) return HTTP error code 405, response must include an Allow header with allowed methods
 			return null;
 		}
 
-		private static async Task<IActionResult> FileSystemsGET(HttpRequest req, ILogger log, string account)
+		private static IActionResult FileSystemsGET(HttpRequest req, ILogger log, string account)
 		{
 			// Check for logged in user
 			ClaimsPrincipal claimsPrincipal;
 			try
 			{
 				claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
-				if (Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
+				if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
 					return new BadRequestErrorMessageResult("Call requires an authenticated user.");
 			}
 			catch (Exception ex)
@@ -143,7 +143,7 @@ namespace sas.api
 
 			// Check Parameters
 			string error = null;
-			if (Extensions.AnyNull(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode, tlfp.StorageAcount))
+			if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode, tlfp.StorageAcount))
 				error = $"{nameof(FileSystemParameters)} is malformed.";
 			if (tlfp.Owner.Contains("#EXT#"))
 				error = "Guest accounts are not supported.";

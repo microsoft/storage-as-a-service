@@ -10,7 +10,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace sas.api.Services
+namespace Microsoft.UsEduCsu.Saas.Services
 {
 	internal class RoleOperations
 	{
@@ -43,12 +43,11 @@ namespace sas.api.Services
 				var resourceGraphClient = new ResourceGraphClient(tokenCredentials);
 
 				var query = new QueryRequest();
-				query.Query = $"resources | where name == '{account}' | project id";
+				query.Query = $"resources | where name == '{account}' and type == 'microsoft.storage/storageaccounts' and kind == 'StorageV2' and properties['isHnsEnabled'] | project id";
 				var queryResponse = resourceGraphClient.Resources(query);
 				if (queryResponse.Count > 0)
 				{
 					dynamic data = queryResponse;
-					//Console.WriteLine(data);
 
 					var data2 = (Newtonsoft.Json.Linq.JArray)queryResponse.Data;
 					var data3 = data2.First;

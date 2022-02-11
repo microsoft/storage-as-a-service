@@ -28,23 +28,26 @@ const StorageAccountsPage = ({ strings }) => {
 	useEffect(() => {
 		const retrieveAccountsAndFileSystems = async () => {
 			try {
-				console.debug('Calling `getFileSystems()`')
 				const _storageAccounts = await getFileSystems()
 				setStorageAccounts(_storageAccounts)
-				// Set the first storage account retrieved from the API as the selected one
-				setSelectedStorageAccount(_storageAccounts[0].name)
-				displayToast(strings.accountsLoaded)
+
+				if (_storageAccounts.length > 0) {
+					// Set the first storage account retrieved from the API as the selected one
+					setSelectedStorageAccount(_storageAccounts[0].name)
+					displayToast(strings.accountsLoaded)
+				}
+				else {
+					displayToast(strings.noAccountsLoaded)
+				}
 			}
 			catch (error) {
 				console.error(error)
 			}
 		}
 
-		console.debug('Entered effect to retrieve accounts and file systems')
-
 		isAuthenticated
 			&& retrieveAccountsAndFileSystems()
-	}, [isAuthenticated, strings.accountsLoaded])
+	}, [isAuthenticated, strings.accountsLoaded, strings.noAccountsLoaded])
 
 
 	// When the selected file system (container) changes, retrieve the list of Directories for the selected File System
@@ -55,7 +58,6 @@ const StorageAccountsPage = ({ strings }) => {
 
 		const retrieveDirectories = async (storageAccount, fileSystem) => {
 			try {
-				console.debug('Calling `getDirectories(%s, %s)`', storageAccount, fileSystem)
 				const _directories = await getDirectories(storageAccount, fileSystem)
 				setDirectories(_directories)
 			}
@@ -63,8 +65,6 @@ const StorageAccountsPage = ({ strings }) => {
 				console.error(error)
 			}
 		}
-
-		console.debug('Entered effect to retrieve directories with storage account "%s" and container "%s"', selectedStorageAccount, selectedFileSystem)
 
 		clearDirectories()
 
@@ -99,7 +99,6 @@ const StorageAccountsPage = ({ strings }) => {
 
 
 	const handleStorageAccountChange = useCallback(id => {
-		console.debug('Selected storage account is now "%s"', id)
 		// To avoid a warning from MUI, clear the selected file system first
 		setSelectedFileSystem('')
 		setSelectedStorageAccount(id)
@@ -107,7 +106,6 @@ const StorageAccountsPage = ({ strings }) => {
 
 
 	const handleFileSystemChange = useCallback(id => {
-		console.debug('Selected file system is now "%s"', id)
 		setSelectedFileSystem(id)
 	}, [])
 

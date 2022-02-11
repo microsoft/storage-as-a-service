@@ -6,12 +6,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using sas.api.Services;
+using Microsoft.UsEduCsu.Saas.Services;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace sas.api
+namespace Microsoft.UsEduCsu.Saas
 {
 	public static class BackgroundJobs
 	{

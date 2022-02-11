@@ -10,7 +10,6 @@ import Select from "@mui/material/Select"
  */
 const Selector = ({ items, id, label, onChange, selectedItem, autoSelectFirst }) => {
 	const handleChange = event => {
-		console.debug('Entered handleChange for id "%s" with value "%s"', id, event.target.value)
 		onChange && onChange(event.target.value)
 	}
 

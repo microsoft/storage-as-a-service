@@ -3,7 +3,7 @@ using Microsoft.Extensions.Primitives;
 using System;
 using System.Linq;
 
-namespace sas.api
+namespace Microsoft.UsEduCsu.Saas.Services
 {
 	public static class SasConfiguration
 	{

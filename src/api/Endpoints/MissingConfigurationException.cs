@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace sas.api
+namespace Microsoft.UsEduCsu.Saas
 {
 	[Serializable]
 	internal class MissingConfigurationException : Exception
