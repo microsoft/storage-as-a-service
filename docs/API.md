@@ -1,9 +1,8 @@
 # API
 
-
 ## Endpoints
 
-```
+```json
 FileSystems: [POST,GET] http://localhost:7071/api/FileSystems/{account?}
 TopLevelFoldersGET: [GET] http://localhost:7071/api/TopLevelFolders/{account}/{filesystem}/{user?}
 TopLevelFoldersPOST: [POST] http://localhost:7071/api/TopLevelFolders/{account}/{filesystem}
@@ -24,7 +23,8 @@ This endpoint requires a shared key that is stored in a KeyVault to access it. P
 It will create a new container for a user using the following body contents.
 
 BODY:
-```
+
+```json
 {
     "FileSystem": "fs1",
     "FundCode": "1234",
@@ -54,5 +54,3 @@ POST api/Configuration/CalculateFolderSizes
 This endpoint requires a shared key that is stored in a KeyVault to access it. Provide the shared key in a custom header `Saas-Configuration-Api-Key`.
 
 This background job will calculate the folder sizes based on the files present and store the data in the MetaData of the Top Level Folder.
-
-

@@ -1,6 +1,6 @@
 # SAS for EDU
 
-![image](/assets/sas-welcome-page.png)
+![image](/docs/assets/sas-welcome-page.png)
 
 SAS is a Storage-as-a-Service platform designed to automate storage allocation in EDU institutions. Its main goal is to provide agility to stakeholders on having access to object storage infrastructure in Microsoft Azure.
 
@@ -70,7 +70,6 @@ When the application registration is created, copy the Directory (tenant) ID and
 #### Add logout URL
 
 1. Go to the Azure AD app registration and add a URL to the Front-channel logout URL. Paste the URL of your Static Web App followed by `/.auth/logout/aad/callback`.
-https://ambitious-pond-09a72580f.1.azurestaticapps.net/.auth/logout/aad/callback
 
 #### Create a client secret
 
@@ -88,6 +87,7 @@ https://ambitious-pond-09a72580f.1.azurestaticapps.net/.auth/logout/aad/callback
 Copy the value of the client secret for use later.
 
 ### API Permissions
+
 The App Registration requires a Admin level permission to be granted. Navigate to the app registration and select the **API Permissions**.  Select **Add a permision** and choose the **Microsoft Graph**.  Select **Application Permissions** and search for **User.Read.All**.  Select **User.Read.All** and then add permissions.
 
 When done, select the button that says **Grant admin consent for (your tenant name)**. You will need to have the correct Azure AD permissions to do so, such as Global Admin.
@@ -98,7 +98,7 @@ In order to allow this application to modify storage accounts, you need to assig
 
 If you named the application *Storage-as-a-Service*, the RBAC entry would look like this:
 
-![image](/assets/rbac-blob-owner.png)
+![image](/docs/assets/sa-rbac.png)
 
 ### Add GitHub secrets
 
@@ -123,7 +123,7 @@ Add the following application settings to the Static Web App using the Configura
 | FILESYSTEMS_API_KEY | The shared API key to POST to the FileSystems API to create new containers. We recommend retrieving this secret from Key Vault. |
 | CONFIGURATION_API_KEY | The shared API key to call the Configuration API. We recommend retrieving this secret from Key Vault. |
 
-![App Settings](/assets/app-settings.png)
+![App Settings](/docs/assets/app-settings.png)
 
 ### Build
 
@@ -136,5 +136,3 @@ Run the *Azure Static Web Apps CI/CD* workflow.
 Optional, but recommended.
 
 Go back to the Static Web App and select Application Insights. Enable Application Insights and select the instance to wish to use or create new from this location.
-
-TODO: Provide instructions to create a Log Analytics Workspace and Application Insights instance.
