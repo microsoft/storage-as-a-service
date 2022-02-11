@@ -1,0 +1,18 @@
+.directoryDetails .title {
+    font-size: larger;
+    font-weight: 600;
+}
+
+.directoryDetails .detail {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
+
+.directoryDetails .label {
+    display: inline-block;
+    width: 100px;
+}
+
+.directoryDetails .detail .label {
+    font-size: 0.9em;
+}

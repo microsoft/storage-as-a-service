@@ -1,0 +1,55 @@
+{
+	"responseOverrides": {
+		"401": {
+			"redirect": "/login",
+			"statusCode": 302
+		}
+	},
+	"globalHeaders": {
+		"content-security-policy": "default-src 'self' 'unsafe-inline' ws://localhost:3000 https://login.microsoftonline.com https://fonts.googleapis.com https://fonts.gstatic.com https://*.core.windows.net ; img-src 'self' data: https://*.blob.core.windows.net"
+	},
+	"mimeTypes": {
+		".json": "text/json"
+	},
+	"auth": {
+		"rolesSource": "/api/Roles",
+		"identityProviders": {
+			"azureActiveDirectory": {
+				"registration": {
+					"openIdIssuer": "https://login.microsoftonline.com/__AZURE_TENANT_ID__/v2.0",
+					"clientIdSettingName": "AZURE_CLIENT_ID",
+					"clientSecretSettingName": "AZURE_CLIENT_SECRET"
+				}
+			}
+		}
+	},
+	"routes": [
+		{
+			"route": "/login",
+			"rewrite": "/.auth/login/aad"
+		},
+		{
+			"route": "/logout",
+			"redirect": "/.auth/logout"
+		},
+		{
+			"route": "/api/FileSystems",
+			"methods": [
+				"GET"
+			],
+			"allowedRoles": [
+				"authenticated"
+			]
+		},
+		{
+			"route": "/api/TopLevelFolders",
+			"methods": [
+				"GET",
+				"POST"
+			],
+			"allowedRoles": [
+				"authenticated"
+			]
+		}
+	]
+}
