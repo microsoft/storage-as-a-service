@@ -1,0 +1,18 @@
+{
+	"IsEncrypted": false,
+	"Values": {
+		"FUNCTIONS_WORKER_RUNTIME": "dotnet",
+		"DATALAKE_STORAGE_ACCOUNTS": "storageaccountname1,storageaccountname2",
+		"COST_PER_TB": 1,
+		"AZURE_TENANT_ID": "c725...",
+		"AZURE_CLIENT_ID": "4d3f...",
+		"AZURE_CLIENT_SECRET": "A1B2...",
+		"FILESYSTEMS_API_KEY": "somerandomkey",
+		"CONFIGURATION_API_KEY": "anotherkey"
+	},
+	"Host": {
+		"LocalHttpPort": 7071,
+		"CORS": "*",
+		"CORSCredentials": false
+	}
+}
