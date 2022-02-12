@@ -1,8 +1,11 @@
 # Storage-as-a-Service for EDU
 
-![image](/docs/assets/sas-welcome-page.png)
+![workflow](https://github.com/microsoft/storage-as-a-service/actions/workflows/azure-swa-deploy.yml/badge.svg)
+![GitHub issues by-label](https://img.shields.io/github/issues/microsoft/storage-as-a-service/enhancement?label=enhancement%20issues)
+![GitHub issues by-label](https://img.shields.io/github/issues/microsoft/storage-as-a-service/bug?label=bug%20issues)
+![GitHub issues by-label](https://img.shields.io/github/issues/microsoft/storage-as-a-service/documentation?label=docs%20issues)
 
-SAS is a Storage-as-a-Service platform designed to automate storage allocation in EDU institutions. Its main goal is to provide agility to stakeholders on having access to object storage infrastructure in Microsoft Azure.
+A Storage-as-a-Service platform designed to automate storage allocation in EDU institutions. Its main goal is to provide agility to stakeholders on having access to object storage infrastructure in Microsoft Azure.
 
 Some of the capabilities currently provided by the system are:
 
@@ -11,6 +14,8 @@ Some of the capabilities currently provided by the system are:
 * Automatic creation of initial folder under the File System.
 * Dynamic addition of folder's owner under initial folder.
 * Exposure of "how to use" the storage infrastructure through Web UI.
+
+![image](/docs/assets/sas-welcome-page.png)
 
 ## Background
 
