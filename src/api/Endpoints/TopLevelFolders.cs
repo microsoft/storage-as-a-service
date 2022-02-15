@@ -100,12 +100,12 @@ namespace Microsoft.UsEduCsu.Saas
 			var fileSystemOperations = new FileSystemOperations(storageUri, log);
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log);
 
-			Result result =
-				await fileSystemOperations.AddsFolderOwnerToContainerACLAsExecute(tlfp.FileSystem, tlfp.FolderOwner);
+			Result result = null;
+			result = await folderOperations.CreateNewFolder(tlfp.Folder);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
-			result = await folderOperations.CreateNewFolder(tlfp.Folder);
+			result = await fileSystemOperations.AddsFolderOwnerToContainerACLAsExecute(tlfp.FileSystem, tlfp.FolderOwner);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 

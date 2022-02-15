@@ -34,12 +34,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			try
 			{
 				var directoryClient = dlfsClient.GetDirectoryClient(folder);
-				var response = await directoryClient.CreateAsync();
-				result.Success = response.GetRawResponse().Status == 201;
+				var response = await directoryClient.CreateIfNotExistsAsync();	// Returns null if exists
+				result.Success = response?.GetRawResponse().Status == 201;
 
 				if (!result.Success)
 				{
-					result.Message = "Error trying to create the new folder. Error 500.";
+					if (response == null)
+						result.Message = "Folder already exists";
 					log.LogError(result.Message);
 				}
 			}
@@ -160,18 +161,19 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				var guestUpn = Simplify(upn);
 
 				// Get Root Folder
-				if (principalId != null) {
-					var fd = GetFolderDetail(string.Empty);
-					if (fd != null)
-					{
-						var roles = roleOperations.GetContainerRoleAssignments(dlfsClient.AccountName, principalId)
-												.Where( ra => ra.Container == dlfsClient.Name
-															&& ra.PrincipalId == principalId);
-						if (roles.Count() > 0) {
-							fd.Name = "{root}";
-							fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {upn}"));
-							accessibleFolders.Add(fd);
-						}
+				bool principalIsOwner = false;
+				var fd = GetFolderDetail(string.Empty);
+				if (fd != null)
+				{
+					var roles = roleOperations.GetContainerRoleAssignments(dlfsClient.AccountName, principalId)
+											.Where( ra => ra.Container == dlfsClient.Name
+														&& ra.PrincipalId == principalId);
+					if (roles.Count() > 0) {
+						fd.Name = "{root}";
+						fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {upn}"));
+						accessibleFolders.Add(fd);
+
+						principalIsOwner = fd.UserAccess.Any(ra => ra.Contains("Owner"));
 					}
 				}
 
@@ -185,7 +187,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				Parallel.ForEach(folders, folder =>
 					{
 						var fd = GetFolderDetail(folder.Name);
-						if (fd != null && fd.UserAccess.Any( u => u.StartsWith(guestUpn)))
+						if (fd != null && (principalIsOwner || fd.UserAccess.Any( u => Simplify(u).StartsWith(guestUpn))))
 							accessibleFolders.Add(fd);
 					}
 				);
