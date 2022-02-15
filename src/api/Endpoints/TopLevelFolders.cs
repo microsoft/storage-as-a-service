@@ -50,7 +50,9 @@ namespace Microsoft.UsEduCsu.Saas
 			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
 			var folderOperations = new FolderOperations(storageUri, filesystem, log);
 			var folders = folderOperations.GetAccessibleFolders(user);
-			return new OkObjectResult(folders.OrderBy(f => f.URI).ToList());
+			var sortedFolders = folders.OrderBy(f => f.URI).ToList();
+
+			return new OkObjectResult(sortedFolders);
 		}
 
 		[FunctionName("TopLevelFoldersPOST")]

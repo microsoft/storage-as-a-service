@@ -19,6 +19,7 @@
 			"type": "coreclr",
 			"request": "attach",
 			"processId": "${command:azureFunctions.pickProcess}",
+			"pickProcessTimeout": 120,
 			"presentation": {
 				"hidden": false,
 				"group": "Debug",
