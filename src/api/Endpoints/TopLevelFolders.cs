@@ -38,7 +38,7 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			var authenticatedUser = claimsPrincipal.Identity.Name;
-			var principalId = claimsPrincipal.Claims.FirstOrDefault(fa => fa.Type == ClaimTypes.NameIdentifier)?.Value;
+			var principalId = UserOperations.GetUserId(claimsPrincipal);
 
 			// TODO: Review for security. This seems to allow any authenticated users to pass another user's UPN and retrieve the folders they have access to?
 			// Perhaps acceptable if using an "admin" role
@@ -61,7 +61,25 @@ namespace Microsoft.UsEduCsu.Saas
 				[HttpTrigger(AuthorizationLevel.Function, "POST", Route = "TopLevelFolders/{account}/{filesystem}")]
 				HttpRequest req, string account, string filesystem, ILogger log)
 		{
-			// TODO: Authorize the calling user as owner of the container
+			// Check for logged in user
+			ClaimsPrincipal claimsPrincipal;
+			try
+			{
+				claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
+				if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
+					return new BadRequestErrorMessageResult("Call requires an authenticated user.");
+			}
+			catch (Exception ex)
+			{
+				log.LogError(ex, ex.Message);
+				return new BadRequestErrorMessageResult("Unable to authenticate user.");
+			}
+
+			// Authorize the calling user as owner of the container
+			var roleOperations = new RoleOperations(log);
+			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserId(claimsPrincipal));			
+			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
+				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
 
 			// Extracting body object from the call and deserializing it.
 			var tlfp = await GetTopLevelFolderParameters(req, log);
