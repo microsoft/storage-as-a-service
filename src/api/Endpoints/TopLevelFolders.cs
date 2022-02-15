@@ -38,6 +38,7 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			var authenticatedUser = claimsPrincipal.Identity.Name;
+			var principalId = claimsPrincipal.Claims.FirstOrDefault(fa => fa.Type == ClaimTypes.NameIdentifier)?.Value;
 
 			// TODO: Review for security. This seems to allow any authenticated users to pass another user's UPN and retrieve the folders they have access to?
 			// Perhaps acceptable if using an "admin" role
@@ -49,7 +50,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// TODO: Call helper function to form storage URI
 			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
 			var folderOperations = new FolderOperations(storageUri, filesystem, log);
-			var folders = folderOperations.GetAccessibleFolders(user);
+			var folders = folderOperations.GetAccessibleFolders(user, principalId);
 			var sortedFolders = folders.OrderBy(f => f.URI).ToList();
 
 			return new OkObjectResult(sortedFolders);

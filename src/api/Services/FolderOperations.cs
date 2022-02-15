@@ -148,20 +148,31 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return s.Replace('@', '_').ToLower();
 		}
 
-		internal IList<FolderDetail> GetAccessibleFolders(string upn)
+		internal IList<FolderDetail> GetAccessibleFolders(string upn, string principalId)
 		{
 			var accessibleFolders = new List<FolderDetail>();
 			try
 			{
+				// Get Role Assignments
+				var roleOperations = new RoleOperations(log);
+
 				// Translate for guest accounts
-				upn = Simplify(upn);
+				var guestUpn = Simplify(upn);
 
 				// Get Root Folder
-				var fd = GetFolderDetail(string.Empty);
-				if (fd != null)
-				{
-					fd.Name = "{root}";
-					accessibleFolders.Add(fd);
+				if (principalId != null) {
+					var fd = GetFolderDetail(string.Empty);
+					if (fd != null)
+					{
+						var roles = roleOperations.GetContainerRoleAssignments(dlfsClient.AccountName, principalId)
+												.Where( ra => ra.Container == dlfsClient.Name
+															&& ra.PrincipalId == principalId);
+						if (roles.Count() > 0) {
+							fd.Name = "{root}";
+							fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {upn}"));
+							accessibleFolders.Add(fd);
+						}
+					}
 				}
 
 				// Get all Top Level Folders
@@ -174,7 +185,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				Parallel.ForEach(folders, folder =>
 					{
 						var fd = GetFolderDetail(folder.Name);
-						if (fd != null)         // && fd.UserAccess.Any( u => u.StartsWithContains(upn))
+						if (fd != null && fd.UserAccess.Any( u => u.StartsWith(guestUpn)))
 							accessibleFolders.Add(fd);
 					}
 				);
@@ -185,16 +196,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			return accessibleFolders;
 		}
-
-		//internal FolderDetail GetFolderDetail(string folder)
-		//{
-		//    var rootClient = dlfsClient.GetDirectoryClient(folder);  // container (root)
-		//    var metadata = rootClient.GetProperties().Value.Metadata;
-		//    var acl = rootClient.GetAccessControl(userPrincipalName: true).Value.AccessControlList;
-		//    var uri = rootClient.Uri;
-		//    FolderDetail fd = BuildFolderDetail(folder, metadata, acl, uri);
-		//    return fd;
-		//}
 
 		internal FolderDetail GetFolderDetail(string folderName)
 		{
