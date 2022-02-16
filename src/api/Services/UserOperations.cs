@@ -83,6 +83,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return new ClaimsPrincipal(identity);
 		}
 
+		internal static string GetUserId(ClaimsPrincipal claimsPrincipal)
+		{
+			return claimsPrincipal.Claims.FirstOrDefault(fa => fa.Type == ClaimTypes.NameIdentifier)?.Value;
+		}
+
 		// TODO: Move to separate class?
 		private class ClientPrincipal
 		{

@@ -54,6 +54,13 @@ namespace Microsoft.UsEduCsu.Saas
 						size += await folderOperations.CalculateFolderSize(folder.Name);
 					}
 
+					// Store Container Level Info
+					var metadata = fileSystemClient.GetProperties().Value.Metadata;
+					metadata["Size"] = size.ToString();
+					metadata.Remove("hdi_isfolder");					// Strip off a readonly item
+					fileSystemClient.SetMetadata(metadata);
+
+					// Report back results
 					msg = $"  {filesystem.Name} aggregate size {size} bytes";
 					log.LogInformation(msg);
 					sb.AppendLine(msg);

@@ -113,6 +113,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <returns>An IList<ContainerRole>.</returns>
 		public IList<ContainerRole> GetContainerRoleAssignments(string account, string principalId)
 		{
+			return GetContainerRoleAssignments(account).Where( ra => ra.PrincipalId == principalId).ToList();
+		}
+
+		internal IEnumerable<ContainerRole> GetContainerRoleAssignments(string account)
+		{
 			// TODO: Consider creating a TokenCredentialManager
 			// (local var) TokenCredentials tc = TokenCredentialManager.GetToken();
 			VerifyToken();
@@ -126,48 +131,32 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
 			var roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
-				.Where(rd => rd.RoleName.StartsWith("Storage Blob"))
-				.ToList();
+				.Where(rd => rd.RoleName.StartsWith("Storage Blob"));
 
 			// Create an IList<string> of the role definition IDs to use in the next LINQ
 			var roleDefinitionIds = roleDefinitions
-				.Select(rd => rd.Id)
-				.ToList();
+				.Select(rd => rd.Id);
 
 			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
 			var roleAssignments = amClient.RoleAssignments.ListForScope(accountResourceId)
-				.Where(ra => ra.PrincipalId == principalId
-					&& ra.Scope.Contains("/blobServices/default/containers/")
+				.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
 					&& roleDefinitionIds.Contains(ra.RoleDefinitionId))
 				// Transform matching role assignments into the method's return value
 				.Select(ra => new ContainerRole()
 				{
 					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId)).RoleName,
-					Container = ra.Scope.Split('/').Last()
-				})
-				.ToList();
+					Container = ra.Scope.Split('/').Last(),
+					PrincipalId = ra.PrincipalId
+				});
 
 			return roleAssignments;
-			// var roles = new List<ContainerRole>();
-
-			// // Match up each role assignment with an applicable role definition
-			// foreach (var ra in roleAssignments)
-			// {
-			// 	var rd = roleDefinitions.FirstOrDefault(r => r.Id == ra.RoleDefinitionId);
-			// 	if (rd != null)
-			// 	{
-			// 		var container = ra.Scope.Split("/").Last();
-			// 		roles.Add(new ContainerRole { RoleName = rd.RoleName, Container = container });
-			// 	}
-			// }
-
-			// return roles;
 		}
 
 		public class ContainerRole
 		{
 			public string RoleName { get; set; }
 			public string Container { get; set; }
+			public string PrincipalId {get;set;}
 		}
 	}
 }

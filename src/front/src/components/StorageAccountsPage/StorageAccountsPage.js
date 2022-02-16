@@ -86,7 +86,7 @@ const StorageAccountsPage = ({ strings }) => {
 		createFolder(selectedStorageAccount, selectedFileSystem, account.userDetails, data)
 			.then((newDirectory) => {
 				// TODO: Match sort order to sort order from API (by URI)
-				const _directories = [...directories, newDirectory].sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+				const _directories = [...directories, newDirectory].sort((a, b) => a.uri < b.uri ? -1 : a.uri > b.uri ? 1 : 0)
 				setDirectories(_directories)
 
 				// Display a toast

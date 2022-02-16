@@ -34,12 +34,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			try
 			{
 				var directoryClient = dlfsClient.GetDirectoryClient(folder);
-				var response = await directoryClient.CreateAsync();
-				result.Success = response.GetRawResponse().Status == 201;
+				var response = await directoryClient.CreateIfNotExistsAsync();	// Returns null if exists
+				result.Success = response?.GetRawResponse().Status == 201;
 
 				if (!result.Success)
 				{
-					result.Message = "Error trying to create the new folder. Error 500.";
+					if (response == null)
+						result.Message = "Folder already exists";
 					log.LogError(result.Message);
 				}
 			}
@@ -148,20 +149,32 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return s.Replace('@', '_').ToLower();
 		}
 
-		internal IList<FolderDetail> GetAccessibleFolders(string upn)
+		internal IList<FolderDetail> GetAccessibleFolders(string upn, string principalId)
 		{
 			var accessibleFolders = new List<FolderDetail>();
 			try
 			{
+				// Get Role Assignments
+				var roleOperations = new RoleOperations(log);
+
 				// Translate for guest accounts
-				upn = Simplify(upn);
+				var guestUpn = Simplify(upn);
 
 				// Get Root Folder
+				bool principalIsOwner = false;
 				var fd = GetFolderDetail(string.Empty);
 				if (fd != null)
 				{
-					fd.Name = "{root}";
-					accessibleFolders.Add(fd);
+					var roles = roleOperations.GetContainerRoleAssignments(dlfsClient.AccountName, principalId)
+											.Where( ra => ra.Container == dlfsClient.Name
+														&& ra.PrincipalId == principalId);
+					if (roles.Count() > 0) {
+						fd.Name = "{root}";
+						fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {upn}"));
+						accessibleFolders.Add(fd);
+
+						principalIsOwner = fd.UserAccess.Any(ra => ra.Contains("Owner"));
+					}
 				}
 
 				// Get all Top Level Folders
@@ -174,7 +187,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				Parallel.ForEach(folders, folder =>
 					{
 						var fd = GetFolderDetail(folder.Name);
-						if (fd != null)         // && fd.UserAccess.Any( u => u.StartsWithContains(upn))
+						if (fd != null && (principalIsOwner || fd.UserAccess.Any( u => Simplify(u).StartsWith(guestUpn))))
 							accessibleFolders.Add(fd);
 					}
 				);
@@ -185,16 +198,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			return accessibleFolders;
 		}
-
-		//internal FolderDetail GetFolderDetail(string folder)
-		//{
-		//    var rootClient = dlfsClient.GetDirectoryClient(folder);  // container (root)
-		//    var metadata = rootClient.GetProperties().Value.Metadata;
-		//    var acl = rootClient.GetAccessControl(userPrincipalName: true).Value.AccessControlList;
-		//    var uri = rootClient.Uri;
-		//    FolderDetail fd = BuildFolderDetail(folder, metadata, acl, uri);
-		//    return fd;
-		//}
 
 		internal FolderDetail GetFolderDetail(string folderName)
 		{
