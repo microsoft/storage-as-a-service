@@ -79,9 +79,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				throw;
 			}
 
-			var x = new RoleOperations(log);
-
-			foreach (var filesystem in fileSystems)
+			var containers = new List<string>();
+			Parallel.ForEach(fileSystems, filesystem =>
 			{
 				var fsClient = dlsClient.GetFileSystemClient(filesystem.Name);
 				var rootClient = fsClient.GetDirectoryClient(string.Empty);  // container (root)
@@ -90,9 +89,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				if (acl.Value.AccessControlList.Any(
 					p => p.EntityId?.Replace('@', '_').ToLower().StartsWith(upn) == true))
 				{
-					yield return filesystem.Name;
+					containers.Add(filesystem.Name);
 				}
-			}
+			});
+
+			return containers;
 		}
 
 		public async Task<Result> CreateFileSystem(string fileSystemName, string owner, string fundCode)

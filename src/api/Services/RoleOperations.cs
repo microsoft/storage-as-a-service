@@ -19,6 +19,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private TokenCredentials tokenCredentials;
 
+		private static IList<RoleDefinition> roleDefinitions;
+
 		public RoleOperations(ILogger log)
 		{
 			this.log = log;
@@ -125,19 +127,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// Get Storage Account Resource ID
 			var accountResourceId = GetAccountResourceId(account);
 
-			// TODO: Optimize for cache and performance. Too many calls.
-
+			// Get Auth Managment Client
 			var amClient = new AuthorizationManagementClient(tokenCredentials);
 
 			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
-			var roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
-				.Where(rd => rd.RoleName.StartsWith("Storage Blob"));
-
-			// Create an IList<string> of the role definition IDs to use in the next LINQ
-			var roleDefinitionIds = roleDefinitions
-				.Select(rd => rd.Id);
+			if (roleDefinitions == null) {
+				roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
+					.Where(rd => rd.RoleName.StartsWith("Storage Blob")).ToList();
+			}
 
 			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
+			var roleDefinitionIds = roleDefinitions.Select(rd => rd.Id);	// Create an IList<string> of the role definition IDs
 			var roleAssignments = amClient.RoleAssignments.ListForScope(accountResourceId)
 				.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
 					&& roleDefinitionIds.Contains(ra.RoleDefinitionId))
