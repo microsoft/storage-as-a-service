@@ -46,7 +46,7 @@ namespace Microsoft.UsEduCsu.Saas
 					var folders = fileSystemClient.GetPaths().Where<PathItem>(
 						pi => pi.IsDirectory == null ? false : (bool)pi.IsDirectory);
 
-					var folderOperations = new FolderOperations(serviceUri, filesystem.Name, log);
+					var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), serviceUri, filesystem.Name);
 
 					long size = 0;
 					foreach (var folder in folders)

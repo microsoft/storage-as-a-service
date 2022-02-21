@@ -18,12 +18,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		private readonly ILogger log;
 		private TokenCredentials tokenCredentials;
+		private TokenCredential tokenCredential;
 
 		private static IList<RoleDefinition> roleDefinitions;
 
-		public RoleOperations(ILogger log)
+		public RoleOperations(ILogger log,TokenCredential tokenCredential)
 		{
 			this.log = log;
+			this.tokenCredential = tokenCredential;
 		}
 
 		private void VerifyToken()

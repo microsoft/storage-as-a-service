@@ -1,8 +1,7 @@
-﻿using Azure.Identity;
+﻿using Azure.Core;
 using Azure.Storage.Files.DataLake;
 using Azure.Storage.Files.DataLake.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,17 +11,15 @@ using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
-	internal class FileSystemOperations
+	public class FileSystemOperations
 	{
 		private readonly ILogger log;
 		private readonly DataLakeServiceClient dlsClient;
 
-		public FileSystemOperations(Uri storageUri, ILogger log)
+		public FileSystemOperations(ILogger log, TokenCredential tokenCredential, Uri storageUri)
 		{
 			this.log = log;
-
-			// TODO: Consider modifying DefaultAzureCredential options to limit which credentials are supported?
-			dlsClient = new DataLakeServiceClient(storageUri, new DefaultAzureCredential());
+			dlsClient = new DataLakeServiceClient(storageUri, tokenCredential);
 		}
 
 		public async Task<Result> AddsFolderOwnerToContainerACLAsExecute(string fileSystem, string folderOwner)
