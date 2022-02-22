@@ -28,20 +28,12 @@ jobs:
         with:
           submodules: true
 
-      - name: Find Tag
-        id: tagger
-        uses: jimschubert/query-tag-action@v1
-        with:
-          include: 'v*'
-          exclude: '*-rc*'
-          commit-ish: 'HEAD~'
       - name: Show Tag
         id: display
         run: |
-          echo 'Output from Find Tag: ${{steps.tagger.outputs.tag}}'
-          echo "release_tag=${{steps.tagger.outputs.tag}}" >> $GITHUB_ENV
+          echo "build_label=${{github.workflow}}-${{github.run_number}}" >> $GITHUB_ENV
       - name: Display contents of release tag
-        run: cat ${{env.release_tag}}
+        run: cat ${{env.build_label}}
 
       # Replace __APP_VERSION__ in footer
       - name: Replace APP_VERSION in footer
@@ -49,7 +41,7 @@ jobs:
         with:
           filename: ${{ env.footerjs }}
         env:
-          APP_VERSION: ${{ env.release_tag }}
+          APP_VERSION: ${{ env.build_label }}
 
       # Replace __AZURE_TENANT_ID__ in staticwebapp.config.json variables
       - name: Add Azure Tenant ID in staticwebapp.config.json
