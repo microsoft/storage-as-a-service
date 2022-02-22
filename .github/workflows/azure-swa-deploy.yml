@@ -28,12 +28,11 @@ jobs:
         with:
           submodules: true
 
-      - name: Show Tag
+      - name: Create Build Label
         id: display
         run: |
           echo "build_label=${{github.workflow}}-${{github.run_number}}" >> $GITHUB_ENV
-      - name: Display contents of release tag
-        run: cat ${{env.build_label}}
+          echo ${{env.build_label}}
 
       # Replace __APP_VERSION__ in footer
       - name: Replace APP_VERSION in footer
