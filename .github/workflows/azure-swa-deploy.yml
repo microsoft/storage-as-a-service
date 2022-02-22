@@ -39,8 +39,9 @@ jobs:
         id: display
         run: |
           echo 'Output from Find Tag: ${{steps.tagger.outputs.tag}}'
-      - env:
-          release_tag: ${{steps.tagger.outputs.tag}}
+          echo "release_tag=${{steps.tagger.outputs.tag}}" >> $GITHUB_ENV
+      - name: Display contents of release tag
+        run: cat ${{env.release_tag}}
 
       # Replace __APP_VERSION__ in footer
       - name: Replace APP_VERSION in footer
@@ -48,10 +49,7 @@ jobs:
         with:
           filename: ${{ env.footerjs }}
         env:
-          APP_VERSION: ${{ github.ref }}
-
-      - name: Display contents of original staticwebapp.config.json file
-        run: cat ${{env.release_tag}}
+          APP_VERSION: ${{ release_tag }}
 
       # Replace __AZURE_TENANT_ID__ in staticwebapp.config.json variables
       - name: Add Azure Tenant ID in staticwebapp.config.json
