@@ -28,8 +28,22 @@ jobs:
         with:
           submodules: true
 
+      - name: Find Tag
+        id: tagger
+        uses: jimschubert/query-tag-action@v1
+        with:
+          include: 'v*'
+          exclude: '*-rc*'
+          commit-ish: 'HEAD~'
+      - name: Show Tag
+        id: display
+        run: |
+          echo 'Output from Find Tag: ${{steps.tagger.outputs.tag}}'
+      - env:
+          release_tag: ${{steps.tagger.outputs.tag}}
+
       # Replace __APP_VERSION__ in footer
-      - name: Replce APP_VERSION in footer
+      - name: Replace APP_VERSION in footer
         uses: falnyr/replace-env-vars-action@master
         with:
           filename: ${{ env.footerjs }}
@@ -37,7 +51,7 @@ jobs:
           APP_VERSION: ${{ github.ref }}
 
       - name: Display contents of original staticwebapp.config.json file
-        run: cat ${{env.swaconfig}}
+        run: cat ${{env.release_tag}}
 
       # Replace __AZURE_TENANT_ID__ in staticwebapp.config.json variables
       - name: Add Azure Tenant ID in staticwebapp.config.json
