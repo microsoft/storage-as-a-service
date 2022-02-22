@@ -7,7 +7,7 @@ const Footer = ({strings}) => {
     return (
         <section className='footer'>
             <CopyrightIcon />{new Date().getFullYear()} - {strings.companyName} - All rights reserved
-            <span style="float:right">Version:  __APP_VERSION__</span>
+            <span className='version'>Version:  __APP_VERSION__</span>
         </section>
     )
 }
