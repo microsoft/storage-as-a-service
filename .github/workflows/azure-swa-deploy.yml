@@ -1,6 +1,7 @@
 name: Azure Static Web Apps CI/CD
 env:
   swaconfig: src/front/staticwebapp.config.json
+  footerjs:  src/front/src/components/Footer/Footer.js
 
 on:
   push:
@@ -27,8 +28,13 @@ jobs:
         with:
           submodules: true
 
-      - name: Display contents of original staticwebapp.config.json file
-        run: cat ${{env.swaconfig}}
+      # Replace __APP_VERSION__ in footer
+      - name: Replace APP_VERSION in footer
+        uses: falnyr/replace-env-vars-action@master
+        with:
+          filename: ${{ env.footerjs }}
+        env:
+          APP_VERSION: ${{github.workflow}}.${{github.head_ref}}.${{github.run_number}}
 
       # Replace __AZURE_TENANT_ID__ in staticwebapp.config.json variables
       - name: Add Azure Tenant ID in staticwebapp.config.json
