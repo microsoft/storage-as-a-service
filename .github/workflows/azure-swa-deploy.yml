@@ -49,7 +49,7 @@ jobs:
         with:
           filename: ${{ env.footerjs }}
         env:
-          APP_VERSION: ${{ release_tag }}
+          APP_VERSION: ${{ env.release_tag }}
 
       # Replace __AZURE_TENANT_ID__ in staticwebapp.config.json variables
       - name: Add Azure Tenant ID in staticwebapp.config.json
