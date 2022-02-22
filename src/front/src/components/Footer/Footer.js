@@ -7,6 +7,7 @@ const Footer = ({strings}) => {
     return (
         <section className='footer'>
             <CopyrightIcon />{new Date().getFullYear()} - {strings.companyName} - All rights reserved
+            <i>Version:  __AZURE_TENANT_ID__</i>
         </section>
     )
 }
