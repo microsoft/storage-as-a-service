@@ -31,7 +31,7 @@ jobs:
       - name: Create Build Label
         id: display
         run: |
-          echo "build_label=${{github.workflow}}-${{github.run_number}}" >> $GITHUB_ENV
+          echo "build_label=${{github.ref}}.${{github.run_id}}.${{github.run_number}}" >> $GITHUB_ENV
           echo ${{env.build_label}}
 
       # Replace __APP_VERSION__ in footer
