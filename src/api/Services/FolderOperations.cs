@@ -26,7 +26,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				decimal.TryParse(costPerTB, out this.costPerTB);
 
 			// TODO: Call helper function to create DataLakeServiceClient
-			dlfsClient = new DataLakeServiceClient(storageUri, new DefaultAzureCredential()).GetFileSystemClient(fileSystem);
+			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential).GetFileSystemClient(fileSystem);
 		}
 
 		internal async Task<Result> CreateNewFolder(string folder)

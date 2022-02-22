@@ -84,13 +84,19 @@ const StorageAccountsPage = ({ strings }) => {
 	const handleCreateDirectory = (data) => {
 		// Calls the API to save the directory
 		createFolder(selectedStorageAccount, selectedFileSystem, account.userDetails, data)
-			.then((newDirectory) => {
-				// TODO: Match sort order to sort order from API (by URI)
-				const _directories = [...directories, newDirectory].sort((a, b) => a.uri < b.uri ? -1 : a.uri > b.uri ? 1 : 0)
-				setDirectories(_directories)
+			.then((response) => {
+				if (response.Folder) {
+					// TODO: Match sort order to sort order from API (by URI)
+					const _directories = [...directories, response.Folder].sort((a, b) => a.uri < b.uri ? -1 : a.uri > b.uri ? 1 : 0)
+					setDirectories(_directories)
 
-				// Display a toast
-				displayToast(strings.directoryCreated(newDirectory.name))
+					// Display a toast
+					displayToast(strings.directoryCreated(response.Folder.name))
+				}
+				else {
+					console.error(response.Error);
+					displayToast(response.Error);
+				}
 			})
 			.catch(error => {
 				console.error(error)

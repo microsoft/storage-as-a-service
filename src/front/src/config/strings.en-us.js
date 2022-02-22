@@ -1,4 +1,5 @@
 const strings = {
+	error: 'An error occured, see the console for details.',
 	appTitle: 'Storage as a Service',
 	companyName: 'Contoso University',
 	directoryCreated: name => `Folder '${name}' Created!`,

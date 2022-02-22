@@ -76,12 +76,6 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult("Unable to authenticate user.");
 			}
 
-			// Authorize the calling user as owner of the container
-			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
-			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserId(claimsPrincipal));			
-			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
-				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
-
 			// Extracting body object from the call and deserializing it.
 			var tlfp = await GetTopLevelFolderParameters(req, log);
 			if (tlfp == null)
@@ -90,6 +84,13 @@ namespace Microsoft.UsEduCsu.Saas
 			// Add Route Parameters
 			tlfp.StorageAcount ??= account;
 			tlfp.FileSystem ??= filesystem;
+
+			// Authorize the calling user as owner of the container
+			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserId(claimsPrincipal))
+							.Where( ra => ra.Container == tlfp.FileSystem).ToList();
+			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
+				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
 
 			// Check Parameters
 			string error = null;

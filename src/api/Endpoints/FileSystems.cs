@@ -70,11 +70,13 @@ namespace Microsoft.UsEduCsu.Saas
                 var containers = GetContainers(log, acct, upn, principalId);
 
                 // Add the current account and the permissioned containers to the result set
-                result.Add(new FileSystemResult()
+                var fs = new FileSystemResult()
                 {
                     Name = acct,
                     FileSystems = containers.Distinct().OrderBy(c => c).ToList()
-                });
+                };
+                if (fs.FileSystems.Count()> 0)
+                    result.Add(fs);
             });
 
             log.LogTrace(JsonConvert.SerializeObject(result, Formatting.None));
