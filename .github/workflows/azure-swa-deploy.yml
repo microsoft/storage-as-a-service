@@ -28,19 +28,13 @@ jobs:
         with:
           submodules: true
 
-      - name: Create Build Label
-        id: display
-        run: |
-          echo "build_label=${{github.workflow}}.${{github.head_ref}}.${{github.run_number}}" >> $GITHUB_ENV
-          echo ${{env.build_label}}
-
       # Replace __APP_VERSION__ in footer
       - name: Replace APP_VERSION in footer
         uses: falnyr/replace-env-vars-action@master
         with:
           filename: ${{ env.footerjs }}
         env:
-          APP_VERSION: ${{ env.build_label }}
+          APP_VERSION: ${{github.workflow}}.${{github.head_ref}}.${{github.run_number}}"
 
       # Replace __AZURE_TENANT_ID__ in staticwebapp.config.json variables
       - name: Add Azure Tenant ID in staticwebapp.config.json
