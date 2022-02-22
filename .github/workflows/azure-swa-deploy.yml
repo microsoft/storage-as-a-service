@@ -31,7 +31,7 @@ jobs:
       - name: Replce APP_VERSION in footer
         uses: falnyr/replace-env-vars-action@master
         with:
-          filename: "/src/front/components/Footer/Footer.js"
+          filename: "src/front/components/Footer/Footer.js"
         env:
           APP_VERSION: ${{ github.ref }}
 
