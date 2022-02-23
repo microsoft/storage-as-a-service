@@ -12,7 +12,7 @@ using System.Linq;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
-	internal class RoleOperations
+	public class RoleOperations
 	{
 		// https://blogs.aaddevsup.xyz/2020/05/using-azure-management-libraries-for-net-to-manage-azure-ad-users-groups-and-rbac-role-assignments/
 

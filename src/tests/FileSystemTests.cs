@@ -8,6 +8,11 @@ using Azure.Identity;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 using Azure.Core;
+using Azure.Storage;
+using Azure.Storage.Files.DataLake;
+using System.Linq;
+using Microsoft.Extensions.Azure;
+using System.Threading;
 
 namespace Microsoft.UsEduCsu.Saas.Tests
 {
@@ -16,28 +21,54 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 
         ILogger log = new LoggerFactory().CreateLogger<FileSystemTests>();
 
+        public FileSystemTests()
+		{
+            ConfigureEnvironmentVariablesFromLocalSettings();
+		}
 
 		[Fact]
         public async void CreateManyFileSystems()
         {
-            ConfigureEnvironmentVariablesFromLocalSettings();
+            var owner = "john@researchuniversity.onmicrosoft.com";
+            var userOperations = new UserOperations(log, new DefaultAzureCredential());
+            var ownerId = await userOperations.GetObjectIdFromUPN(owner);
 
             var account = "stsaasdemoeastus0202";
-            var owner = "john@researchuniversity.onmicrosoft.com";
-            var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
-            var clientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
-            var clientSecret = Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
-            var tokenCredential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-           // var authRecord = tokenCredential.
             var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
-            var fileSystemOperations = new FileSystemOperations(log, tokenCredential, storageUri);
+            var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
+            var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+
             var rng = new Random();
 
             // Create Lots of Accounts
-            var rndValue = rng.Next(1000);
-            var result = await fileSystemOperations.CreateFileSystem($"fs{rndValue}", owner, $"{rndValue}");
-            log.LogTrace(result.Message);
+            for (int i = 0; i < 100; i++)
+            {
+                var rndValue = rng.Next(1000);
+                var fileSystem = $"fs{rndValue}";
+                var result = await fileSystemOperations.CreateFileSystem(fileSystem, owner, $"{rndValue}");
+
+                roleOperations.AssignRoles(account,fileSystem, ownerId);
+
+                log.LogTrace(result.Message);
+            }
         }
+
+        [Fact]
+        public void DeleteAllFileSystems()
+		{
+            var account = "stsaasdemoeastus0202";
+            var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
+
+            var tokenCredential = new DefaultAzureCredential();
+            var dlsClient = new DataLakeServiceClient(storageUri, tokenCredential);
+            var filesystems = dlsClient.GetFileSystems();
+
+            foreach(var filesystem in filesystems)
+			{
+                dlsClient.DeleteFileSystem(filesystem.Name);
+            }
+        }
+
 
         static void ConfigureEnvironmentVariablesFromLocalSettings()
         {

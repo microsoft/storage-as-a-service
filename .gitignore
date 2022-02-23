@@ -3,6 +3,9 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# Azure Functions localsettings file
+local.settings*.json
+
 # User-specific files
 *.rsuser
 *.suo
@@ -352,3 +355,5 @@ MigrationBackup/
 # Azurite
 __azurite_db_*.json
 __blobstorage__/*
+src/tests/local.settings.json
+src/tests/local.settings.json
