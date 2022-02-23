@@ -81,7 +81,7 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 		
 		let body = await response.json();
 
-		if (response.status <200 || response.status > 299)	// check for success
+		if (response.status < 200 || response.status > 299)	// check for success
 			folderResponse.Error = body.Message;
 		else
 			folderResponse.Folder = body;
