@@ -1,0 +1,8 @@
+.footer {
+    padding: 15px;
+    text-align: left;
+    font-weight: 600;
+}
+.version {
+    float: right;
+}

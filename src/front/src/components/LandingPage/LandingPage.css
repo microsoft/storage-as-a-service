@@ -1,0 +1,40 @@
+.landingpage {
+    display: flex;
+}
+
+.landingpage .access {
+    width: 35%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.landingpage .access .notes {
+}
+
+.landingpage .access .login {
+    display: flex;
+    justify-content: center;
+}
+
+.landingpage .access .link {
+    display: flex;
+    justify-content: center;
+}
+
+.landingpage .divider {
+    margin: 5px 30px;
+    padding: 2px;
+    min-width: 2px;
+    background-color: #666;
+    border-radius: 2px;
+}
+
+.landingpage .three {
+    width: 60%;
+}
+
+.landingpage .cando {
+    line-height: 3;
+    margin-bottom: 0;
+}

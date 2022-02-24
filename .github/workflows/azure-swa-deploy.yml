@@ -1,0 +1,82 @@
+name: Azure Static Web Apps CI/CD
+env:
+  swaconfig: src/front/staticwebapp.config.json
+  footerjs:  src/front/src/components/Footer/Footer.js
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  pull_request_target:
+    # Only run when the pull request has at least one label
+    # Exact label will be checked below
+    types: [labeled, reopened, closed]
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy_job:
+    if: github.event_name == 'workflow_dispatch'
+      || github.event_name == 'push'
+      || (github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)
+      || (github.event_name == 'pull_request_target' && github.event.action != 'closed' && contains(github.event.pull_request.labels.*.name, 'safe to test'))
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      # Replace __APP_VERSION__ in footer
+      - name: Replace APP_VERSION in footer
+        uses: falnyr/replace-env-vars-action@master
+        with:
+          filename: ${{ env.footerjs }}
+        env:
+          APP_VERSION: ${{github.workflow}}.${{github.head_ref}}.${{github.run_number}}
+
+      # Replace __AZURE_TENANT_ID__ in staticwebapp.config.json variables
+      - name: Add Azure Tenant ID in staticwebapp.config.json
+        uses: falnyr/replace-env-vars-action@master
+        with:
+          filename: ${{env.swaconfig}}
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+      - name: Display contents of updated staticwebapp.config.json file
+        run: cat ${{env.swaconfig}}
+
+      - name: Build And Deploy
+        id: builddeploy
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.SAS_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e., PR comments)
+          action: "upload"
+          ###### Repository/Build Configurations - These values can be configured to match your app requirements. ######
+          # For more information regarding Static Web App workflow configurations, please visit: https://aka.ms/swaworkflowconfig
+          app_location: "src/front" # App source code path
+          app_build_command: "npm i && npm run build"
+          output_location: "build" # Built app content directory - optional
+          api_location: "src/api" # Api source code path - optional
+          ###### End of Repository/Build Configurations ######
+
+  close_pull_request_job:
+    # On a pull request close
+    if:
+      (github.event_name == 'pull_request' || github.event_name == 'pull_request_target')
+      && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Remove SWA Environment on Pull Request Close Job
+    env:
+      swa_secret: ${{ secrets.SAS_DEPLOYMENT_TOKEN }}
+    steps:
+      - name: Remove SWA Environment
+        if: ${{ env.swa_secret }}
+        id: removeswaenvironment
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          # Remove the Environment that might have been created for the PR
+          azure_static_web_apps_api_token: ${{ secrets.SAS_DEPLOYMENT_TOKEN }}
+          action: "close"
