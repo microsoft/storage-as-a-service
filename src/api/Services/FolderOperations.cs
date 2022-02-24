@@ -1,3 +1,4 @@
+using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Files.DataLake;
 using Azure.Storage.Files.DataLake.Models;
@@ -15,15 +16,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private readonly DataLakeFileSystemClient dlfsClient;
 		private readonly decimal costPerTB;
-		public FolderOperations(Uri storageUri, string fileSystem, ILogger log)
+		private readonly TokenCredential tokenCredential;
+		public FolderOperations(ILogger log, TokenCredential tokenCredential, Uri storageUri, string fileSystem)
 		{
 			this.log = log;
+			this.tokenCredential = tokenCredential;
 			var costPerTB = Environment.GetEnvironmentVariable("COST_PER_TB");
 			if (costPerTB != null)
 				decimal.TryParse(costPerTB, out this.costPerTB);
 
 			// TODO: Call helper function to create DataLakeServiceClient
-			dlfsClient = new DataLakeServiceClient(storageUri, new DefaultAzureCredential()).GetFileSystemClient(fileSystem);
+			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential).GetFileSystemClient(fileSystem);
 		}
 
 		internal async Task<Result> CreateNewFolder(string folder)
@@ -155,7 +158,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			try
 			{
 				// Get Role Assignments
-				var roleOperations = new RoleOperations(log);
+				var roleOperations = new RoleOperations(log, tokenCredential);
 
 				// Translate for guest accounts
 				var guestUpn = Simplify(upn);

@@ -14,6 +14,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Azure.Identity;
 
 namespace Microsoft.UsEduCsu.Saas
 {
@@ -69,11 +70,13 @@ namespace Microsoft.UsEduCsu.Saas
                 var containers = GetContainers(log, acct, upn, principalId);
 
                 // Add the current account and the permissioned containers to the result set
-                result.Add(new FileSystemResult()
+                var fs = new FileSystemResult()
                 {
                     Name = acct,
                     FileSystems = containers.Distinct().OrderBy(c => c).ToList()
-                });
+                };
+                if (fs.FileSystems.Count()> 0)
+                    result.Add(fs);
             });
 
             log.LogTrace(JsonConvert.SerializeObject(result, Formatting.None));
@@ -90,7 +93,7 @@ namespace Microsoft.UsEduCsu.Saas
             // TODO: Expand to include all containers if principal has Storage Blob * assignment on account as a whole
             try
             {
-                var x = new RoleOperations(log);
+                var x = new RoleOperations(log, new DefaultAzureCredential());
                 var containerRoles = x.GetContainerRoleAssignments(account, principalId);
 
                 // If any direct RBAC assignments exist on containers in this account
@@ -114,7 +117,7 @@ namespace Microsoft.UsEduCsu.Saas
 
             // TODO: Centralize this to account for other clouds
             var serviceUri = new Uri($"https://{account}.dfs.core.windows.net");
-            var adls = new FileSystemOperations(serviceUri, log);
+            var adls = new FileSystemOperations(log, new DefaultAzureCredential(), serviceUri);
 
             // Get containers for which principal has ACL assignment
             try
@@ -155,14 +158,18 @@ namespace Microsoft.UsEduCsu.Saas
             if (error != null)
                 return new BadRequestErrorMessageResult(error);
 
+            // Setup Azure Credential
+            var tokenCredential = new DefaultAzureCredential();
+
             // Get Blob Owner
-            var ownerId = await UserOperations.GetObjectIdFromUPN(tlfp.Owner);
+            var userOperations = new UserOperations(log, tokenCredential);
+            var ownerId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
             if (ownerId == null)
                 return new BadRequestErrorMessageResult("Owner identity not found. Please verify that the Owner is a valid member UPN and that the application has User.Read.All permission in the directory.");
 
             // Call each of the steps in order and error out if anytyhing fails
             var storageUri = new Uri($"https://{tlfp.StorageAcount}.dfs.core.windows.net");
-            var fileSystemOperations = new FileSystemOperations(storageUri, log);
+            var fileSystemOperations = new FileSystemOperations(log, tokenCredential, storageUri);
 
             // Create File System
             Result result = await fileSystemOperations.CreateFileSystem(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode);
@@ -170,11 +177,11 @@ namespace Microsoft.UsEduCsu.Saas
                 return new BadRequestErrorMessageResult(result.Message);
 
             // Add Blob Owner
-            var roleOperations = new RoleOperations(log);
+            var roleOperations = new RoleOperations(log, tokenCredential);
             roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerId);
 
             // Get Root Folder Details
-            var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log);
+            var folderOperations = new FolderOperations(log, tokenCredential, storageUri, tlfp.FileSystem);
             var folderDetail = folderOperations.GetFolderDetail(String.Empty);
 
             return new OkObjectResult(folderDetail);

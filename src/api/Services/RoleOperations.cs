@@ -12,18 +12,20 @@ using System.Linq;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
-	internal class RoleOperations
+	public class RoleOperations
 	{
 		// https://blogs.aaddevsup.xyz/2020/05/using-azure-management-libraries-for-net-to-manage-azure-ad-users-groups-and-rbac-role-assignments/
 
 		private readonly ILogger log;
 		private TokenCredentials tokenCredentials;
+		private TokenCredential tokenCredential;
 
 		private static IList<RoleDefinition> roleDefinitions;
 
-		public RoleOperations(ILogger log)
+		public RoleOperations(ILogger log,TokenCredential tokenCredential)
 		{
 			this.log = log;
+			this.tokenCredential = tokenCredential;
 		}
 
 		private void VerifyToken()

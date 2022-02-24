@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -49,7 +50,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// TODO: Account for different clouds: don't hardcode the domain
 			// TODO: Call helper function to form storage URI
 			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
-			var folderOperations = new FolderOperations(storageUri, filesystem, log);
+			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, filesystem);
 			var folders = folderOperations.GetAccessibleFolders(user, principalId);
 			var sortedFolders = folders.OrderBy(f => f.URI).ToList();
 
@@ -75,12 +76,6 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult("Unable to authenticate user.");
 			}
 
-			// Authorize the calling user as owner of the container
-			var roleOperations = new RoleOperations(log);
-			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserId(claimsPrincipal));			
-			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
-				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
-
 			// Extracting body object from the call and deserializing it.
 			var tlfp = await GetTopLevelFolderParameters(req, log);
 			if (tlfp == null)
@@ -90,6 +85,13 @@ namespace Microsoft.UsEduCsu.Saas
 			tlfp.StorageAcount ??= account;
 			tlfp.FileSystem ??= filesystem;
 
+			// Authorize the calling user as owner of the container
+			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserId(claimsPrincipal))
+							.Where( ra => ra.Container == tlfp.FileSystem).ToList();
+			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
+				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
+
 			// Check Parameters
 			string error = null;
 			if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
@@ -97,8 +99,8 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Call each of the steps in order and error out if anytyhing fails
 			var storageUri = new Uri($"https://{tlfp.StorageAcount}.dfs.core.windows.net");
-			var fileSystemOperations = new FileSystemOperations(storageUri, log);
-			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log);
+			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
+			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, tlfp.FileSystem);
 
 			Result result = null;
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);

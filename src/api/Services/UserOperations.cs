@@ -1,7 +1,9 @@
 using Azure.Core;
 using Azure.Identity;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
+using Microsoft.Rest;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +12,7 @@ using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 
@@ -17,12 +20,22 @@ namespace Microsoft.UsEduCsu.Saas.Services
 {
 	public class UserOperations
 	{
-		public static async Task<string> GetObjectIdFromUPN(string upn)
+		private ILogger log;
+		private TokenCredential tokenCredential;
+
+		public UserOperations(ILogger log, TokenCredential tokenCredential)
+		{
+			this.log = log;
+			this.tokenCredential = tokenCredential;
+		}
+
+		public async Task<string> GetObjectIdFromUPN(string upn)
 		{
 			try
 			{
 				var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });
-				var accessToken = new DefaultAzureCredential().GetToken(tokenRequestContext);
+				var cancellationToken = new CancellationToken();
+				var accessToken = await tokenCredential.GetTokenAsync(tokenRequestContext, cancellationToken);
 				var authProvider = new DelegateAuthenticationProvider((requestMessage) =>
 				{
 					requestMessage
@@ -41,7 +54,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				var user = await graphClient
 					.Users[upn]
 					.Request()
-					.GetAsync();
+					.GetAsync(cancellationToken);
 
 				return user.Id;
 			}
