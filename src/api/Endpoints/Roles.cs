@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
+using Microsoft.UsEduCsu.Saas.Services;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -37,6 +39,12 @@ namespace Microsoft.UsEduCsu.Saas
 				log.LogInformation($"Assigning {additionalRoles.Length} additional role(s) '{string.Join(',', additionalRoles)}' to '{it.UserDetails}'.");
 
 				rr.Roles = additionalRoles;
+
+				// Cache the accessToken
+				if (it.AccessToken != null)
+				{
+					CacheHelper.GetRedisCacheHelper(log).SetAccessToken(it.UserId, it.AccessToken);
+				}
 			}
 
 			return new OkObjectResult(rr);

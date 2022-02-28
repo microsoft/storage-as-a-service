@@ -93,6 +93,25 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			identity.AddClaim(new Claim(ClaimTypes.Name, principal.UserDetails));
 			identity.AddClaims(principal.UserRoles.Select(r => new Claim(ClaimTypes.Role, r)));
 
+			// Add default claims
+			if (principal.Claims == null)
+			{
+				principal.Claims = new List<ClientPrincipal.Claim>()
+				{
+					new ClientPrincipal.Claim("iss", $"https://login.microsoftonline.com/{SasConfiguration.TenantId}/v2.0"),
+					new ClientPrincipal.Claim("aud", SasConfiguration.ClientId),
+					new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/tenantid",SasConfiguration.TenantId),
+					new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", principal.UserId)
+				};
+
+			}
+
+			// Join all the existing claims
+			foreach(var principalClaim in principal.Claims)
+			{
+				identity.AddClaim(new Claim(principalClaim.Typ, principalClaim.Val));
+			}
+
 			return new ClaimsPrincipal(identity);
 		}
 
@@ -108,6 +127,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string UserId { get; set; }
 			public string UserDetails { get; set; }
 			public IEnumerable<string> UserRoles { get; set; }
+			public IEnumerable<ClientPrincipal.Claim> Claims { get; set; }
+
+			public class Claim
+			{
+				public Claim(string typ, string val)
+				{
+					Typ = typ;
+					Val = val;
+				}
+				public string Typ { get; set; }
+				public string Val { get; set; }
+			}
 		}
 	}
 }

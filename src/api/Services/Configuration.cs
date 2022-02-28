@@ -10,19 +10,22 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		const string FileSystemApiKeySettingName = "FILESYSTEMS_API_KEY";
 		const string ConfigurationApiKeySettingName = "CONFIGURATION_API_KEY";
 
+		internal static string TenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
+		internal static string ClientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
+		internal static string ClientSecret = Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
+
 		internal static ConfigurationResult GetConfiguration()
 		{
 			var dlsa = Environment.GetEnvironmentVariable("DATALAKE_STORAGE_ACCOUNTS");
 			var accounts = dlsa.Replace(',', ';').Split(';');
-			// TODO: This doesn't do anything because the result of Trim isn't assigned
-			Array.ForEach(accounts, x => x.Trim());
+			Array.ForEach(accounts, x => x = x.Trim());
 			accounts = accounts.Where(x => x.Length > 0).ToArray();
 
 			// Config
 			var result = new ConfigurationResult()
 			{
-				TenantId = Environment.GetEnvironmentVariable("TENANT_ID"),
-				ClientId = Environment.GetEnvironmentVariable("APP_REGISTRATION_CLIENT_ID"),
+				TenantId = TenantId,
+				ClientId = ClientId,
 				StorageAccounts = accounts
 			};
 			return result;

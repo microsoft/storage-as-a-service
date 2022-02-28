@@ -171,7 +171,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					var roles = roleOperations.GetContainerRoleAssignments(dlfsClient.AccountName, principalId)
 											.Where( ra => ra.Container == dlfsClient.Name
 														&& ra.PrincipalId == principalId);
-					if (roles.Count() > 0) {
+					if (roles.Any()) {
 						fd.Name = "{root}";
 						fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {upn}"));
 						accessibleFolders.Add(fd);

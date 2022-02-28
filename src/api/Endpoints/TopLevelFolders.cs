@@ -98,16 +98,20 @@ namespace Microsoft.UsEduCsu.Saas
 				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
 
 			// Call each of the steps in order and error out if anytyhing fails
+			Result result = null;
 			var storageUri = new Uri($"https://{tlfp.StorageAcount}.dfs.core.windows.net");
 			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
 			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, tlfp.FileSystem);
 
-			Result result = null;
+			// Create Folders and Assign permissions
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
-			result = await fileSystemOperations.AddsFolderOwnerToContainerACLAsExecute(tlfp.FileSystem, tlfp.FolderOwner);
+			// Add folder owner or a larger group to the container ACL
+			var groupACL = Environment.GetEnvironmentVariable("ACL_ROOT_GROUP");
+			var rootOwner = (groupACL != null) ? groupACL : tlfp.FolderOwner;
+			result = await fileSystemOperations.AddsFolderOwnerToContainerACLAsExecute(tlfp.FileSystem, rootOwner);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 

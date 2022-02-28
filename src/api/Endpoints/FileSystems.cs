@@ -1,10 +1,11 @@
+using Azure.Core;
+using Azure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Management.Authorization.Models;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Microsoft.UsEduCsu.Saas.Services;
 using System;
 using System.Collections.Generic;
@@ -12,30 +13,34 @@ using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Azure.Identity;
 
 namespace Microsoft.UsEduCsu.Saas
 {
-    public static class FileSystems
+	public static class FileSystems
     {
+        public static ILogger logger;
+
         [FunctionName("FileSystems")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
-            HttpRequest req, ILogger log, String account)
+            HttpRequest req, 
+            ILogger log, String account)
         {
+
             if (req.Method == HttpMethods.Post)
                 return await FileSystemsPOST(req, log, account);
 
             if (req.Method == HttpMethods.Get)
-                return FileSystemsGET(req, log, account);
+                return await FileSystemsGET(req, log, account);
 
             // TODO: If this is even possible (accepted methods are defined above?) return HTTP error code 405, response must include an Allow header with allowed methods
             return null;
         }
 
-        private static IActionResult FileSystemsGET(HttpRequest req, ILogger log, string account)
+		private static async Task<IActionResult> FileSystemsGET(HttpRequest req, ILogger log, string account)
         {
             // Check for logged in user
             ClaimsPrincipal claimsPrincipal;
@@ -57,8 +62,10 @@ namespace Microsoft.UsEduCsu.Saas
                 .FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?
                 .Value;
 
+            // Calculate User Credential
+            var userCredential = GenerateUserTokenCredential(principalId);
+
             // Get the Containers for a upn from each storage account
-            // TODO: Check for account != null first
             var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
             if (account != null)
                 accounts = accounts.Where(a => a.ToLowerInvariant() == account).ToArray();
@@ -67,7 +74,7 @@ namespace Microsoft.UsEduCsu.Saas
             var result = new List<FileSystemResult>();
 
             Parallel.ForEach(accounts, acct => {
-                var containers = GetContainers(log, acct, upn, principalId);
+                var containers = GetContainers(log, userCredential, acct, upn, principalId);
 
                 // Add the current account and the permissioned containers to the result set
                 var fs = new FileSystemResult()
@@ -75,17 +82,37 @@ namespace Microsoft.UsEduCsu.Saas
                     Name = acct,
                     FileSystems = containers.Distinct().OrderBy(c => c).ToList()
                 };
-                if (fs.FileSystems.Count()> 0)
+                if (fs.FileSystems.Any())
                     result.Add(fs);
             });
 
-            log.LogTrace(JsonConvert.SerializeObject(result, Formatting.None));
+            
+            log.LogTrace(JsonSerializer.Serialize(result));
 
             // Send back the Accounts and FileSystems
             return new OkObjectResult(result);
         }
 
-        private static IList<string> GetContainers(ILogger log, string account, string upn, string principalId)
+        public static TokenCredential GenerateUserTokenCredential(string userId)
+        {
+            try
+            {
+                var accessToken = CacheHelper.GetRedisCacheHelper(logger).GetAccessToken(userId);
+                if (string.IsNullOrEmpty(accessToken))
+                    return new DefaultAzureCredential();
+                var tc = new OnBehalfOfCredential(SasConfiguration.TenantId,
+                  SasConfiguration.ClientId, SasConfiguration.ClientSecret,
+                  accessToken);
+                return tc;
+            }
+            catch (Exception ex)
+			{
+                logger.LogError(ex.Message);
+                return null;
+			}
+        }
+
+        private static IList<string> GetContainers(ILogger log, TokenCredential credential, string account, string upn, string principalId)
         {
             var containers = new List<string>();
 
@@ -93,7 +120,7 @@ namespace Microsoft.UsEduCsu.Saas
             // TODO: Expand to include all containers if principal has Storage Blob * assignment on account as a whole
             try
             {
-                var x = new RoleOperations(log, new DefaultAzureCredential());
+                var x = new RoleOperations(log, new DefaultAzureCredential());      // Use the App Credential
                 var containerRoles = x.GetContainerRoleAssignments(account, principalId);
 
                 // If any direct RBAC assignments exist on containers in this account
@@ -117,7 +144,7 @@ namespace Microsoft.UsEduCsu.Saas
 
             // TODO: Centralize this to account for other clouds
             var serviceUri = new Uri($"https://{account}.dfs.core.windows.net");
-            var adls = new FileSystemOperations(log, new DefaultAzureCredential(), serviceUri);
+            var adls = new FileSystemOperations(log, credential, serviceUri);
 
             // Get containers for which principal has ACL assignment
             try
@@ -132,7 +159,6 @@ namespace Microsoft.UsEduCsu.Saas
             }
             return containers;
         }
-
 
         private static async Task<IActionResult> FileSystemsPOST(HttpRequest req, ILogger log, string account)
         {
@@ -187,7 +213,6 @@ namespace Microsoft.UsEduCsu.Saas
             return new OkObjectResult(folderDetail);
         }
 
-
         internal static async Task<FileSystemParameters> GetFileSystemParameters(HttpRequest req, ILogger log)
         {
             string body = string.Empty;
@@ -199,7 +224,7 @@ namespace Microsoft.UsEduCsu.Saas
                     log.LogError("Body was empty coming from ReadToEndAsync");
                 }
             }
-            var bodyDeserialized = JsonConvert.DeserializeObject<FileSystemParameters>(body);
+            var bodyDeserialized = JsonSerializer.Deserialize<FileSystemParameters>(body);
             return bodyDeserialized;
         }
 
