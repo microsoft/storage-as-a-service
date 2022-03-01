@@ -24,7 +24,7 @@
 				"login": {
 				  "loginParameters": [
 					"scope=api://395a3629-88c3-4d7c-8423-d80b585d30bb/access_as_user https://graph.microsoft.com/.default https://storage.azure.com/user_impersonation",
-					"resource=https://storage.azure.com"
+					"resource=api://395a3629-88c3-4d7c-8423-d80b585d30bb"
 				  ]
 				}			
 			}
