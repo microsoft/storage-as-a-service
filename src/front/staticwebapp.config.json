@@ -24,7 +24,8 @@
 				"login": {
 				  "loginParameters": [
 					"response_type=code id_token",
-					"scope=api://395a3629-88c3-4d7c-8423-d80b585d30bb/access_as_user https://graph.microsoft.com"
+					"scope=api://395a3629-88c3-4d7c-8423-d80b585d30bb/access_as_user https://graph.microsoft.com",
+					"aud=395a3629-88c3-4d7c-8423-d80b585d30bb"
 				  ]
 				}			
 			}
