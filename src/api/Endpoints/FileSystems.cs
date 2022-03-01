@@ -16,6 +16,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Azure.Identity;
 
 namespace Microsoft.UsEduCsu.Saas
 {
