@@ -14,6 +14,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Azure.Identity;
@@ -104,6 +105,9 @@ namespace Microsoft.UsEduCsu.Saas
                 var tc = new OnBehalfOfCredential(SasConfiguration.TenantId,
                   SasConfiguration.ClientId, SasConfiguration.ClientSecret,
                   accessToken);
+                //var requestContext = new TokenRequestContext(new string[] { "api://395a3629-88c3-4d7c-8423-d80b585d30bb/access_as_user" });
+                //var ct = new CancellationToken();
+                //var tokenTest = tc.GetToken(requestContext, ct);
                 return tc;
             }
             catch (Exception ex)
