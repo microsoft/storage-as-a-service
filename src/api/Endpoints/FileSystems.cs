@@ -64,9 +64,6 @@ namespace Microsoft.UsEduCsu.Saas
                 .FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?
                 .Value;
 
-            // Calculate User Credential
-            var userCredential = GenerateUserTokenCredential(principalId);
-
             // Get the Containers for a upn from each storage account
             var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
             if (account != null)
@@ -75,18 +72,21 @@ namespace Microsoft.UsEduCsu.Saas
             // Define the return value
             var result = new List<FileSystemResult>();
 
-            Parallel.ForEach(accounts, acct => {
-                var containers = GetContainers(log, userCredential, acct, upn, principalId);
+			//Parallel.ForEach(accounts, acct => {
+			foreach (var acct in accounts)
+			{
+				var containers = GetContainers(log, acct, upn, principalId);
 
-                // Add the current account and the permissioned containers to the result set
-                var fs = new FileSystemResult()
-                {
-                    Name = acct,
-                    FileSystems = containers.Distinct().OrderBy(c => c).ToList()
-                };
-                if (fs.FileSystems.Any())
-                    result.Add(fs);
-            });
+				// Add the current account and the permissioned containers to the result set
+				var fs = new FileSystemResult()
+				{
+					Name = acct,
+					FileSystems = containers.Distinct().OrderBy(c => c).ToList()
+				};
+				if (fs.FileSystems.Any())
+					result.Add(fs);
+			}
+				//});
 
             
             log.LogTrace(JsonSerializer.Serialize(result));
@@ -95,73 +95,35 @@ namespace Microsoft.UsEduCsu.Saas
             return new OkObjectResult(result);
         }
 
-        public static TokenCredential GenerateUserTokenCredential(string userId)
-        {
-            try
-            {
-                var accessToken = CacheHelper.GetRedisCacheHelper(logger).GetAccessToken(userId);
-                if (string.IsNullOrEmpty(accessToken))
-                    return new DefaultAzureCredential();
-                var tc = new OnBehalfOfCredential(SasConfiguration.TenantId,
-                  SasConfiguration.ClientId, SasConfiguration.ClientSecret,
-                  accessToken);
-                //var requestContext = new TokenRequestContext(new string[] { "api://395a3629-88c3-4d7c-8423-d80b585d30bb/access_as_user" });
-                //var ct = new CancellationToken();
-                //var tokenTest = tc.GetToken(requestContext, ct);
-                return tc;
-            }
-            catch (Exception ex)
-			{
-                logger.LogError(ex.Message);
-                return null;
-			}
-        }
-
-        private static IList<string> GetContainers(ILogger log, TokenCredential credential, string account, string upn, string principalId)
+        private static IList<string> GetContainers(ILogger log, string account, string upn, string principalId)
         {
             var containers = new List<string>();
 
-            // Get containers for which principal has data plane RBAC assignment
-            // TODO: Expand to include all containers if principal has Storage Blob * assignment on account as a whole
-            try
-            {
-                var x = new RoleOperations(log, new DefaultAzureCredential());      // Use the App Credential
-                var containerRoles = x.GetContainerRoleAssignments(account, principalId);
+			var serviceUri = SasConfiguration.GetStorageUri(account);
+            var adls = new FileSystemOperations(log, new DefaultAzureCredential(), serviceUri);
 
-                // If any direct RBAC assignments exist on containers in this account
-                if (containerRoles?.Count > 0)
-                {
-                    containers.AddRange(containerRoles.Select(s => s.Container));
-                }
-            }
-            catch (ErrorResponseException ex) when (ex.Message.Contains("'Forbidden'"))
-            {
-                // It's likely the App Registration doesn't have the proper permission at the storage account level
-                log.LogError(ex, $"Error retrieving RBAC permissions for storage account {account}: {ex.Message}");
-                // Skip this storage account entirely
-                return containers;
-            }
-            catch (Exception ex)
-            {
-                log.LogError(ex, ex.Message);
-                containers.Add(ex.Message);
-            }
+			var fileSystems = adls.GetFilesystems();
 
-            // TODO: Centralize this to account for other clouds
-            var serviceUri = new Uri($"https://{account}.dfs.core.windows.net");
-            var adls = new FileSystemOperations(log, credential, serviceUri);
+			// Transition to User Credentials
+			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 
-            // Get containers for which principal has ACL assignment
-            try
-            {
-                var clist = adls.GetContainersForUpn(upn).ToArray();
-                containers.AddRange(clist);
-            }
-            catch (Exception ex)
-            {
-                log.LogError(ex, ex.Message);
-                containers.Add(ex.Message);
-            }
+			foreach(var filesystem in fileSystems)
+			{
+				var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
+				try
+				{
+					var folders = folderOps.GetAccessibleFolders();
+					//var fd = folderOps.GetFolderDetail(string.Empty);        // User can at least read the root data
+					//if (fd != null)
+					if (folders.Count > 0)
+						containers.Add(filesystem.Name);
+				}
+				catch (Exception ex)
+				{
+					log.LogTrace($"{principalId} does not have access to {filesystem.Name}");
+				}
+			}
+
             return containers;
         }
 
@@ -199,7 +161,7 @@ namespace Microsoft.UsEduCsu.Saas
                 return new BadRequestErrorMessageResult("Owner identity not found. Please verify that the Owner is a valid member UPN and that the application has User.Read.All permission in the directory.");
 
             // Call each of the steps in order and error out if anytyhing fails
-            var storageUri = new Uri($"https://{tlfp.StorageAcount}.dfs.core.windows.net");
+            var storageUri = SasConfiguration.GetStorageUri("tlfp.StorageAcount");
             var fileSystemOperations = new FileSystemOperations(log, tokenCredential, storageUri);
 
             // Create File System

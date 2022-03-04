@@ -9,7 +9,9 @@
 		"AZURE_CLIENT_ID": "395a3629-88c3-4d7c-8423-d80b585d30bb",
 		"AZURE_CLIENT_SECRET": "grZ7Q~kNl0Yw~6BKsRk7XJbQ8MnUXzQspR5Xz",
 		"FILESYSTEMS_API_KEY": "{some secret key}",
-		"CONFIGURATION_API_KEY": "{another secret key}"
+		"CONFIGURATION_API_KEY": "{another secret key}",
+		"CacheConnection": "saas-demo.redis.cache.windows.net:6380,password=RrC5hDN37uFC8WHwB4A8U7BDwsbeNFfp7AzCaG1FGKU=,ssl=True,abortConnect=False"
+
 	},
 	"Host": {
 		"LocalHttpPort": 7071,

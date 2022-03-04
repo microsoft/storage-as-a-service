@@ -1,4 +1,4 @@
-﻿using Azure.Core;
+using Azure.Core;
 using Azure.Storage.Files.DataLake;
 using Azure.Storage.Files.DataLake.Models;
 using Microsoft.Extensions.Logging;
@@ -61,9 +61,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 		}
 
-		public IEnumerable<string> GetContainersForUpn(string upn)
+
+		public IEnumerable<FileSystemItem> GetFilesystems()
 		{
-			upn = upn.Replace('@', '_').ToLower();     // Translate for guest accounts
 			List<FileSystemItem> fileSystems;
 
 			try
@@ -72,26 +72,43 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
+				fileSystems = new List<FileSystemItem>();
 				Debug.WriteLine(ex.Message);
-				throw;
 			}
-
-			var containers = new List<string>();
-			Parallel.ForEach(fileSystems, filesystem =>
-			{
-				var fsClient = dlsClient.GetFileSystemClient(filesystem.Name);
-				var rootClient = fsClient.GetDirectoryClient(string.Empty);  // container (root)
-				var acl = rootClient.GetAccessControl(userPrincipalName: true);
-
-				if (acl.Value.AccessControlList.Any(
-					p => p.EntityId?.Replace('@', '_').ToLower().StartsWith(upn) == true))
-				{
-					containers.Add(filesystem.Name);
-				}
-			});
-
-			return containers;
+			return fileSystems;
 		}
+
+		//public IEnumerable<string> GetContainersForUpn(string upn)
+		//{
+		//	upn = upn.Replace('@', '_').ToLower();     // Translate for guest accounts
+		//	List<FileSystemItem> fileSystems;
+
+		//	try
+		//	{
+		//		fileSystems = dlsClient.GetFileSystems().ToList();
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		Debug.WriteLine(ex.Message);
+		//		throw;
+		//	}
+
+		//	var containers = new List<string>();
+		//	Parallel.ForEach(fileSystems, filesystem =>
+		//	{
+		//		var fsClient = dlsClient.GetFileSystemClient(filesystem.Name);
+		//		var rootClient = fsClient.GetDirectoryClient(string.Empty);  // container (root)
+		//		var acl = rootClient.GetAccessControl(userPrincipalName: true);
+
+		//		if (acl.Value.AccessControlList.Any(
+		//			p => p.EntityId?.Replace('@', '_').ToLower().StartsWith(upn) == true))
+		//		{
+		//			containers.Add(filesystem.Name);
+		//		}
+		//	});
+
+		//	return containers;
+		//}
 
 		public async Task<Result> CreateFileSystem(string fileSystemName, string owner, string fundCode)
 		{

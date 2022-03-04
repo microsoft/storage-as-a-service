@@ -47,11 +47,12 @@ namespace Microsoft.UsEduCsu.Saas
 				user = authenticatedUser;
 
 			// Find out user who is calling
-			// TODO: Account for different clouds: don't hardcode the domain
-			// TODO: Call helper function to form storage URI
-			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
-			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, filesystem);
-			var folders = folderOperations.GetAccessibleFolders(user, principalId);
+			var storageUri = SasConfiguration.GetStorageUri(account);
+
+			// Get User Credentials
+			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
+			var folderOperations = new FolderOperations(log, userCred, storageUri, filesystem);
+			var folders = folderOperations.GetAccessibleFolders();
 			var sortedFolders = folders.OrderBy(f => f.URI).ToList();
 
 			return new OkObjectResult(sortedFolders);
@@ -99,7 +100,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Call each of the steps in order and error out if anytyhing fails
 			Result result = null;
-			var storageUri = new Uri($"https://{tlfp.StorageAcount}.dfs.core.windows.net");
+			var storageUri = SasConfiguration.GetStorageUri(account);
 			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
 			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, tlfp.FileSystem);
 

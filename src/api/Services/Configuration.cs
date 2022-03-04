@@ -14,6 +14,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal static string ClientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
 		internal static string ClientSecret = Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
 
+		internal static string ApiClientId = Environment.GetEnvironmentVariable("API_CLIENT_ID");
+		internal static string ApiClientSecret = Environment.GetEnvironmentVariable("API_CLIENT_SECRET");
+
+		internal static string CacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
+
 		internal static ConfigurationResult GetConfiguration()
 		{
 			var dlsa = Environment.GetEnvironmentVariable("DATALAKE_STORAGE_ACCOUNTS");
@@ -29,6 +34,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				StorageAccounts = accounts
 			};
 			return result;
+		}
+
+		internal static Uri GetStorageUri(string account, string fileSystem = null)
+		{
+			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
+			if (fileSystem != null)
+				storageUri = new Uri(storageUri, fileSystem);
+			return storageUri;
 		}
 
 		/// <summary>

@@ -16,11 +16,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private readonly DataLakeFileSystemClient dlfsClient;
 		private readonly decimal costPerTB;
-		private readonly TokenCredential tokenCredential;
+
 		public FolderOperations(ILogger log, TokenCredential tokenCredential, Uri storageUri, string fileSystem)
 		{
 			this.log = log;
-			this.tokenCredential = tokenCredential;
 			var costPerTB = Environment.GetEnvironmentVariable("COST_PER_TB");
 			if (costPerTB != null)
 				decimal.TryParse(costPerTB, out this.costPerTB);
@@ -145,41 +144,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return long.Parse(meta[sizeKey]);
 		}
 
-		private static string Simplify(string s)
-		{
-			if (string.IsNullOrEmpty(s)) return null;
-
-			return s.Replace('@', '_').ToLower();
-		}
-
-		internal IList<FolderDetail> GetAccessibleFolders(string upn, string principalId)
+		internal IList<FolderDetail> GetAccessibleFolders()
 		{
 			var accessibleFolders = new List<FolderDetail>();
 			try
 			{
-				// Get Role Assignments
-				var roleOperations = new RoleOperations(log, tokenCredential);
-
-				// Translate for guest accounts
-				var guestUpn = Simplify(upn);
-
-				// Get Root Folder
-				bool principalIsOwner = false;
-				var fd = GetFolderDetail(string.Empty);
-				if (fd != null)
-				{
-					var roles = roleOperations.GetContainerRoleAssignments(dlfsClient.AccountName, principalId)
-											.Where( ra => ra.Container == dlfsClient.Name
-														&& ra.PrincipalId == principalId);
-					if (roles.Any()) {
-						fd.Name = "{root}";
-						fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {upn}"));
-						accessibleFolders.Add(fd);
-
-						principalIsOwner = fd.UserAccess.Any(ra => ra.Contains("Owner"));
-					}
-				}
-
 				// Get all Top Level Folders
 				var flds = dlfsClient.GetPaths().ToList();
 				var folders = flds.Where<PathItem>(
@@ -189,9 +158,15 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// Find folders that have ACL entries for upn
 				Parallel.ForEach(folders, folder =>
 					{
-						var fd = GetFolderDetail(folder.Name);
-						if (fd != null && (principalIsOwner || fd.UserAccess.Any( u => Simplify(u).StartsWith(guestUpn))))
+						try
+						{
+							var fd = GetFolderDetail(folder.Name);
 							accessibleFolders.Add(fd);
+						}
+						catch (Exception ex)
+						{
+							log.LogTrace($"User has no access to {folder.Name}.");
+						}
 					}
 				);
 			}
