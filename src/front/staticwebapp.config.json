@@ -23,7 +23,7 @@
 				},
 				"login": {
 				  "loginParameters": [
-					"scope=https://graph.microsoft.com/.default https://storage.azure.com/user_impersonation"
+					 "resource=api://44fe5f6b-4e9b-4768-8c0f-cf4d41617ac3"
 				  ]
 				}
 			}
