@@ -27,8 +27,8 @@ namespace tests
 		{
 			ConfigureEnvironmentVariablesFromLocalSettings();
 			envTenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
-			envClientId = "44fe5f6b-4e9b-4768-8c0f-cf4d41617ac3";  // Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
-			envClientSecret = "j4R7Q~AghSGl~GqMgdHGaPeBPQbAetBmYUsE-"; // Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
+			envClientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
+			envClientSecret = Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
 		}
 
 		[Fact]
