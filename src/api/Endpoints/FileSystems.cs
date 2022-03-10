@@ -72,21 +72,21 @@ namespace Microsoft.UsEduCsu.Saas
             // Define the return value
             var result = new List<FileSystemResult>();
 
-			//Parallel.ForEach(accounts, acct => {
-			foreach (var acct in accounts)
-			{
-				var containers = GetContainers(log, acct, upn, principalId);
-
-				// Add the current account and the permissioned containers to the result set
-				var fs = new FileSystemResult()
+			Parallel.ForEach(accounts, acct =>
+			//foreach (var acct in accounts)
 				{
-					Name = acct,
-					FileSystems = containers.Distinct().OrderBy(c => c).ToList()
-				};
-				if (fs.FileSystems.Any())
-					result.Add(fs);
-			}
-				//});
+					var containers = GetContainers(log, acct, upn, principalId);
+
+					// Add the current account and the permissioned containers to the result set
+					var fs = new FileSystemResult()
+					{
+						Name = acct,
+						FileSystems = containers.Distinct().OrderBy(c => c).ToList()
+					};
+					if (fs.FileSystems.Any())
+						result.Add(fs);
+				}
+			);
 
             
             log.LogTrace(JsonSerializer.Serialize(result));
@@ -107,22 +107,30 @@ namespace Microsoft.UsEduCsu.Saas
 			// Transition to User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 
-			foreach(var filesystem in fileSystems)
+			Parallel.ForEach(fileSystems, filesystem =>
 			{
 				var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
-				try
-				{
-					var folders = folderOps.GetAccessibleFolders();
-					//var fd = folderOps.GetFolderDetail(string.Empty);        // User can at least read the root data
-					//if (fd != null)
-					if (folders.Count > 0)
-						containers.Add(filesystem.Name);
-				}
-				catch (Exception ex)
-				{
-					log.LogTrace($"{principalId} does not have access to {filesystem.Name}");
-				}
-			}
+				var folders = folderOps.GetAccessibleFolders(checkForAny: true);
+				if (folders.Count > 0)
+					containers.Add(filesystem.Name);
+			});
+
+			//foreach(var filesystem in fileSystems)
+			//{
+			//	var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
+			//	try
+			//	{
+			//		var folders = folderOps.GetAccessibleFolders();
+			//		//var fd = folderOps.GetFolderDetail(string.Empty);        // User can at least read the root data
+			//		//if (fd != null)
+			//		if (folders.Count > 0)
+			//			containers.Add(filesystem.Name);
+			//	}
+			//	catch (Exception ex)
+			//	{
+			//		log.LogTrace($"{principalId} does not have access to {filesystem.Name}");
+			//	}
+			//}
 
             return containers;
         }

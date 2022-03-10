@@ -5,8 +5,10 @@ using Azure.Storage.Files.DataLake.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
@@ -144,20 +146,41 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return long.Parse(meta[sizeKey]);
 		}
 
-		internal IList<FolderDetail> GetAccessibleFolders()
+		internal IList<FolderDetail> GetAccessibleFolders(bool checkForAny = false)
 		{
-			var accessibleFolders = new List<FolderDetail>();
+			var accessibleFolders = new ObservableCollection<FolderDetail>();
+			List<PathItem> folders = null;
 			try
 			{
 				// Get all Top Level Folders
 				var flds = dlfsClient.GetPaths().ToList();
-				var folders = flds.Where<PathItem>(
-					pi => pi.IsDirectory != null && (bool)pi.IsDirectory)
-					.ToList();
+				folders = flds.Where<PathItem>(pi => pi.IsDirectory != null && (bool)pi.IsDirectory)
+							  .ToList();
+			}
+			catch (Exception ex)
+			{
+				log.LogTrace(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
+				return accessibleFolders;
+			}
 
-				// Find folders that have ACL entries for upn
-				Parallel.ForEach(folders, folder =>
+			// Find folders that have ACL entries for upn
+			var cancelSource = new CancellationTokenSource();
+			var po = new ParallelOptions()
+			{
+				CancellationToken = cancelSource.Token
+			};
+			accessibleFolders.CollectionChanged += (s, e) =>
+			{
+				if (checkForAny)
+					cancelSource.Cancel();
+			};
+
+			try
+			{
+				Parallel.ForEach(folders, po, folder =>
 					{
+						if (po.CancellationToken.IsCancellationRequested)
+							return;
 						try
 						{
 							var fd = GetFolderDetail(folder.Name);
@@ -165,14 +188,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 						}
 						catch (Exception ex)
 						{
-							log.LogTrace($"User has no access to {folder.Name}.");
+							log.LogTrace(ex, $"User has no access to {folder.Name}.");
 						}
 					}
 				);
 			}
-			catch (Exception ex)
+			catch (OperationCanceledException ex)
 			{
-				log.LogError(ex.Message);
+				log.LogTrace(ex, "Parallel op cancelled.");
+			}
+			finally
+			{
+				cancelSource.Dispose();
 			}
 			return accessibleFolders;
 		}
