@@ -57,26 +57,31 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return result;
 		}
 
-		internal async Task<Result> AssignFullRwx(string folder, string folderOwner)
+		internal async Task<Result> AssignFullRwx(string folder, List<string> userAccessList)
 		{
-			log.LogTrace($"Assigning RWX permission to Folder Owner ({folderOwner}) at folder's ({folder}) level...");
+			var ual = string.Join(", ", userAccessList);
+			log.LogTrace($"Assigning RWX permission to Folder Owner ({ual}) at folder's ({folder}) level...");
 
-			var result = new Result();
-			var directoryClient = dlfsClient.GetDirectoryClient(folder);
-			var accessControlListUpdate = new List<PathAccessControlItem>
+			var accessControlListUpdate = new List<PathAccessControlItem>();
+			foreach(var user in userAccessList)
 			{
-				new PathAccessControlItem(
+				var access = new PathAccessControlItem(
 					accessControlType: AccessControlType.User,
 					permissions: RolePermissions.Read | RolePermissions.Write | RolePermissions.Execute,
-					entityId: folderOwner),
-				new PathAccessControlItem(
+					entityId: user);
+				var defaultAccess = new PathAccessControlItem(
 					accessControlType: AccessControlType.User,
 					permissions: RolePermissions.Read | RolePermissions.Write | RolePermissions.Execute,
-					entityId: folderOwner,
-					defaultScope: true)
+					entityId: user,
+					defaultScope: true);
+				accessControlListUpdate.Add(access);
+				accessControlListUpdate.Add(defaultAccess);
 			};
 
+
 			// Send up changes
+			var result = new Result();
+			var directoryClient = dlfsClient.GetDirectoryClient(folder);
 			var resultACL = await directoryClient.UpdateAccessControlRecursiveAsync(accessControlListUpdate);
 			result.Success = resultACL.GetRawResponse().Status == (int)HttpStatusCode.OK;
 			result.Message = result.Success ? null : "Error trying to assign the RWX permission to the folder. Error 500.";
@@ -260,8 +265,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var fd = new FolderDetail()
 			{
 				Name = folder,
-				Size = size.HasValue ? size.Value.ToString() : null,
-				Cost = cost.HasValue ? cost.Value.ToString() : null,
+				Size = size.HasValue ? size.Value.ToString() : "NA",
+				Cost = cost.HasValue ? cost.Value.ToString() : "NA",
 				FundCode = metadata.ContainsKey("FundCode") ? metadata["FundCode"] : null,
 				UserAccess = userAccess,
 				URI = uri.ToString(),
@@ -279,7 +284,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string Cost { get; set; }
 			public string FundCode { get; set; }
 			public string Owner { get; set; }
-			public string Region { get; set; }
+			public string Region { get => "Not Implemented"; }
 			public string URI { get; set; }
 			public IList<string> UserAccess { get; set; }
 		}

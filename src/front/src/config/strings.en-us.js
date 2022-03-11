@@ -35,6 +35,7 @@ const strings = {
 		folderLabel: 'Folder',
 		fundCodeLabel: 'Fund code',
 		ownerLabel: 'Owner',
+		userAccessLabel: 'User Access',
 		regionLabel: 'Region',
 		sizeLabel: 'Total size',
 		step1Label: '1. Download Storage Explorer',
@@ -49,7 +50,8 @@ const strings = {
 	directoryEditor: {
 		cancel: 'Cancel',
 		fundCodeLabel: 'Fund code',
-		directoryNameLabel: 'Space\'s name',
+		directoryNameLabel: 'Folder name',
+		userAccessLabel: 'Group/User access list',
 		save: 'Save',
 		title: 'Creating a new folder',
 	},

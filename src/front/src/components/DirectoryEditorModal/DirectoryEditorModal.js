@@ -18,7 +18,8 @@ const DirectoryEditorModal = ({ data, onCancel, onCreate, open, strings }) => {
     useEffect(() => {
         setFormData({
             name: data.name ? data.name : '',
-            fundCode: data.fundCode ? data.fundCode : ''
+            fundCode: data.fundCode ? data.fundCode : '',
+			userAccess: data.userAccess ? data.userAccess : ''
         })
 
     }, [data])
@@ -88,6 +89,18 @@ const DirectoryEditorModal = ({ data, onCancel, onCreate, open, strings }) => {
                             onKeyPress={handleEnterInFundCode}
                         />
                     </Grid>
+					<Grid item xs={12}>
+                        <TextField
+                            id='userAccess'
+                            name='userAccess'
+                            label={strings.userAccessLabel}
+                            fullWidth
+                            variant='standard'
+                            defaultValue={data.userAccess}
+                            onChange={handleInputChange}
+
+                        />
+                    </Grid>
                 </Grid>
             </DialogContent>
 
@@ -120,7 +133,7 @@ DirectoryEditorModal.defaultProps = {
     strings: {
         cancel: 'Cancel',
         fundCodeLabel: 'Fund code',
-        directoryNameLabel: 'Space\'s name',
+        directoryNameLabel: 'Folder name',
         save: 'Save',
         title: 'Creating a new folder',
     },

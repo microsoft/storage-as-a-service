@@ -13,6 +13,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
+using System.Collections.Generic;
 
 namespace Microsoft.UsEduCsu.Saas
 {
@@ -53,7 +54,9 @@ namespace Microsoft.UsEduCsu.Saas
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 			var folderOperations = new FolderOperations(log, userCred, storageUri, filesystem);
 			var folders = folderOperations.GetAccessibleFolders();
-			var sortedFolders = folders.OrderBy(f => f.URI).ToList();
+			var sortedFolders = folders
+								.OrderBy(f => f.URI)
+								.ToList();
 
 			return new OkObjectResult(sortedFolders);
 		}
@@ -104,11 +107,6 @@ namespace Microsoft.UsEduCsu.Saas
 			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
 			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, tlfp.FileSystem);
 
-			// Create Folders and Assign permissions
-			result = await folderOperations.CreateNewFolder(tlfp.Folder);
-			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
-
 			// Add folder owner or a larger group to the container ACL
 			var groupACL = Environment.GetEnvironmentVariable("ACL_ROOT_GROUP");
 			var rootOwner = (groupACL != null) ? groupACL : tlfp.FolderOwner;
@@ -116,14 +114,24 @@ namespace Microsoft.UsEduCsu.Saas
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
+			// Create Folders and Assign permissions
+			result = await folderOperations.CreateNewFolder(tlfp.Folder);
+			if (!result.Success)
+				return new BadRequestErrorMessageResult(result.Message);
+
+			// Folder Metadata
 			result = await folderOperations.AddMetaData(tlfp.Folder, tlfp.FundCode, tlfp.FolderOwner);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
-			result = await folderOperations.AssignFullRwx(tlfp.Folder, tlfp.FolderOwner);
+			// Foler permissions
+			if (!tlfp.UserAccessList.Contains(tlfp.FolderOwner))
+				tlfp.UserAccessList.Add(tlfp.FolderOwner);
+			result = await folderOperations.AssignFullRwx(tlfp.Folder, tlfp.UserAccessList);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
+			// Pull back details for display
 			var folderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
 
 			return new OkObjectResult(folderDetail);
@@ -140,8 +148,12 @@ namespace Microsoft.UsEduCsu.Saas
 					log.LogError("Body was empty coming from ReadToEndAsync");
 				}
 			}
-			var bodyDeserialized = JsonConvert.DeserializeObject<TopLevelFolderParameters>(body);
-			return bodyDeserialized;
+			var tlfp = JsonConvert.DeserializeObject<TopLevelFolderParameters>(body);
+
+			if (tlfp.UserAccessList == null)
+				tlfp.UserAccessList = new List<string>();
+
+			return tlfp;
 		}
 
 		internal class TopLevelFolderParameters
@@ -155,6 +167,8 @@ namespace Microsoft.UsEduCsu.Saas
 			public string FundCode { get; set; }
 
 			public string FolderOwner { get; set; }        // Probably will not stay as a string
+
+			public List<string> UserAccessList {get; set;}
 		}
 	}
 }

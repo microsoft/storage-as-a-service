@@ -69,7 +69,8 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 	options.body = JSON.stringify({
 		Folder: content.name,
 		FundCode: content.fundCode,
-		FolderOwner: owner
+		FolderOwner: owner,
+		UserAccessList: content.userAccess.split(", ")
 	})
 
 	try {
@@ -78,7 +79,7 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 			Folder: "",
 			Error: ""
 		};
-		
+
 		let body = await response.json();
 
 		if (response.status < 200 || response.status > 299)	// check for success

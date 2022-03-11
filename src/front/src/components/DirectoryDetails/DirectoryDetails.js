@@ -2,20 +2,20 @@ import React from 'react'
 import PropTypes from 'prop-types'
 import Grid from '@mui/material/Grid'
 import './DirectoryDetails.css'
+import DirectoriesTableMembers from '../DirectoriesTable/DirectoriesTableMembers'
 
 const DirectoryDetails = ({ data, strings }) => {
 
     const format = value => {
-        return value ? value : '-'
+		if (Array.isArray(value))
+			return value.join(", ");
+        return value ? value : '-';
     }
 
     return (
         <Grid container className='directoryDetails'>
             <Grid item xs={12} className='title'>
             <div className='label'>{strings.folderLabel}:</div> {data.name}
-            </Grid>
-            <Grid item md={4} sm={6} xs={12} className='detail'>
-                <div className='label'>{strings.totalFilesLabel}:</div> {format(data.totalFiles)}
             </Grid>
             <Grid item md={4} sm={6} xs={12} className='detail'>
                 <div className='label'>{strings.sizeLabel}:</div> {format(data.size)}
@@ -26,17 +26,18 @@ const DirectoryDetails = ({ data, strings }) => {
             <Grid item md={4} sm={6} xs={12} className='detail'>
                 <div className='label'>{strings.fundCodeLabel}:</div> {format(data.fundCode)}
             </Grid>
-            <Grid item md={4} sm={6} xs={12} className='detail'>
-                <div className='label'>{strings.ownerLabel}:</div> {format(data.owner)}
+			<Grid item md={4} sm={6} xs={12} className='detail'>
+                <div className='label'>{strings.accessTierLabel}:</div> {format(data.accessTier)}
             </Grid>
-            <Grid item md={4} sm={6} xs={12} className='detail'>
+			<Grid item md={4} sm={6} xs={12} className='detail'>
                 <div className='label'>{strings.createdLabel}:</div> {format(data.createdOn)}
             </Grid>
             <Grid item md={4} sm={6} xs={12} className='detail'>
-                <div className='label'>{strings.accessTierLabel}:</div> {format(data.accessTier)}
+                <div className='label'>{strings.ownerLabel}:</div> {format(data.owner)}
             </Grid>
-            <Grid item md={4} sm={6} xs={12} className='detail'>
-                <div className='label'>{strings.regionLabel}:</div> {format(data.region)}
+			<Grid item xs={12} className='detail'>
+                <div className='label'>{strings.userAccessLabel}:</div>
+					<DirectoriesTableMembers members={data.userAccess} strings={strings} />
             </Grid>
             <Grid item xs={12} className='detail'>
                 <div className='label'>{strings.uriLabel}:</div> {format(data.uri)}
@@ -54,6 +55,7 @@ DirectoryDetails.propTypes = {
         folderLabel: PropTypes.string,
         fundCodeLabel: PropTypes.string,
         ownerLabel: PropTypes.string,
+		userAccessLabel: PropTypes.string,
         regionLabel: PropTypes.string,
         sizeLabel: PropTypes.string,
         totalFilesLabel: PropTypes.string,
@@ -70,6 +72,7 @@ DirectoryDetails.defaultProps = {
         folderLabel: 'Folder',
         fundCodeLabel: 'Fund code',
         ownerLabel: 'Owner',
+		userAccessLabel: 'User Access',
         regionLabel: 'Region',
         sizeLabel: 'Total size',
         totalFilesLabel: 'Total files',
