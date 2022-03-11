@@ -189,7 +189,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 						try
 						{
 							var fd = GetFolderDetail(folder.Name);
-							accessibleFolders.Add(fd);
+							if (fd != null)
+								accessibleFolders.Add(fd);
 						}
 						catch (Exception ex)
 						{

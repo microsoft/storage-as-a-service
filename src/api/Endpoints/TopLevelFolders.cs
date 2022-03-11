@@ -55,6 +55,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var folderOperations = new FolderOperations(log, userCred, storageUri, filesystem);
 			var folders = folderOperations.GetAccessibleFolders();
 			var sortedFolders = folders
+								.Where( f => f != null)
 								.OrderBy(f => f.URI)
 								.ToList();
 
