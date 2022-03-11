@@ -24,6 +24,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		public async Task<Result> AddsFolderOwnerToContainerACLAsExecute(string fileSystem, string folderOwner)
 		{
+			var targetPermissions = RolePermissions.Execute | RolePermissions.Read;
+
 			var result = new Result();
 			log.LogTrace($"Adding '{folderOwner}' (Folder Owner) to the container '{dlsClient}/{fileSystem}' as 'Execute'...");
 
@@ -34,16 +36,16 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var ownerAcl = acl.FirstOrDefault(p => p.EntityId != null && p.EntityId.Replace('@', '_').ToLower() == owner);
 			if (ownerAcl != null)
 			{
-				if (ownerAcl.Permissions.HasFlag(RolePermissions.Execute))
+				if (ownerAcl.Permissions.HasFlag(targetPermissions))
 				{
 					result.Success = true;
 					return result;                    // Exit Early, no changes needed
 				}
-				ownerAcl.Permissions = RolePermissions.Execute;
+				ownerAcl.Permissions = targetPermissions;
 			}
 			else
 			{
-				acl.Add(new PathAccessControlItem(AccessControlType.User, RolePermissions.Execute, false, folderOwner));
+				acl.Add(new PathAccessControlItem(AccessControlType.User, targetPermissions, false, folderOwner));
 			}
 
 			try

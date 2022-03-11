@@ -28,7 +28,7 @@ namespace Microsoft.UsEduCsu.Saas
         [FunctionName("FileSystems")]
         public static async Task<IActionResult> Run(
             [HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
-            HttpRequest req, 
+            HttpRequest req,
             ILogger log, String account)
         {
 
@@ -88,7 +88,7 @@ namespace Microsoft.UsEduCsu.Saas
 				}
 			);
 
-            
+
             log.LogTrace(JsonSerializer.Serialize(result));
 
             // Send back the Accounts and FileSystems
@@ -114,23 +114,6 @@ namespace Microsoft.UsEduCsu.Saas
 				if (folders.Count > 0)
 					containers.Add(filesystem.Name);
 			});
-
-			//foreach(var filesystem in fileSystems)
-			//{
-			//	var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
-			//	try
-			//	{
-			//		var folders = folderOps.GetAccessibleFolders();
-			//		//var fd = folderOps.GetFolderDetail(string.Empty);        // User can at least read the root data
-			//		//if (fd != null)
-			//		if (folders.Count > 0)
-			//			containers.Add(filesystem.Name);
-			//	}
-			//	catch (Exception ex)
-			//	{
-			//		log.LogTrace($"{principalId} does not have access to {filesystem.Name}");
-			//	}
-			//}
 
             return containers;
         }
