@@ -2,6 +2,13 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "PS - Current File",
+			"type": "PowerShell",
+			"request": "launch",
+			"script": "${file}",
+			"cwd": "${workspaceFolder}/deploy"
+		},
+		{
 			"name": "Edge - Debug GUI + API",
 			"request": "launch",
 			"type": "pwa-msedge",
