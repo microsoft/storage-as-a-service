@@ -11,7 +11,6 @@
 		"FILESYSTEMS_API_KEY": "{some secret key}",
 		"CONFIGURATION_API_KEY": "{another secret key}",
 		"CacheConnection": "endpoint.redis.cache.windows.net:6380,password=Rr,ssl=True,abortConnect=False"
-
 	},
 	"Host": {
 		"LocalHttpPort": 7071,
