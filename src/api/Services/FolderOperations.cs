@@ -57,7 +57,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return result;
 		}
 
-		internal async Task<Result> AssignFullRwx(string folder, List<string> userAccessList)
+		internal async Task<Result> AssignFullRwx(string folder, Dictionary<string, AccessControlType> userAccessList)
 		{
 			var ual = string.Join(", ", userAccessList);
 			log.LogTrace($"Assigning RWX permission to Folder Owner ({ual}) at folder's ({folder}) level...");
@@ -66,24 +66,23 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			foreach(var user in userAccessList)
 			{
 				var access = new PathAccessControlItem(
-					accessControlType: AccessControlType.User,
+					accessControlType: user.Value,
 					permissions: RolePermissions.Read | RolePermissions.Write | RolePermissions.Execute,
-					entityId: user);
+					entityId: user.Key);
 				var defaultAccess = new PathAccessControlItem(
-					accessControlType: AccessControlType.User,
+					accessControlType: user.Value,
 					permissions: RolePermissions.Read | RolePermissions.Write | RolePermissions.Execute,
-					entityId: user,
+					entityId: user.Key,
 					defaultScope: true);
 				accessControlListUpdate.Add(access);
 				accessControlListUpdate.Add(defaultAccess);
 			};
 
-
 			// Send up changes
 			var result = new Result();
 			var directoryClient = dlfsClient.GetDirectoryClient(folder);
 			var resultACL = await directoryClient.UpdateAccessControlRecursiveAsync(accessControlListUpdate);
-			result.Success = resultACL.GetRawResponse().Status == (int)HttpStatusCode.OK;
+			result.Success = resultACL.GetRawResponse().Status == (int) HttpStatusCode.OK;
 			result.Message = result.Success ? null : "Error trying to assign the RWX permission to the folder. Error 500.";
 			return result;
 		}
@@ -219,7 +218,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				var rootClient = dlfsClient.GetDirectoryClient(folderName);  // container (root)
 				var acl = rootClient.GetAccessControl(userPrincipalName: true).Value.AccessControlList;
 				string createdOn = string.Empty, accessTier = string.Empty;
-				IDictionary<string, string> metadata;
+				IDictionary<string, string> metadata = new Dictionary<string,string>();
 				if (isRoot)
 					metadata = dlfsClient.GetProperties().Value.Metadata;
 				else

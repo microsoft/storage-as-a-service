@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Collections.Generic;
 using Azure.Core;
+using Azure.Storage.Files.DataLake.Models;
 
 namespace Microsoft.UsEduCsu.Saas
 {
@@ -151,26 +152,26 @@ namespace Microsoft.UsEduCsu.Saas
 			return new OkObjectResult(folderDetail);
 		}
 
-		private static async Task<List<string>> ConvertToObjectId(ILogger log, List<string> userAccessList)
+		private static async Task<Dictionary<string, AccessControlType>> ConvertToObjectId(ILogger log, List<string> userAccessList)
 		{
 			var tokenCredential = new DefaultAzureCredential();
 			var userOperations = new UserOperations(log, tokenCredential);
 			var groupOperations = new GroupOperations(log, tokenCredential);
 
-			var objectList = new List<string>();
+			var objectList = new Dictionary<string, AccessControlType>();
 			foreach (var item in userAccessList)
 			{
 				var uid = await userOperations.GetObjectIdFromUPN(item);
 				if (uid != null)
 				{
-					objectList.Add(uid);
+					objectList.Add(uid, AccessControlType.User);
 					continue;
 				}
 
 				var gid = await groupOperations.GetObjectIdfromGroupName(item);
 				if (gid != null)
 				{
-					objectList.Add(gid);
+					objectList.Add(gid, AccessControlType.Group);
 					continue;
 				}
 			}
