@@ -17,64 +17,63 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Azure.Identity;
 
 namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
-    {
-        public static ILogger logger;
+	{
+		public static ILogger logger;
 
-        [FunctionName("FileSystems")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
-            HttpRequest req,
-            ILogger log, String account)
-        {
+		[FunctionName("FileSystems")]
+		public static async Task<IActionResult> Run(
+			[HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
+			HttpRequest req,
+			ILogger log, String account)
+		{
 
-            if (req.Method == HttpMethods.Post)
-                return await FileSystemsPOST(req, log, account);
+			if (req.Method == HttpMethods.Post)
+				return await FileSystemsPOST(req, log, account);
 
-            if (req.Method == HttpMethods.Get)
-                return await FileSystemsGET(req, log, account);
+			if (req.Method == HttpMethods.Get)
+				return FileSystemsGET(req, log, account);
 
-            // TODO: If this is even possible (accepted methods are defined above?) return HTTP error code 405, response must include an Allow header with allowed methods
-            return null;
-        }
+			// TODO: If this is even possible (accepted methods are defined above?) return HTTP error code 405, response must include an Allow header with allowed methods
+			return null;
+		}
 
-		private static async Task<IActionResult> FileSystemsGET(HttpRequest req, ILogger log, string account)
-        {
-            // Check for logged in user
-            ClaimsPrincipal claimsPrincipal;
-            try
-            {
-                claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
-                if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
-                    return new BadRequestErrorMessageResult("Call requires an authenticated user.");
-            }
-            catch (Exception ex)
-            {
-                log.LogError(ex.Message);
-                return new BadRequestErrorMessageResult("Unable to authenticate user.");
-            }
+		private static IActionResult FileSystemsGET(HttpRequest req, ILogger log, string account)
+		{
+			// Check for logged in user
+			ClaimsPrincipal claimsPrincipal;
+			try
+			{
+				claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
+				if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
+					return new BadRequestErrorMessageResult("Call requires an authenticated user.");
+			}
+			catch (Exception ex)
+			{
+				log.LogError(ex.Message);
+				return new BadRequestErrorMessageResult("Unable to authenticate user.");
+			}
 
-            // Calculate UPN
-            var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
-            var principalId = claimsPrincipal.Claims
-                .FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?
-                .Value;
+			// Calculate UPN
+			var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
+			var principalId = claimsPrincipal.Claims
+				.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?
+				.Value;
 
-            // Get the Containers for a upn from each storage account
-            var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
-            if (account != null)
-                accounts = accounts.Where(a => a.ToLowerInvariant() == account).ToArray();
+			// Get the Containers for a upn from each storage account
+			var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
+			if (account != null)
+				accounts = accounts.Where(a => a.ToLowerInvariant() == account).ToArray();
 
-            // Define the return value
-            var result = new List<FileSystemResult>();
+			// Define the return value
+			var result = new List<FileSystemResult>();
 
 			Parallel.ForEach(accounts, acct =>
 			//foreach (var acct in accounts)
-				{
+			{
 					var containers = GetContainers(log, acct, upn, principalId);
 
 					// Add the current account and the permissioned containers to the result set
@@ -89,18 +88,18 @@ namespace Microsoft.UsEduCsu.Saas
 			);
 
 
-            log.LogTrace(JsonSerializer.Serialize(result));
+			log.LogTrace(JsonSerializer.Serialize(result));
 
-            // Send back the Accounts and FileSystems
-            return new OkObjectResult(result);
-        }
+			// Send back the Accounts and FileSystems
+			return new OkObjectResult(result);
+		}
 
-        private static IList<string> GetContainers(ILogger log, string account, string upn, string principalId)
-        {
-            var containers = new List<string>();
+		private static IList<string> GetContainers(ILogger log, string account, string upn, string principalId)
+		{
+			var containers = new List<string>();
 
 			var serviceUri = SasConfiguration.GetStorageUri(account);
-            var adls = new FileSystemOperations(log, new DefaultAzureCredential(), serviceUri);
+			var adls = new FileSystemOperations(log, new DefaultAzureCredential(), serviceUri);
 
 			var fileSystems = adls.GetFilesystems();
 
@@ -109,99 +108,114 @@ namespace Microsoft.UsEduCsu.Saas
 
 			Parallel.ForEach(fileSystems, filesystem =>
 			{
+				// Check for Owner of Container
+				var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+				var roles = roleOperations
+								.GetContainerRoleAssignments(account, principalId)
+								.Where( ra => ra.Container == filesystem.Name
+										 && ra.PrincipalId == principalId);
+				if (roles.Any()) {
+					containers.Add(filesystem.Name);
+					return;
+				}
+
+				// Check if user can read folders
 				var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
 				var folders = folderOps.GetAccessibleFolders(checkForAny: true);
 				if (folders.Count > 0)
 					containers.Add(filesystem.Name);
 			});
 
-            return containers;
-        }
+			return containers;
+		}
 
-        private static async Task<IActionResult> FileSystemsPOST(HttpRequest req, ILogger log, string account)
-        {
-            if (!SasConfiguration.ValidateSharedKey(req, SasConfiguration.ApiKey.FileSystems))
-            {
-                return new UnauthorizedResult();
-            }
+		private static async Task<IActionResult> FileSystemsPOST(HttpRequest req, ILogger log, string account)
+		{
+			if (!SasConfiguration.ValidateSharedKey(req, SasConfiguration.ApiKey.FileSystems))
+			{
+				return new UnauthorizedResult();
+			}
 
-            // Extracting body object from the call and deserializing it.
-            var tlfp = await GetFileSystemParameters(req, log);
-            if (tlfp == null)
-                return new BadRequestErrorMessageResult($"{nameof(FileSystemParameters)} is missing.");
+			// Extracting body object from the call and deserializing it.
+			var tlfp = await GetFileSystemParameters(req, log);
+			if (tlfp == null)
+				return new BadRequestErrorMessageResult($"{nameof(FileSystemParameters)} is missing.");
 
-            // Add Route Parameters
-            tlfp.StorageAcount ??= account;
+			// Add Route Parameters
+			tlfp.StorageAcount ??= account;
 
-            // Check Parameters
-            string error = null;
-            if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode, tlfp.StorageAcount))
-                error = $"{nameof(FileSystemParameters)} is malformed.";
-            if (tlfp.Owner.Contains("#EXT#"))
-                error = "Guest accounts are not supported.";
-            if (error != null)
-                return new BadRequestErrorMessageResult(error);
+			// Check Parameters
+			string error = null;
+			if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode, tlfp.StorageAcount))
+				error = $"{nameof(FileSystemParameters)} is malformed.";
+			if (tlfp.Owner.Contains("#EXT#"))
+				error = "Guest accounts are not supported.";
+			if (error != null)
+				return new BadRequestErrorMessageResult(error);
 
-            // Setup Azure Credential
-            var tokenCredential = new DefaultAzureCredential();
+			// Setup Azure Credential
+			var tokenCredential = new DefaultAzureCredential();
 
-            // Get Blob Owner
-            var userOperations = new UserOperations(log, tokenCredential);
-            var ownerId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
-            if (ownerId == null)
-                return new BadRequestErrorMessageResult("Owner identity not found. Please verify that the Owner is a valid member UPN and that the application has User.Read.All permission in the directory.");
+			// Get Blob Owner
+			var userOperations = new UserOperations(log, tokenCredential);
+			var ownerId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
+			if (ownerId == null)
+				return new BadRequestErrorMessageResult("Owner identity not found. Please verify that the Owner is a valid member UPN and that the application has User.Read.All permission in the directory.");
 
-            // Call each of the steps in order and error out if anytyhing fails
-            var storageUri = SasConfiguration.GetStorageUri("tlfp.StorageAcount");
-            var fileSystemOperations = new FileSystemOperations(log, tokenCredential, storageUri);
+			// Call each of the steps in order and error out if anytyhing fails
+			var storageUri = SasConfiguration.GetStorageUri(tlfp.StorageAcount);
+			var fileSystemOperations = new FileSystemOperations(log, tokenCredential, storageUri);
 
-            // Create File System
-            Result result = await fileSystemOperations.CreateFileSystem(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode);
-            if (!result.Success)
-                return new BadRequestErrorMessageResult(result.Message);
+			// Create File System
+			Result result = await fileSystemOperations.CreateFileSystem(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode);
+			if (!result.Success)
+				return new BadRequestErrorMessageResult(result.Message);
 
-            // Add Blob Owner
-            var roleOperations = new RoleOperations(log, tokenCredential);
-            roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerId);
+			// Assign Other Execute Permission
+			result = await fileSystemOperations.SetRootOtherACL(tlfp.FileSystem);
 
-            // Get Root Folder Details
-            var folderOperations = new FolderOperations(log, tokenCredential, storageUri, tlfp.FileSystem);
-            var folderDetail = folderOperations.GetFolderDetail(String.Empty);
+			// Add Blob Owner
+			var roleOperations = new RoleOperations(log, tokenCredential);
+			roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerId);
 
-            return new OkObjectResult(folderDetail);
-        }
+			// Get Root Folder Details
+			var folderOperations = new FolderOperations(log, tokenCredential, storageUri, tlfp.FileSystem);
+			var folderDetail = folderOperations.GetFolderDetail(String.Empty);
 
-        internal static async Task<FileSystemParameters> GetFileSystemParameters(HttpRequest req, ILogger log)
-        {
-            string body = string.Empty;
-            using (var reader = new StreamReader(req.Body, Encoding.UTF8))
-            {
-                body = await reader.ReadToEndAsync();
-                if (string.IsNullOrEmpty(body))
-                {
-                    log.LogError("Body was empty coming from ReadToEndAsync");
-                }
-            }
-            var bodyDeserialized = JsonSerializer.Deserialize<FileSystemParameters>(body);
-            return bodyDeserialized;
-        }
+			return new OkObjectResult(folderDetail);
+		}
 
-        private class FileSystemResult
-        {
-            //[{name: 'adlstorageaccountname', fileSystems: [{name: 'file system name'}]]
-            public string Name { get; set; }
-            public List<string> FileSystems { get; set; }
-        }
+		internal static async Task<FileSystemParameters> GetFileSystemParameters(HttpRequest req, ILogger log)
+		{
+			string body = string.Empty;
+			using (var reader = new StreamReader(req.Body, Encoding.UTF8))
+			{
+				body = await reader.ReadToEndAsync();
+				if (string.IsNullOrEmpty(body))
+				{
+					log.LogError("Body was empty coming from ReadToEndAsync");
+				}
+			}
+			var bodyDeserialized = JsonSerializer.Deserialize<FileSystemParameters>(body);
+			return bodyDeserialized;
+		}
 
-        internal class FileSystemParameters
-        {
-            public string StorageAcount { get; set; }
+		private class FileSystemResult
+		{
+			public string Name { get; set; }
 
-            public string FileSystem { get; set; }
+			public List<string> FileSystems { get; set; }
+		}
 
-            public string FundCode { get; set; }
+		internal class FileSystemParameters
+		{
+			public string StorageAcount { get; set; }
 
-            public string Owner { get; set; }        // Probably will not stay as a string
-        }
-    }
+			public string FileSystem { get; set; }
+
+			public string FundCode { get; set; }
+
+			public string Owner { get; set; }        // Probably will not stay as a string
+		}
+	}
 }

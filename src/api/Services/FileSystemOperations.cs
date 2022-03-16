@@ -22,6 +22,32 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			dlsClient = new DataLakeServiceClient(storageUri, tokenCredential);
 		}
 
+		public async Task<Result> SetRootOtherACL(string fileSystem)
+		{
+			var result = new Result();
+			try
+			{
+				// Get Root Directory Client
+				var directoryClient = dlsClient.GetFileSystemClient(fileSystem).GetDirectoryClient(string.Empty);
+				var acl = (await directoryClient.GetAccessControlAsync(userPrincipalName: true)).Value.AccessControlList.ToList();
+
+				// Add Other Entry
+				acl.Add(new PathAccessControlItem(AccessControlType.Other,
+					RolePermissions.Read | RolePermissions.Execute, false));
+
+				// Update root container's ACL
+				var response = directoryClient.SetAccessControlList(acl);
+				result.Success = response.GetRawResponse().Status == ((int)HttpStatusCode.OK);
+				result.Message = result.Success ? null : "Error on trying to add Folder Owner as Execute on the root Container. Error 500.";
+				return result;
+			}
+			catch (Exception ex)
+			{
+				result.Message = ex.Message;
+				return result;
+			}
+		}
+
 		public async Task<Result> AddsFolderOwnerToContainerACLAsExecute(string fileSystem, string folderOwner)
 		{
 			var targetPermissions = RolePermissions.Execute | RolePermissions.Read;
@@ -31,8 +57,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Get Root Directory Client
 			var directoryClient = dlsClient.GetFileSystemClient(fileSystem).GetDirectoryClient(string.Empty);
-			var owner = folderOwner.Replace('@', '_').ToLower();
 			var acl = (await directoryClient.GetAccessControlAsync(userPrincipalName: true)).Value.AccessControlList.ToList();
+
+			var owner = folderOwner.Replace('@', '_').ToLower();
 			var ownerAcl = acl.FirstOrDefault(p => p.EntityId != null && p.EntityId.Replace('@', '_').ToLower() == owner);
 			if (ownerAcl != null)
 			{
@@ -48,8 +75,16 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				acl.Add(new PathAccessControlItem(AccessControlType.User, targetPermissions, false, folderOwner));
 			}
 
+			return SetRootACL(fileSystem, acl);
+		}
+
+		private Result SetRootACL(string fileSystem, List<PathAccessControlItem> acl)
+		{
+			var result = new Result();
 			try
 			{
+				var directoryClient = dlsClient.GetFileSystemClient(fileSystem).GetDirectoryClient(string.Empty);
+
 				// Update root container's ACL
 				var response = directoryClient.SetAccessControlList(acl);
 				result.Success = response.GetRawResponse().Status == ((int)HttpStatusCode.OK);
@@ -62,7 +97,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				return result;
 			}
 		}
-
 
 		public IEnumerable<FileSystemItem> GetFilesystems()
 		{

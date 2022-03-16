@@ -70,7 +70,7 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 		Folder: content.name,
 		FundCode: content.fundCode,
 		FolderOwner: owner,
-		UserAccessList: content.userAccess.split(", ")
+		UserAccessList: content.userAccess.replace(" ","").replace(";",",").split(",")
 	})
 
 	try {

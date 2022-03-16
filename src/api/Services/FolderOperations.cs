@@ -256,11 +256,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Calculate UserAccess
 			var userAccess = acl
-				.Where(p => p.AccessControlType == AccessControlType.User
+				.Where(p => (p.AccessControlType == AccessControlType.User
+							|| p.AccessControlType == AccessControlType.Group)
 							&& p.EntityId != null && !p.DefaultScope
 							&& p.Permissions.HasFlag(RolePermissions.Read))
 				.Select(p => p.EntityId)
 				.ToList();
+
+			TranslateGroups(userAccess);
 
 			// Create Folder Details
 			var fd = new FolderDetail()
@@ -274,6 +277,22 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
 			};
 			return fd;
+		}
+
+		private void TranslateGroups(IList<string> userAccess)
+		{
+			// Add Group Names
+			var groupOperations = new GroupOperations(log, new DefaultAzureCredential());
+
+			Guid testguid;
+			for(int i =0; i < userAccess.Count(); i++)
+			{
+				var gid = userAccess[i];
+				if (Guid.TryParse(gid, out testguid))
+				{
+					userAccess[i] = (groupOperations.GetGroupNameFromObjectId(gid).Result);
+				}
+			}
 		}
 
 		internal class FolderDetail

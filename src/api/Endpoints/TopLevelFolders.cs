@@ -14,13 +14,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Collections.Generic;
+using Azure.Core;
 
 namespace Microsoft.UsEduCsu.Saas
 {
 	public static class TopLevelFolders
 	{
 		[FunctionName("TopLevelFoldersGET")]
-		public static IActionResult TopLevelFoldersGET(
+		public static async Task<IActionResult> TopLevelFoldersGET(
 			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "TopLevelFolders/{account}/{filesystem}/{user?}")]
 			HttpRequest req, string account, string filesystem, string user, ILogger log)
 		{
@@ -54,6 +55,22 @@ namespace Microsoft.UsEduCsu.Saas
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 			var folderOperations = new FolderOperations(log, userCred, storageUri, filesystem);
 			var folders = folderOperations.GetAccessibleFolders();
+
+			// Add Root Folder if they are the owner
+			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			var roles = roleOperations.GetContainerRoleAssignments(account, principalId)
+									.Where( ra => ra.Container == filesystem
+											 && ra.PrincipalId == principalId);
+			if (roles.Any(ra => ra.RoleName.Contains("Owner"))) {
+				var fd = folderOperations.GetFolderDetail(string.Empty);
+				if (fd != null ) {
+					fd.Name = "{root}";
+					fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {authenticatedUser}"));
+					folders.Add(fd);
+				}
+			}
+
+			// Sort folders for display
 			var sortedFolders = folders
 								.Where( f => f != null)
 								.OrderBy(f => f.URI)
@@ -108,13 +125,6 @@ namespace Microsoft.UsEduCsu.Saas
 			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
 			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, tlfp.FileSystem);
 
-			// Add folder owner or a larger group to the container ACL
-			var groupACL = Environment.GetEnvironmentVariable("ACL_ROOT_GROUP");
-			var rootOwner = (groupACL != null) ? groupACL : tlfp.FolderOwner;
-			result = await fileSystemOperations.AddsFolderOwnerToContainerACLAsExecute(tlfp.FileSystem, rootOwner);
-			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
-
 			// Create Folders and Assign permissions
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);
 			if (!result.Success)
@@ -126,9 +136,12 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult(result.Message);
 
 			// Foler permissions
-			if (!tlfp.UserAccessList.Contains(tlfp.FolderOwner))
+			if (tlfp.UserAccessList.Count == 0)
 				tlfp.UserAccessList.Add(tlfp.FolderOwner);
-			result = await folderOperations.AssignFullRwx(tlfp.Folder, tlfp.UserAccessList);
+
+			// Convert UserAccessList to Object Ids (both users and groups)
+			var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
+			result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
@@ -136,6 +149,32 @@ namespace Microsoft.UsEduCsu.Saas
 			var folderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
 
 			return new OkObjectResult(folderDetail);
+		}
+
+		private static async Task<List<string>> ConvertToObjectId(ILogger log, List<string> userAccessList)
+		{
+			var tokenCredential = new DefaultAzureCredential();
+			var userOperations = new UserOperations(log, tokenCredential);
+			var groupOperations = new GroupOperations(log, tokenCredential);
+
+			var objectList = new List<string>();
+			foreach (var item in userAccessList)
+			{
+				var uid = await userOperations.GetObjectIdFromUPN(item);
+				if (uid != null)
+				{
+					objectList.Add(uid);
+					continue;
+				}
+
+				var gid = await groupOperations.GetObjectIdfromGroupName(item);
+				if (gid != null)
+				{
+					objectList.Add(gid);
+					continue;
+				}
+			}
+			return objectList;
 		}
 
 		internal static async Task<TopLevelFolderParameters> GetTopLevelFolderParameters(HttpRequest req, ILogger log)
@@ -151,14 +190,16 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 			var tlfp = JsonConvert.DeserializeObject<TopLevelFolderParameters>(body);
 
-			if (tlfp.UserAccessList == null)
-				tlfp.UserAccessList = new List<string>();
-
 			return tlfp;
 		}
 
 		internal class TopLevelFolderParameters
 		{
+			internal TopLevelFolderParameters()
+			{
+				UserAccessList = new List<string>();
+			}
+
 			public string StorageAcount { get; set; }
 
 			public string FileSystem { get; set; }

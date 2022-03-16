@@ -56,6 +56,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					.Request()
 					.GetAsync(cancellationToken);
 
+				if (user == null)
+					return null;
+
 				return user.Id;
 			}
 			catch (Exception ex)
