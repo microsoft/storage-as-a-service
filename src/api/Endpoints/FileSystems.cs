@@ -133,7 +133,7 @@ namespace Microsoft.UsEduCsu.Saas
 			if (containerDataPlaneRoleAssignments.Any())
 			{
 				// They have access to the container
-				containerDataPlaneRoleAssignments.ForEach(r => containers.Add(r.Container));
+				containerDataPlaneRoleAssignments.ForEach(r => containers.Add(r.Container + " (by RBAC)"));
 			}
 
 			// For any containers where the principal doesn't have a data plane RBAC role
@@ -145,7 +145,7 @@ namespace Microsoft.UsEduCsu.Saas
 				var folders = folderOps.GetAccessibleFolders(checkForAny: true);
 
 				if (folders.Count > 0)
-					containers.Add(filesystem.Name);
+					containers.Add(filesystem.Name + " (by ACL)");
 			});
 
 			return containers;
