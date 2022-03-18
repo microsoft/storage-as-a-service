@@ -16,6 +16,7 @@ using System.Web.Http;
 using System.Collections.Generic;
 using Azure.Core;
 using Azure.Storage.Files.DataLake.Models;
+using System.Threading;
 
 namespace Microsoft.UsEduCsu.Saas
 {
@@ -179,8 +180,14 @@ namespace Microsoft.UsEduCsu.Saas
 
 			var objectList = new Dictionary<string, AccessControlType>();
 
-			Parallel.ForEach(userAccessList, async item =>
+			ParallelOptions pOptions = new();
+			CancellationToken cToken = new();
+
+			await Parallel.ForEachAsync(userAccessList, pOptions, async (item, cToken) =>
 			{
+				if (cToken.IsCancellationRequested)
+					return;
+
 				// If this access control entry is a UPN
 				if (IsUpn(item))
 				{
