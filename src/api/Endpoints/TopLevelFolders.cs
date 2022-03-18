@@ -117,17 +117,25 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Authorize the calling user as owner of the container
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			// TODO: Enhance the GetContainerRoleAssignments method to allow passing in a container name
 			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserPrincipalId(claimsPrincipal))
 							.Where(ra => ra.Container == tlfp.FileSystem).ToList();
-			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
+
+			// TODO: This logic seems flawed: the user might have more than one data plane role. Owner should just be one of them to continue.
+			if (roles.Count() == 0
+				|| roles.Any(ra => !ra.RoleName.Contains("Owner")))
+			{
+				// TODO: Should be an HTTP 403
 				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
+			}
 
 			// Check Parameters
 			string error = null;
 			if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
+				// TODO: Why continue?
 				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
 
-			// Call each of the steps in order and error out if anytyhing fails
+			// Call each of the steps in order and error out if anything fails
 			Result result = null;
 			var storageUri = SasConfiguration.GetStorageUri(account);
 			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
@@ -166,12 +174,15 @@ namespace Microsoft.UsEduCsu.Saas
 			var groupOperations = new GroupOperations(log, tokenCredential);
 
 			var objectList = new Dictionary<string, AccessControlType>();
+
+			// TODO: This might benefit from parallelization
 			foreach (var item in userAccessList)
 			{
 				var uid = await userOperations.GetObjectIdFromUPN(item);
 				if (uid != null)
 				{
 					objectList.Add(uid, AccessControlType.User);
+					// TODO: These continue statements have a smell to them. else if might be better
 					continue;
 				}
 
