@@ -119,7 +119,8 @@ namespace Microsoft.UsEduCsu.Saas
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 			// TODO: Enhance the GetContainerRoleAssignments method to allow passing in a container name
 			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserPrincipalId(claimsPrincipal))
-							.Where(ra => ra.Container == tlfp.FileSystem).ToList();
+							.Where(ra => ra.Container == tlfp.FileSystem)
+							.ToList();
 
 			// If the calling user does not have the Storage Blob Data Owner RBAC role on the container
 			// TODO: Consider switching to user credentials?
@@ -178,8 +179,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			var objectList = new Dictionary<string, AccessControlType>();
 
-			// TODO: This might benefit from parallelization
-			foreach (var item in userAccessList)
+			Parallel.ForEach(userAccessList, async item =>
 			{
 				// If this access control entry is a UPN
 				if (IsUpn(item))
@@ -198,7 +198,8 @@ namespace Microsoft.UsEduCsu.Saas
 				}
 
 				// TODO: consider keeping track of which ACEs could not be translated and reporting back to user
-			}
+			});
+
 			return objectList;
 		}
 
