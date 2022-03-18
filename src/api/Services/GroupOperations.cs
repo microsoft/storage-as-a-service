@@ -38,7 +38,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					.Select("id,displayName")
 					.GetAsync(graphClientCancellationToken);
 
-				return groups.FirstOrDefault()?.Id;
+				return groups.FirstOrDefault()?.Id; // TODO: Opportunity for caching
 			}
 			catch (Exception ex)
 			{

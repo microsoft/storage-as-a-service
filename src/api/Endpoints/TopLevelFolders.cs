@@ -154,7 +154,7 @@ namespace Microsoft.UsEduCsu.Saas
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
-			// Foler permissions
+			// Folder permissions
 			if (tlfp.UserAccessList.Count == 0)
 				tlfp.UserAccessList.Add(tlfp.FolderOwner);
 
@@ -181,22 +181,31 @@ namespace Microsoft.UsEduCsu.Saas
 			// TODO: This might benefit from parallelization
 			foreach (var item in userAccessList)
 			{
-				var uid = await userOperations.GetObjectIdFromUPN(item);
-				if (uid != null)
+				// If this access control entry is a UPN
+				if (IsUpn(item))
 				{
-					objectList.Add(uid, AccessControlType.User);
-					// TODO: These continue statements have a smell to them. else if might be better
-					continue;
+					// Translate the UPN into a principal ID
+					var uid = await userOperations.GetObjectIdFromUPN(item);
+					if (uid != null)
+						objectList.Add(uid, AccessControlType.User);
+				}
+				else
+				{
+					// Assume it's a group name
+					var gid = await groupOperations.GetObjectIdFromGroupName(item);
+					if (gid != null)
+						objectList.Add(gid, AccessControlType.Group);
 				}
 
-				var gid = await groupOperations.GetObjectIdFromGroupName(item);
-				if (gid != null)
-				{
-					objectList.Add(gid, AccessControlType.Group);
-					continue;
-				}
+				// TODO: consider keeping track of which ACEs could not be translated and reporting back to user
 			}
 			return objectList;
+		}
+
+		private static bool IsUpn(string input)
+		{
+			return input != null
+				&& input.Contains('@');
 		}
 
 		internal static async Task<TopLevelFolderParameters> GetTopLevelFolderParameters(HttpRequest req, ILogger log)

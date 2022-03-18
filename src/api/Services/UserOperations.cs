@@ -31,6 +31,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		public async Task<string> GetObjectIdFromUPN(string upn)
 		{
+			// TODO: Consider moving this method to GroupOperations and renaming GroupOperations to GraphClientOperations
 			try
 			{
 				var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });
@@ -56,14 +57,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					.Request()
 					.GetAsync(cancellationToken);
 
-				if (user == null)
-					return null;
-
-				return user.Id;
+				return user?.Id;    // TODO: Opportunity for caching
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex.Message);
+				log.LogError(ex, ex.Message);
 				return null;
 			}
 		}
@@ -123,7 +121,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return claimsPrincipal.Claims.FirstOrDefault(fa => fa.Type == ClaimTypes.NameIdentifier)?.Value;
 		}
 
-		// TODO: Move to separate class?
 		private class ClientPrincipal
 		{
 			public string IdentityProvider { get; set; }
