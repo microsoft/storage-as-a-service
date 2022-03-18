@@ -133,7 +133,7 @@ namespace Microsoft.UsEduCsu.Saas
 			if (containerDataPlaneRoleAssignments.Any())
 			{
 				// They have access to the container
-				containerDataPlaneRoleAssignments.ForEach(r => containers.Add(r.Container + " (by RBAC)"));
+				containerDataPlaneRoleAssignments.ForEach(r => containers.Add(r.Container));
 			}
 
 			// For any containers where the principal doesn't have a data plane RBAC role
