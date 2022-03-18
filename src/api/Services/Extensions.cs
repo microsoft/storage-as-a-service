@@ -8,6 +8,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			return args.Any(x => x == null);
 		}
+
+		public static bool AnyNullOrEmpty(params object[] args)
+		{
+			return args.Any(x => x == null || string.IsNullOrEmpty(x.ToString()));
+		}
 	}
 
 	public class Result

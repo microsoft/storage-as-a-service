@@ -121,9 +121,9 @@ namespace Microsoft.UsEduCsu.Saas
 			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserPrincipalId(claimsPrincipal))
 							.Where(ra => ra.Container == tlfp.FileSystem).ToList();
 
-			// TODO: This logic seems flawed: the user might have more than one data plane role. Owner should just be one of them to continue.
-			if (roles.Count() == 0
-				|| roles.Any(ra => !ra.RoleName.Contains("Owner")))
+			// If the calling user does not have the Storage Blob Data Owner RBAC role on the container
+			// TODO: Consider switching to user credentials?
+			if (!roles.Any(ra => ra.RoleName.Contains("Owner")))
 			{
 				// TODO: Should be an HTTP 403
 				return new BadRequestErrorMessageResult("Must be a member of the Storage Blob Data Owner role on the file system to create Top-Level Folders.");
@@ -131,15 +131,18 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Check Parameters
 			string error = null;
-			if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
-				// TODO: Why continue?
+			if (Services.Extensions.AnyNullOrEmpty(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
+			{
 				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
+				return new BadRequestErrorMessageResult(error);
+			}
 
 			// Call each of the steps in order and error out if anything fails
 			Result result = null;
 			var storageUri = SasConfiguration.GetStorageUri(account);
-			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
-			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, tlfp.FileSystem);
+			TokenCredential ApiCredential = new DefaultAzureCredential();
+			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
+			var folderOperations = new FolderOperations(log, ApiCredential, storageUri, tlfp.FileSystem);
 
 			// Create Folders and Assign permissions
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);

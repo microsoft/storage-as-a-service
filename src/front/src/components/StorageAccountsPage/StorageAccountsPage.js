@@ -38,7 +38,7 @@ const StorageAccountsPage = ({ strings }) => {
 					displayToast(strings.accountsLoaded)
 				}
 				else {
-					displayToast(strings.noAccountsLoaded)
+					displayErrorToast(strings.noAccountsLoaded)
 				}
 			}
 			catch (error) {
@@ -73,7 +73,7 @@ const StorageAccountsPage = ({ strings }) => {
 		selectedFileSystem
 			&& retrieveDirectories(selectedStorageAccount, selectedFileSystem)
 	}, [selectedFileSystem]) // eslint-disable-line react-hooks/exhaustive-deps
-	// Disabling because we don't want to trigger on change of selectedStorageAccount
+	// Disabling the rule that checks to make sure all dependent objects are included, because we don't want to trigger on change of selectedStorageAccount
 
 
 	const displayToast = message => {
