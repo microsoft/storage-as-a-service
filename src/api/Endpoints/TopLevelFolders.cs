@@ -181,7 +181,6 @@ namespace Microsoft.UsEduCsu.Saas
 			var objectList = new Dictionary<string, AccessControlType>();
 
 			ParallelOptions pOptions = new();
-			CancellationToken cToken = new();
 
 			await Parallel.ForEachAsync(userAccessList, pOptions, async (item, cToken) =>
 			{
