@@ -38,7 +38,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			try
 			{
 				var directoryClient = dlfsClient.GetDirectoryClient(folder);
-				var response = await directoryClient.CreateIfNotExistsAsync();	// Returns null if exists
+				var response = await directoryClient.CreateIfNotExistsAsync();  // Returns null if exists
 				result.Success = response?.GetRawResponse().Status == 201;
 
 				if (!result.Success)
@@ -63,7 +63,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			log.LogTrace($"Assigning RWX permission to Folder Owner ({ual}) at folder's ({folder}) level...");
 
 			var accessControlListUpdate = new List<PathAccessControlItem>();
-			foreach(var user in userAccessList)
+			foreach (var user in userAccessList)
 			{
 				var access = new PathAccessControlItem(
 					accessControlType: user.Value,
@@ -82,7 +82,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var result = new Result();
 			var directoryClient = dlfsClient.GetDirectoryClient(folder);
 			var resultACL = await directoryClient.UpdateAccessControlRecursiveAsync(accessControlListUpdate);
-			result.Success = resultACL.GetRawResponse().Status == (int) HttpStatusCode.OK;
+			result.Success = resultACL.GetRawResponse().Status == (int)HttpStatusCode.OK;
 			result.Message = result.Success ? null : "Error trying to assign the RWX permission to the folder. Error 500.";
 			return result;
 		}
@@ -150,10 +150,16 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return long.Parse(meta[sizeKey]);
 		}
 
+		/// <summary>
+		/// Returns a (partial) list of top-level folders that the principal's whose token is a class member can access.
+		/// </summary>
+		/// <param name="checkForAny">If set to true, stops enumerating folders when the first permissioned folder is found.</param>
+		/// <returns>A list of top-level folders the principal represented by the current token has access to. If checkForAny is true, the list is only a partial list.</returns>
 		internal IList<FolderDetail> GetAccessibleFolders(bool checkForAny = false)
 		{
 			var accessibleFolders = new ObservableCollection<FolderDetail>();
 			List<PathItem> folders = null;
+
 			try
 			{
 				// Get all Top Level Folders
@@ -173,11 +179,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				CancellationToken = cancelSource.Token
 			};
-			accessibleFolders.CollectionChanged += (s, e) =>
+
+			// Prepare a handler to stop the enumeration of folders as soon as 1 is found
+			// Only create the handler if checkForAny == true
+			if (checkForAny)
 			{
-				if (checkForAny)
-					cancelSource.Cancel();
-			};
+				accessibleFolders.CollectionChanged += (s, e) =>
+				{
+					if (checkForAny)
+						cancelSource.Cancel();
+				};
+			}
 
 			try
 			{
@@ -185,14 +197,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					{
 						if (po.CancellationToken.IsCancellationRequested)
 							return;
+
 						try
 						{
 							var fd = GetFolderDetail(folder.Name);
+
 							if (fd != null)
 								accessibleFolders.Add(fd);
 						}
 						catch (Exception ex)
 						{
+							// TODO: This trace message seems to lack context (which user, which storage account?)
 							log.LogTrace(ex, $"User has no access to {folder.Name}.");
 						}
 					}
@@ -206,6 +221,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				cancelSource.Dispose();
 			}
+
 			return accessibleFolders;
 		}
 
@@ -218,7 +234,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				var rootClient = dlfsClient.GetDirectoryClient(folderName);  // container (root)
 				var acl = rootClient.GetAccessControl(userPrincipalName: true).Value.AccessControlList;
 				string createdOn = string.Empty, accessTier = string.Empty;
-				IDictionary<string, string> metadata = new Dictionary<string,string>();
+				IDictionary<string, string> metadata = new Dictionary<string, string>();
 				if (isRoot)
 					metadata = dlfsClient.GetProperties().Value.Metadata;
 				else
@@ -284,7 +300,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var groupOperations = new GroupOperations(log, new DefaultAzureCredential());
 
 			Guid testguid;
-			for(int i =0; i < userAccess.Count(); i++)
+			for (int i = 0; i < userAccess.Count(); i++)
 			{
 				var gid = userAccess[i];
 				if (Guid.TryParse(gid, out testguid))
