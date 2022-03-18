@@ -1,8 +1,6 @@
-using Azure.Core;
 using Azure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Management.Authorization.Models;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
@@ -14,7 +12,6 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -72,7 +69,6 @@ namespace Microsoft.UsEduCsu.Saas
 			var result = new List<FileSystemResult>();
 
 			Parallel.ForEach(accounts, acct =>
-			//foreach (var acct in accounts)
 			{
 				var containers = GetContainers(log, acct, upn, principalId);
 
@@ -86,9 +82,7 @@ namespace Microsoft.UsEduCsu.Saas
 				// TODO: Check if containers has any results before even creating an fs object
 				if (fs.FileSystems.Any())
 					result.Add(fs);
-			}
-			);
-
+			});
 
 			log.LogTrace(JsonSerializer.Serialize(result));
 
