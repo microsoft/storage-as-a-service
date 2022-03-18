@@ -139,13 +139,12 @@ namespace Microsoft.UsEduCsu.Saas
 			// For any containers where the principal doesn't have a data plane RBAC role
 			Parallel.ForEach(fileSystems.Where(fs => !containers.Any(c => c == fs.Name)), filesystem =>
 			{
-				// Evaluate top-level folder ACLs
-				// Check if user can read folders
+				// Evaluate top-level folder ACLs, check if user can read folders
 				var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
 				var folders = folderOps.GetAccessibleFolders(checkForAny: true);
 
 				if (folders.Count > 0)
-					containers.Add(filesystem.Name + " (by ACL)");
+					containers.Add(filesystem.Name);
 			});
 
 			return containers;
