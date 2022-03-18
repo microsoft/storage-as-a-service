@@ -74,17 +74,19 @@ namespace Microsoft.UsEduCsu.Saas
 			Parallel.ForEach(accounts, acct =>
 			//foreach (var acct in accounts)
 			{
-					var containers = GetContainers(log, acct, upn, principalId);
+				var containers = GetContainers(log, acct, upn, principalId);
 
-					// Add the current account and the permissioned containers to the result set
-					var fs = new FileSystemResult()
-					{
-						Name = acct,
-						FileSystems = containers.Distinct().OrderBy(c => c).ToList()
-					};
-					if (fs.FileSystems.Any())
-						result.Add(fs);
-				}
+				// Add the current account and the permissioned containers to the result set
+				var fs = new FileSystemResult()
+				{
+					Name = acct,
+					FileSystems = containers.Distinct().OrderBy(c => c).ToList()
+				};
+
+				// TODO: Check if containers has any results before even creating an fs object
+				if (fs.FileSystems.Any())
+					result.Add(fs);
+			}
 			);
 
 
@@ -112,9 +114,10 @@ namespace Microsoft.UsEduCsu.Saas
 				var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 				var roles = roleOperations
 								.GetContainerRoleAssignments(account, principalId)
-								.Where( ra => ra.Container == filesystem.Name
-										 && ra.PrincipalId == principalId);
-				if (roles.Any()) {
+								.Where(ra => ra.Container == filesystem.Name
+										&& ra.PrincipalId == principalId);
+				if (roles.Any())
+				{
 					containers.Add(filesystem.Name);
 					return;
 				}
