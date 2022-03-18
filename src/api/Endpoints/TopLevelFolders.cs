@@ -126,7 +126,7 @@ namespace Microsoft.UsEduCsu.Saas
 				|| roles.Any(ra => !ra.RoleName.Contains("Owner")))
 			{
 				// TODO: Should be an HTTP 403
-				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
+				return new BadRequestErrorMessageResult("Must be a member of the Storage Blob Data Owner role on the file system to create Top-Level Folders.");
 			}
 
 			// Check Parameters

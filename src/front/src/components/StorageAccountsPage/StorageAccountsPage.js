@@ -23,6 +23,7 @@ const StorageAccountsPage = ({ strings }) => {
 
 	const [toastMessage, setToastMessage] = useState()
 	const [isToastOpen, setToastOpen] = useState(false)
+	const [toastSeverity, setToastSeverity] = useState('success')
 
 	// When authenticated, retrieve the list of File Systems for the selected Azure Data Lake Storage Account
 	useEffect(() => {
@@ -77,9 +78,15 @@ const StorageAccountsPage = ({ strings }) => {
 
 	const displayToast = message => {
 		setToastMessage(message)
+		setToastSeverity('success')
 		setToastOpen(true)
 	}
 
+	const displayErrorToast = message => {
+		setToastMessage(message)
+		setToastSeverity('error')
+		setToastOpen(true)
+	}
 
 	const handleCreateDirectory = (data) => {
 		// Calls the API to save the directory
@@ -95,7 +102,7 @@ const StorageAccountsPage = ({ strings }) => {
 				}
 				else {
 					console.error(response.Error);
-					displayToast(response.Error);
+					displayErrorToast(response.Error);
 				}
 			})
 			.catch(error => {
@@ -160,7 +167,7 @@ const StorageAccountsPage = ({ strings }) => {
 				autoHideDuration={5000}
 				onClose={() => setToastOpen(false)}
 			>
-				<Alert severity='success'>{toastMessage}</Alert>
+				<Alert severity={toastSeverity}>{toastMessage}</Alert>
 			</Snackbar>
 		</>
 	)
