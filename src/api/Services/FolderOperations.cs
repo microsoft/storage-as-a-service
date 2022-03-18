@@ -208,6 +208,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 						catch (Exception ex)
 						{
 							// TODO: This trace message seems to lack context (which user, which storage account?)
+							// TODO: The method GetFolderDetail doesn't throw exceptions...
+							// if an exception occurs during the call to .Add, this message will be confusing
 							log.LogTrace(ex, $"User has no access to {folder.Name}.");
 						}
 					}
@@ -235,8 +237,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				var acl = rootClient.GetAccessControl(userPrincipalName: true).Value.AccessControlList;
 				string createdOn = string.Empty, accessTier = string.Empty;
 				IDictionary<string, string> metadata = new Dictionary<string, string>();
+
 				if (isRoot)
+				{
 					metadata = dlfsClient.GetProperties().Value.Metadata;
+				}
 				else
 				{
 					var prop = rootClient.GetProperties().Value;
@@ -244,6 +249,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					createdOn = prop.CreatedOn.ToLocalTime().ToString(); // TODO: LocalTime probably doesn't mean anything when run in an Azure Fx
 					accessTier = prop.AccessTier;
 				}
+
 				FolderDetail fd = BuildFolderDetail(folderName, metadata, acl, rootClient.Uri);
 
 				if (!isRoot)
@@ -258,6 +264,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				log.LogError(ex.Message, ex);
 			}
+
 			return null;
 		}
 
@@ -278,7 +285,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				.Select(p => p.EntityId)
 				.ToList();
 
-			TranslateGroups(userAccess);
+			TranslateGroups(userAccess); // TODO: Opportunity for caching here
 
 			// Create Folder Details
 			var fd = new FolderDetail()
@@ -291,21 +298,31 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				URI = uri.ToString(),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
 			};
+
 			return fd;
 		}
 
+		/// <summary>
+		/// Translates AAD group Object IDs into group names in the specified user access list.
+		/// The original user access list is modified: group object IDs are replaced by group names.
+		/// </summary>
+		/// <param name="userAccess">The list of access control entries.</param>
 		private void TranslateGroups(IList<string> userAccess)
 		{
-			// Add Group Names
 			var groupOperations = new GroupOperations(log, new DefaultAzureCredential());
 
-			Guid testguid;
 			for (int i = 0; i < userAccess.Count(); i++)
 			{
-				var gid = userAccess[i];
-				if (Guid.TryParse(gid, out testguid))
+				var groupObjectId = userAccess[i];
+
+				// Check if the current user access entry is a GUID
+				if (Guid.TryParse(groupObjectId, out Guid guid))
 				{
-					userAccess[i] = (groupOperations.GetGroupNameFromObjectId(gid).Result);
+					// Assume it's an AAD group object ID and retrieve the group name
+					var groupName = groupOperations.GetGroupNameFromObjectId(groupObjectId).Result;
+
+					// Replace the current list item, if it is a group name, otherwise, leave the GUID in place
+					userAccess[i] = !string.IsNullOrEmpty(groupName) ? groupName : userAccess[i];
 				}
 			}
 		}

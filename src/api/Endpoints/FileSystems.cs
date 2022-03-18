@@ -57,9 +57,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// Calculate UPN
 			var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
 			// TODO: principalId could be null
-			var principalId = claimsPrincipal.Claims
-				.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?
-				.Value;
+			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
 
 			// Get the Containers for a upn from each storage account
 			var accounts = SasConfiguration.GetConfiguration().StorageAccounts;

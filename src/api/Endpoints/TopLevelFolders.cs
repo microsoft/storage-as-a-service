@@ -42,9 +42,9 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			var authenticatedUser = claimsPrincipal.Identity.Name;
-			var principalId = UserOperations.GetUserId(claimsPrincipal);
+			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
 
-			// TODO: Review for security. This seems to allow any authenticated users to pass another user's UPN and retrieve the folders they have access to?
+			// TODO: Review for security. This seems to allow any authenticated user to pass another user's UPN and retrieve the folders they have access to?
 			// Perhaps acceptable if using an "admin" role
 			if (user == null)
 				user = authenticatedUser;
@@ -55,25 +55,32 @@ namespace Microsoft.UsEduCsu.Saas
 			// Get User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 			var folderOperations = new FolderOperations(log, userCred, storageUri, filesystem);
+			// Retrieve ALL top-level folders in the container that are accessible by the user
 			var folders = folderOperations.GetAccessibleFolders();
 
 			// Add Root Folder if they are the owner
+			// TODO: Possible improvement: if they are the owner per RBAC (or any RBAC data plane role?), simply retrieve all folders instead of checking each folder?
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 			var roles = roleOperations.GetContainerRoleAssignments(account, principalId)
-									.Where( ra => ra.Container == filesystem
-											 && ra.PrincipalId == principalId);
-			if (roles.Any(ra => ra.RoleName.Contains("Owner"))) {
+									.Where(ra => ra.Container == filesystem
+											&& ra.PrincipalId == principalId);
+
+			// TODO: Why only for the Owner data plane role?
+			if (roles.Any(ra => ra.RoleName.Contains("Owner")))
+			{
 				var fd = folderOperations.GetFolderDetail(string.Empty);
-				if (fd != null ) {
+
+				if (fd != null)
+				{
 					fd.Name = "{root}";
-					fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {authenticatedUser}"));
+					fd.UserAccess = new List<string>(roles.Select(ra => $"{ra.RoleName}: {authenticatedUser}"));
 					folders.Add(fd);
 				}
 			}
 
 			// Sort folders for display
 			var sortedFolders = folders
-								.Where( f => f != null)
+								.Where(f => f != null)
 								.OrderBy(f => f.URI)
 								.ToList();
 
@@ -110,8 +117,8 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Authorize the calling user as owner of the container
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
-			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserId(claimsPrincipal))
-							.Where( ra => ra.Container == tlfp.FileSystem).ToList();
+			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserPrincipalId(claimsPrincipal))
+							.Where(ra => ra.Container == tlfp.FileSystem).ToList();
 			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
 				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
 
@@ -168,7 +175,7 @@ namespace Microsoft.UsEduCsu.Saas
 					continue;
 				}
 
-				var gid = await groupOperations.GetObjectIdfromGroupName(item);
+				var gid = await groupOperations.GetObjectIdFromGroupName(item);
 				if (gid != null)
 				{
 					objectList.Add(gid, AccessControlType.Group);
@@ -211,7 +218,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			public string FolderOwner { get; set; }        // Probably will not stay as a string
 
-			public List<string> UserAccessList {get; set;}
+			public List<string> UserAccessList { get; set; }
 		}
 	}
 }

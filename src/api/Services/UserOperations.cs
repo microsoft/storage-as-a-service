@@ -110,7 +110,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 
 			// Join all the existing claims
-			foreach(var principalClaim in principal.Claims)
+			foreach (var principalClaim in principal.Claims)
 			{
 				identity.AddClaim(new Claim(principalClaim.Typ, principalClaim.Val));
 			}
@@ -118,7 +118,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return new ClaimsPrincipal(identity);
 		}
 
-		internal static string GetUserId(ClaimsPrincipal claimsPrincipal)
+		internal static string GetUserPrincipalId(ClaimsPrincipal claimsPrincipal)
 		{
 			return claimsPrincipal.Claims.FirstOrDefault(fa => fa.Type == ClaimTypes.NameIdentifier)?.Value;
 		}
