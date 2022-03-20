@@ -69,26 +69,27 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 	options.body = JSON.stringify({
 		Folder: content.name,
 		FundCode: content.fundCode,
-		FolderOwner: owner
+		FolderOwner: owner,
+		UserAccessList: content.userAccess.replace(" ", "").replace(";", ",").split(",")
 	})
 
 	try {
 		var response = await fetch(endpoint, options);
-		let folderResponse =  {
+		let folderResponse = {
 			Folder: "",
 			Error: ""
 		};
-		
+
 		let body = await response.json();
 
 		if (response.status < 200 || response.status > 299)	// check for success
 			folderResponse.Error = body.Message;
 		else
 			folderResponse.Folder = body;
+
 		return folderResponse
 	}
-	catch (error)
-	{
+	catch (error) {
 		console.error(error);
 	}
 }

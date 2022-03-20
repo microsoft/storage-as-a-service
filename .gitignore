@@ -355,3 +355,5 @@ MigrationBackup/
 # Azurite
 __azurite_db_*.json
 __blobstorage__/*
+src/tests/local.settings.json
+src/tests/local.settings.json

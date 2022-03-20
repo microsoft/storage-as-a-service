@@ -6,14 +6,17 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.5.0" />
-    <PackageReference Include="Azure.ResourceManager" Version="1.0.0-beta.7" />
-    <PackageReference Include="Azure.ResourceManager.Resources" Version="1.0.0-beta.5" />
+    <PackageReference Include="Azure.ResourceManager" Version="1.0.0-beta.8" />
+    <PackageReference Include="Azure.ResourceManager.Resources" Version="1.0.0-beta.6" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.10.0" />
     <PackageReference Include="Azure.Storage.Files.DataLake" Version="12.8.0" />
     <PackageReference Include="Microsoft.Azure.Management.Authorization" Version="2.13.0-preview" />
     <PackageReference Include="Microsoft.Azure.Management.ResourceGraph" Version="2.1.0" />
-    <PackageReference Include="Microsoft.Graph" Version="4.17.0" />
-    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="6.0.3" />
+    <PackageReference Include="Microsoft.Graph" Version="4.20.0" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.1.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.16.0" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">

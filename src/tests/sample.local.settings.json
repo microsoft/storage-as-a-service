@@ -1,0 +1,20 @@
+{
+	"IsEncrypted": false,
+	"Values": {
+		"APPINSIGHTS_INSTRUMENTATIONKEY": "6f51",
+		"FUNCTIONS_WORKER_RUNTIME": "dotnet",
+		"DATALAKE_STORAGE_ACCOUNTS": "stsaasdemoeastus201,stsaasdemoeastus02,stsaasdemoeastus0202",
+		"COST_PER_TB": 1,
+		"AZURE_TENANT_ID": "0308",
+		"AZURE_CLIENT_ID": "395a36",
+		"AZURE_CLIENT_SECRET": "grZ7Q",
+		"FILESYSTEMS_API_KEY": "{some secret key}",
+		"CONFIGURATION_API_KEY": "{another secret key}",
+		"CacheConnection": "endpoint.redis.cache.windows.net:6380,password=Rr,ssl=True,abortConnect=False"
+	},
+	"Host": {
+		"LocalHttpPort": 7071,
+		"CORS": "*",
+		"CORSCredentials": false
+	}
+}

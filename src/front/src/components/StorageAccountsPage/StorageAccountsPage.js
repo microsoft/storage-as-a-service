@@ -23,6 +23,7 @@ const StorageAccountsPage = ({ strings }) => {
 
 	const [toastMessage, setToastMessage] = useState()
 	const [isToastOpen, setToastOpen] = useState(false)
+	const [toastSeverity, setToastSeverity] = useState('success')
 
 	// When authenticated, retrieve the list of File Systems for the selected Azure Data Lake Storage Account
 	useEffect(() => {
@@ -37,7 +38,7 @@ const StorageAccountsPage = ({ strings }) => {
 					displayToast(strings.accountsLoaded)
 				}
 				else {
-					displayToast(strings.noAccountsLoaded)
+					displayErrorToast(strings.noAccountsLoaded)
 				}
 			}
 			catch (error) {
@@ -72,21 +73,27 @@ const StorageAccountsPage = ({ strings }) => {
 		selectedFileSystem
 			&& retrieveDirectories(selectedStorageAccount, selectedFileSystem)
 	}, [selectedFileSystem]) // eslint-disable-line react-hooks/exhaustive-deps
-	// Disabling because we don't want to trigger on change of selectedStorageAccount
+	// Disabling the rule that checks to make sure all dependent objects are included, because we don't want to trigger on change of selectedStorageAccount
 
 
 	const displayToast = message => {
 		setToastMessage(message)
+		setToastSeverity('success')
 		setToastOpen(true)
 	}
 
+	const displayErrorToast = message => {
+		setToastMessage(message)
+		setToastSeverity('error')
+		setToastOpen(true)
+	}
 
 	const handleCreateDirectory = (data) => {
 		// Calls the API to save the directory
 		createFolder(selectedStorageAccount, selectedFileSystem, account.userDetails, data)
 			.then((response) => {
 				if (response.Folder) {
-					// TODO: Match sort order to sort order from API (by URI)
+					// Match sort order to sort order from API (by URI)
 					const _directories = [...directories, response.Folder].sort((a, b) => a.uri < b.uri ? -1 : a.uri > b.uri ? 1 : 0)
 					setDirectories(_directories)
 
@@ -95,7 +102,7 @@ const StorageAccountsPage = ({ strings }) => {
 				}
 				else {
 					console.error(response.Error);
-					displayToast(response.Error);
+					displayErrorToast(response.Error);
 				}
 			})
 			.catch(error => {
@@ -160,7 +167,7 @@ const StorageAccountsPage = ({ strings }) => {
 				autoHideDuration={5000}
 				onClose={() => setToastOpen(false)}
 			>
-				<Alert severity='success'>{toastMessage}</Alert>
+				<Alert severity={toastSeverity}>{toastMessage}</Alert>
 			</Snackbar>
 		</>
 	)
