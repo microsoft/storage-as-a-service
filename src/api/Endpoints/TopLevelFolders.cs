@@ -16,6 +16,7 @@ using System.Web.Http;
 using System.Collections.Generic;
 using Azure.Core;
 using Azure.Storage.Files.DataLake.Models;
+using System.Threading;
 
 namespace Microsoft.UsEduCsu.Saas
 {
@@ -42,9 +43,9 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			var authenticatedUser = claimsPrincipal.Identity.Name;
-			var principalId = UserOperations.GetUserId(claimsPrincipal);
+			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
 
-			// TODO: Review for security. This seems to allow any authenticated users to pass another user's UPN and retrieve the folders they have access to?
+			// TODO: Review for security. This seems to allow any authenticated user to pass another user's UPN and retrieve the folders they have access to?
 			// Perhaps acceptable if using an "admin" role
 			if (user == null)
 				user = authenticatedUser;
@@ -55,25 +56,32 @@ namespace Microsoft.UsEduCsu.Saas
 			// Get User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 			var folderOperations = new FolderOperations(log, userCred, storageUri, filesystem);
+			// Retrieve ALL top-level folders in the container that are accessible by the user
 			var folders = folderOperations.GetAccessibleFolders();
 
 			// Add Root Folder if they are the owner
+			// TODO: Possible improvement: if they are the owner per RBAC (or any RBAC data plane role?), simply retrieve all folders instead of checking each folder?
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 			var roles = roleOperations.GetContainerRoleAssignments(account, principalId)
-									.Where( ra => ra.Container == filesystem
-											 && ra.PrincipalId == principalId);
-			if (roles.Any(ra => ra.RoleName.Contains("Owner"))) {
+									.Where(ra => ra.Container == filesystem
+											&& ra.PrincipalId == principalId);
+
+			// TODO: Why only for the Owner data plane role?
+			if (roles.Any(ra => ra.RoleName.Contains("Owner")))
+			{
 				var fd = folderOperations.GetFolderDetail(string.Empty);
-				if (fd != null ) {
+
+				if (fd != null)
+				{
 					fd.Name = "{root}";
-					fd.UserAccess = new List<string>(roles.Select( ra => $"{ra.RoleName}: {authenticatedUser}"));
+					fd.UserAccess = new List<string>(roles.Select(ra => $"{ra.RoleName}: {authenticatedUser}"));
 					folders.Add(fd);
 				}
 			}
 
 			// Sort folders for display
 			var sortedFolders = folders
-								.Where( f => f != null)
+								.Where(f => f != null)
 								.OrderBy(f => f.URI)
 								.ToList();
 
@@ -110,21 +118,33 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Authorize the calling user as owner of the container
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
-			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserId(claimsPrincipal))
-							.Where( ra => ra.Container == tlfp.FileSystem).ToList();
-			if (roles.Count() == 0 || roles.Any(ra => !ra.RoleName.Contains("Owner")))
-				return new BadRequestErrorMessageResult("Must be an Owner of the file system to create Top Level Folders.");
+			// TODO: Enhance the GetContainerRoleAssignments method to allow passing in a container name
+			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserPrincipalId(claimsPrincipal))
+							.Where(ra => ra.Container == tlfp.FileSystem)
+							.ToList();
+
+			// If the calling user does not have the Storage Blob Data Owner RBAC role on the container
+			// TODO: Consider switching to user credentials?
+			if (!roles.Any(ra => ra.RoleName.Contains("Owner")))
+			{
+				// TODO: Should be an HTTP 403
+				return new BadRequestErrorMessageResult("Must be a member of the Storage Blob Data Owner role on the file system to create Top-Level Folders.");
+			}
 
 			// Check Parameters
 			string error = null;
-			if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
+			if (Services.Extensions.AnyNullOrEmpty(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
+			{
 				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
+				return new BadRequestErrorMessageResult(error);
+			}
 
-			// Call each of the steps in order and error out if anytyhing fails
+			// Call each of the steps in order and error out if anything fails
 			Result result = null;
 			var storageUri = SasConfiguration.GetStorageUri(account);
-			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
-			var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), storageUri, tlfp.FileSystem);
+			TokenCredential ApiCredential = new DefaultAzureCredential();
+			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
+			var folderOperations = new FolderOperations(log, ApiCredential, storageUri, tlfp.FileSystem);
 
 			// Create Folders and Assign permissions
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);
@@ -136,7 +156,7 @@ namespace Microsoft.UsEduCsu.Saas
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
-			// Foler permissions
+			// Folder permissions
 			if (tlfp.UserAccessList.Count == 0)
 				tlfp.UserAccessList.Add(tlfp.FolderOwner);
 
@@ -159,23 +179,40 @@ namespace Microsoft.UsEduCsu.Saas
 			var groupOperations = new GroupOperations(log, tokenCredential);
 
 			var objectList = new Dictionary<string, AccessControlType>();
-			foreach (var item in userAccessList)
+
+			ParallelOptions pOptions = new();
+
+			await Parallel.ForEachAsync(userAccessList, pOptions, async (item, cToken) =>
 			{
-				var uid = await userOperations.GetObjectIdFromUPN(item);
-				if (uid != null)
+				if (cToken.IsCancellationRequested)
+					return;
+
+				// If this access control entry is a UPN
+				if (IsUpn(item))
 				{
-					objectList.Add(uid, AccessControlType.User);
-					continue;
+					// Translate the UPN into a principal ID
+					var uid = await userOperations.GetObjectIdFromUPN(item);
+					if (uid != null)
+						objectList.Add(uid, AccessControlType.User);
+				}
+				else
+				{
+					// Assume it's a group name
+					var gid = await groupOperations.GetObjectIdFromGroupName(item);
+					if (gid != null)
+						objectList.Add(gid, AccessControlType.Group);
 				}
 
-				var gid = await groupOperations.GetObjectIdfromGroupName(item);
-				if (gid != null)
-				{
-					objectList.Add(gid, AccessControlType.Group);
-					continue;
-				}
-			}
+				// TODO: consider keeping track of which ACEs could not be translated and reporting back to user
+			});
+
 			return objectList;
+		}
+
+		private static bool IsUpn(string input)
+		{
+			return input != null
+				&& input.Contains('@');
 		}
 
 		internal static async Task<TopLevelFolderParameters> GetTopLevelFolderParameters(HttpRequest req, ILogger log)
@@ -211,7 +248,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			public string FolderOwner { get; set; }        // Probably will not stay as a string
 
-			public List<string> UserAccessList {get; set;}
+			public List<string> UserAccessList { get; set; }
 		}
 	}
 }

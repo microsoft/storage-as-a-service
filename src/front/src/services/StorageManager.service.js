@@ -70,12 +70,12 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 		Folder: content.name,
 		FundCode: content.fundCode,
 		FolderOwner: owner,
-		UserAccessList: content.userAccess.replace(" ","").replace(";",",").split(",")
+		UserAccessList: content.userAccess.replace(" ", "").replace(";", ",").split(",")
 	})
 
 	try {
 		var response = await fetch(endpoint, options);
-		let folderResponse =  {
+		let folderResponse = {
 			Folder: "",
 			Error: ""
 		};
@@ -86,10 +86,10 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 			folderResponse.Error = body.Message;
 		else
 			folderResponse.Folder = body;
+
 		return folderResponse
 	}
-	catch (error)
-	{
+	catch (error) {
 		console.error(error);
 	}
 }

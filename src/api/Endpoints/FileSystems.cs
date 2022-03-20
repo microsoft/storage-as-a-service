@@ -1,8 +1,6 @@
-using Azure.Core;
 using Azure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.Management.Authorization.Models;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
@@ -14,7 +12,6 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -33,8 +30,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			if (req.Method == HttpMethods.Post)
 				return await FileSystemsPOST(req, log, account);
-
-			if (req.Method == HttpMethods.Get)
+			else if (req.Method == HttpMethods.Get)
 				return FileSystemsGET(req, log, account);
 
 			// TODO: If this is even possible (accepted methods are defined above?) return HTTP error code 405, response must include an Allow header with allowed methods
@@ -49,6 +45,7 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
 				if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
+					// TODO: Consider return HTTP 401 instead of HTTP 500
 					return new BadRequestErrorMessageResult("Call requires an authenticated user.");
 			}
 			catch (Exception ex)
@@ -59,9 +56,8 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Calculate UPN
 			var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
-			var principalId = claimsPrincipal.Claims
-				.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?
-				.Value;
+			// TODO: principalId could be null
+			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
 
 			// Get the Containers for a upn from each storage account
 			var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
@@ -72,21 +68,24 @@ namespace Microsoft.UsEduCsu.Saas
 			var result = new List<FileSystemResult>();
 
 			Parallel.ForEach(accounts, acct =>
-			//foreach (var acct in accounts)
 			{
-					var containers = GetContainers(log, acct, upn, principalId);
+				// TODO: Consider renaming to GetPermissionedContainers
+				var containers = GetContainers(log, acct, upn, principalId);
 
-					// Add the current account and the permissioned containers to the result set
+				// If the current user has access to any containers in the current storage account
+				if (containers.Any())
+				{
+					// Create a result object for the current storage account
 					var fs = new FileSystemResult()
 					{
 						Name = acct,
 						FileSystems = containers.Distinct().OrderBy(c => c).ToList()
 					};
-					if (fs.FileSystems.Any())
-						result.Add(fs);
-				}
-			);
 
+					// Add the current account and the permissioned containers to the result set
+					result.Add(fs);
+				}
+			});
 
 			log.LogTrace(JsonSerializer.Serialize(result));
 
@@ -94,34 +93,54 @@ namespace Microsoft.UsEduCsu.Saas
 			return new OkObjectResult(result);
 		}
 
+		/// <summary>
+		/// Retrieves the containers in the specified storage account to which the specified account has access.
+		/// Access can be either via RBAC data plane roles or via ACLs on folders.
+		/// The UPN and the principal ID must refer to the same account.
+		/// </summary>
+		/// <param name="log"></param>
+		/// <param name="account"></param>
+		/// <param name="upn"></param>
+		/// <param name="principalId"></param>
+		/// <returns>The list of containers to which the specified principal has access.</returns>
 		private static IList<string> GetContainers(ILogger log, string account, string upn, string principalId)
 		{
+			// Define the return value (never return null)
 			var containers = new List<string>();
 
 			var serviceUri = SasConfiguration.GetStorageUri(account);
 			var adls = new FileSystemOperations(log, new DefaultAzureCredential(), serviceUri);
 
+			// Retrieve all the containers in the specified storage account
 			var fileSystems = adls.GetFilesystems();
 
 			// Transition to User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 
-			Parallel.ForEach(fileSystems, filesystem =>
-			{
-				// Check for Owner of Container
-				var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
-				var roles = roleOperations
-								.GetContainerRoleAssignments(account, principalId)
-								.Where( ra => ra.Container == filesystem.Name
-										 && ra.PrincipalId == principalId);
-				if (roles.Any()) {
-					containers.Add(filesystem.Name);
-					return;
-				}
+			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 
-				// Check if user can read folders
+			// Check for RBAC data plane access to any container in the account
+			var containerDataPlaneRoleAssignments = roleOperations
+							.GetContainerRoleAssignments(account, principalId);
+			// HACK: Doing this in a loop is unnecessary
+			//.Where(ra => ra.Container == filesystem.Name);
+			// HACK: Unncessary, GetContainerRoleAssignments already performs this check
+			//			&& ra.PrincipalId == principalId);
+
+			// If the specified principal has any data plane RBAC assignment on any container
+			if (containerDataPlaneRoleAssignments.Any())
+			{
+				// They have access to the container
+				containerDataPlaneRoleAssignments.ForEach(r => containers.Add(r.Container));
+			}
+
+			// For any containers where the principal doesn't have a data plane RBAC role
+			Parallel.ForEach(fileSystems.Where(fs => !containers.Any(c => c == fs.Name)), filesystem =>
+			{
+				// Evaluate top-level folder ACLs, check if user can read folders
 				var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
 				var folders = folderOps.GetAccessibleFolders(checkForAny: true);
+
 				if (folders.Count > 0)
 					containers.Add(filesystem.Name);
 			});

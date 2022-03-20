@@ -5,68 +5,61 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Rest;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
 	public class GroupOperations
 	{
-		private ILogger log;
-		private TokenCredential tokenCredential;
+		private readonly ILogger log;
+		private readonly GraphServiceClient graphClient;
+		private readonly CancellationToken graphClientCancellationToken;
 
 		public GroupOperations(ILogger log, TokenCredential tokenCredential)
 		{
 			this.log = log;
-			this.tokenCredential = tokenCredential;
+
+			this.graphClientCancellationToken = new CancellationToken();
+			this.graphClient = CreateGraphClient(tokenCredential, graphClientCancellationToken).Result;
 		}
 
-		public async Task<string> GetObjectIdfromGroupName(string groupName)
+		public async Task<string> GetObjectIdFromGroupName(string groupName)
 		{
 			try
 			{
-				var cancellationToken = new CancellationToken();
-				var graphClient = await CreateGraphClient(cancellationToken);
-
 				// Retrieve groups with displayname matching
 				var groups = await graphClient.Groups
 					.Request()
 					.Header("ConsistencyLevel", "eventual")
 					.Filter($"displayName eq '{groupName}'")
 					.Select("id,displayName")
-					.GetAsync(cancellationToken);
+					.GetAsync(graphClientCancellationToken);
 
-				if (groups.Count > 0)
-					return groups.First().Id;
-
-				return null;
+				return groups.FirstOrDefault()?.Id; // TODO: Opportunity for caching
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex.Message);
+				log.LogError(ex, ex.Message);
 				return null;
 			}
 		}
 
-		public async Task<string> GetGroupNameFromObjectId(string gid)
+		/// <summary>
+		/// Looks up the name of the AAD group with the specified object ID.
+		/// </summary>
+		/// <param name="groupObjectId">The group's AAD object ID.</param>
+		/// <returns>The name of the AAD group with the specified object ID, or an empty string if there is no such group.</returns>
+		public async Task<string> GetGroupNameFromObjectId(string groupObjectId)
 		{
 			try
 			{
-				var cancellationToken = new CancellationToken();
-				var graphClient = await CreateGraphClient(cancellationToken);
-
-				// Retrieve groups with displayname matching
-				var group = await graphClient.Groups[gid]
+				// Retrieve groups with group object ID matching
+				var group = await graphClient.Groups[groupObjectId]
 					.Request()
-					.GetAsync(cancellationToken);
+					.GetAsync(graphClientCancellationToken);
 
 				if (group != null)
 					return group.DisplayName;
@@ -75,15 +68,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
-				Debug.WriteLine(ex.Message);
+				log.LogError(ex, ex.Message);
 				return string.Empty;
 			}
 		}
 
-		private async Task<GraphServiceClient> CreateGraphClient(CancellationToken cancellationToken)
+		private async Task<GraphServiceClient> CreateGraphClient(TokenCredential tokenCredential,
+			CancellationToken cancellationToken)
 		{
 			var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });
 			var accessToken = await tokenCredential.GetTokenAsync(tokenRequestContext, cancellationToken);
+
 			var authProvider = new DelegateAuthenticationProvider((requestMessage) =>
 			{
 				requestMessage
@@ -96,8 +91,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				return Task.FromResult(0);
 			});
 
-			var graphClient = new GraphServiceClient(authProvider);
-			return graphClient;
+			return new GraphServiceClient(authProvider);
 		}
 	}
 }
