@@ -60,8 +60,6 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult("Unable to authenticate user.");
 			}
 
-			// Calculate UPN
-			//var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
 			// TODO: principalId could be null
 			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
