@@ -19,13 +19,13 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
 	{
-		public static ILogger logger;
-
+		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status201Created)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[FunctionName("FileSystems")]
 		public static async Task<IActionResult> Run(
 			[HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
 			HttpRequest req,
-			ILogger log, String account)
+			ILogger log, string account)
 		{
 
 			if (req.Method == HttpMethods.Post)
@@ -33,7 +33,8 @@ namespace Microsoft.UsEduCsu.Saas
 			else if (req.Method == HttpMethods.Get)
 				return FileSystemsGET(req, log, account);
 
-			// TODO: If this is even possible (accepted methods are defined above?) return HTTP error code 405, response must include an Allow header with allowed methods
+			// TODO: If this is even possible (accepted methods are defined above?),
+			// return HTTP error code 405, response must include an Allow header with allowed methods
 			return null;
 		}
 
@@ -44,9 +45,13 @@ namespace Microsoft.UsEduCsu.Saas
 			try
 			{
 				claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
+
 				if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
+				{
 					// TODO: Consider return HTTP 401 instead of HTTP 500
+					// TODO: This is also a .NET Core 2.2 construct
 					return new BadRequestErrorMessageResult("Call requires an authenticated user.");
+				}
 			}
 			catch (Exception ex)
 			{
@@ -55,7 +60,7 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			// Calculate UPN
-			var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
+			//var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
 			// TODO: principalId could be null
 			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
 
@@ -70,10 +75,10 @@ namespace Microsoft.UsEduCsu.Saas
 			Parallel.ForEach(accounts, acct =>
 			{
 				// TODO: Consider renaming to GetPermissionedContainers
-				var containers = GetContainers(log, acct, upn, principalId);
+				var containers = GetContainers(log, acct, principalId);
 
-				// If the current user has access to any containers in the current storage account
-				if (containers.Any())
+				// If the current user has access to at least 1 container in the current storage account
+				if (containers.Count > 1)
 				{
 					// Create a result object for the current storage account
 					var fs = new FileSystemResult()
@@ -100,16 +105,16 @@ namespace Microsoft.UsEduCsu.Saas
 		/// </summary>
 		/// <param name="log"></param>
 		/// <param name="account"></param>
-		/// <param name="upn"></param>
 		/// <param name="principalId"></param>
 		/// <returns>The list of containers to which the specified principal has access.</returns>
-		private static IList<string> GetContainers(ILogger log, string account, string upn, string principalId)
+		private static IList<string> GetContainers(ILogger log, string account, string principalId)
 		{
 			// Define the return value (never return null)
 			var containers = new List<string>();
 
 			var serviceUri = SasConfiguration.GetStorageUri(account);
-			var adls = new FileSystemOperations(log, new DefaultAzureCredential(), serviceUri);
+			var appCred = new DefaultAzureCredential();
+			var adls = new FileSystemOperations(log, appCred, serviceUri);
 
 			// Retrieve all the containers in the specified storage account
 			var fileSystems = adls.GetFilesystems();
@@ -128,7 +133,7 @@ namespace Microsoft.UsEduCsu.Saas
 			//			&& ra.PrincipalId == principalId);
 
 			// If the specified principal has any data plane RBAC assignment on any container
-			if (containerDataPlaneRoleAssignments.Any())
+			if (containerDataPlaneRoleAssignments.Count > 0)
 			{
 				// They have access to the container
 				containerDataPlaneRoleAssignments.ForEach(r => containers.Add(r.Container));
@@ -138,7 +143,7 @@ namespace Microsoft.UsEduCsu.Saas
 			Parallel.ForEach(fileSystems.Where(fs => !containers.Any(c => c == fs.Name)), filesystem =>
 			{
 				// Evaluate top-level folder ACLs, check if user can read folders
-				var folderOps = new FolderOperations(log, userCred, serviceUri, filesystem.Name);
+				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred, userCred);
 				var folders = folderOps.GetAccessibleFolders(checkForAny: true);
 
 				if (folders.Count > 0)
@@ -198,25 +203,28 @@ namespace Microsoft.UsEduCsu.Saas
 			roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerId);
 
 			// Get Root Folder Details
-			var folderOperations = new FolderOperations(log, tokenCredential, storageUri, tlfp.FileSystem);
-			var folderDetail = folderOperations.GetFolderDetail(String.Empty);
+			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
+				appTokenCredential: tokenCredential);
+			var folderDetail = folderOperations.GetFolderDetail(string.Empty);
 
-			return new OkObjectResult(folderDetail);
+			return new OkObjectResult(folderDetail) { StatusCode = StatusCodes.Status201Created };
 		}
 
-		internal static async Task<FileSystemParameters> GetFileSystemParameters(HttpRequest req, ILogger log)
+		private static async Task<FileSystemParameters> GetFileSystemParameters(HttpRequest req, ILogger log)
 		{
 			string body = string.Empty;
+
 			using (var reader = new StreamReader(req.Body, Encoding.UTF8))
 			{
 				body = await reader.ReadToEndAsync();
+
 				if (string.IsNullOrEmpty(body))
 				{
 					log.LogError("Body was empty coming from ReadToEndAsync");
 				}
 			}
-			var bodyDeserialized = JsonSerializer.Deserialize<FileSystemParameters>(body);
-			return bodyDeserialized;
+
+			return JsonSerializer.Deserialize<FileSystemParameters>(body);
 		}
 
 		private class FileSystemResult

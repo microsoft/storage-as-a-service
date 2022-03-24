@@ -16,10 +16,21 @@ namespace Microsoft.UsEduCsu.Saas.Services
 	internal class FolderOperations
 	{
 		private readonly ILogger log;
-		private readonly DataLakeFileSystemClient dlfsClient;
+		private readonly DataLakeFileSystemClient userDlfsClient;
+		private readonly DataLakeFileSystemClient appDlfsClient;
 		private readonly decimal costPerTB;
 
-		public FolderOperations(ILogger log, TokenCredential tokenCredential, Uri storageUri, string fileSystem)
+		/// <summary>
+		/// Initializes a new instance of the FolderOperations class.
+		/// </summary>
+		/// <param name="storageUri"></param>
+		/// <param name="fileSystem"></param>
+		/// <param name="log"></param>
+		/// <param name="appTokenCredential"></param>
+		/// <param name="userTokenCredential"></param>
+		public FolderOperations(Uri storageUri, string fileSystem, ILogger log,
+			TokenCredential appTokenCredential,
+			TokenCredential userTokenCredential = null)
 		{
 			this.log = log;
 			var costPerTB = Environment.GetEnvironmentVariable("COST_PER_TB");
@@ -27,17 +38,25 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				decimal.TryParse(costPerTB, out this.costPerTB);
 
 			// TODO: Call helper function to create DataLakeServiceClient
-			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential).GetFileSystemClient(fileSystem);
+			if (appTokenCredential == null)
+			{
+				throw new InvalidOperationException($"Must always specify the appTokenCredential parameter.");
+			}
+
+			appDlfsClient = new DataLakeServiceClient(storageUri, appTokenCredential).GetFileSystemClient(fileSystem);
+
+			if (userTokenCredential != null)
+				userDlfsClient = new DataLakeServiceClient(storageUri, userTokenCredential).GetFileSystemClient(fileSystem);
 		}
 
 		internal async Task<Result> CreateNewFolder(string folder)
 		{
 			var result = new Result();
-			log.LogTrace($"Creating the folder '{folder}' within the container '{dlfsClient.Uri}'...");
+			log.LogTrace($"Creating the folder '{folder}' within the container '{appDlfsClient.Uri}'...");
 
 			try
 			{
-				var directoryClient = dlfsClient.GetDirectoryClient(folder);
+				var directoryClient = appDlfsClient.GetDirectoryClient(folder);
 				var response = await directoryClient.CreateIfNotExistsAsync();  // Returns null if exists
 				result.Success = response?.GetRawResponse().Status == 201;
 
@@ -52,7 +71,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				result.Message = ex.Message;
 				log.LogError(result.Message);
-			}
+			};
 
 			return result;
 		}
@@ -80,7 +99,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Send up changes
 			var result = new Result();
-			var directoryClient = dlfsClient.GetDirectoryClient(folder);
+			var directoryClient = appDlfsClient.GetDirectoryClient(folder);
 			var resultACL = await directoryClient.UpdateAccessControlRecursiveAsync(accessControlListUpdate);
 			result.Success = resultACL.GetRawResponse().Status == (int)HttpStatusCode.OK;
 			result.Message = result.Success ? null : "Error trying to assign the RWX permission to the folder. Error 500.";
@@ -92,7 +111,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			log.LogTrace($"Saving FundCode into container's metadata...");
 			try
 			{
-				var directoryClient = dlfsClient.GetDirectoryClient(folder);
+				var directoryClient = appDlfsClient.GetDirectoryClient(folder);
 
 				// Check the Last Calculated Date from the Metadata
 				var meta = (await directoryClient.GetPropertiesAsync()).Value.Metadata;
@@ -118,9 +137,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			const string sizeCalcDateKey = "SizeCalcDate";
 			const string sizeKey = "Size";
-			log.LogTrace($"Calculating size for ({dlfsClient.Uri})/({folder})");
+			log.LogTrace($"Calculating size for ({appDlfsClient.Uri})/({folder})");
 
-			var directoryClient = dlfsClient.GetDirectoryClient(folder);
+			var directoryClient = appDlfsClient.GetDirectoryClient(folder);
 
 			// Check the Last Calculated Date from the Metadata
 			var meta = (await directoryClient.GetPropertiesAsync()).Value.Metadata;
@@ -163,13 +182,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			try
 			{
 				// Get all Top Level Folders
-				var flds = dlfsClient.GetPaths().ToList();
-				folders = flds.Where<PathItem>(pi => pi.IsDirectory != null && (bool)pi.IsDirectory)
+				// They will be filtered later when using the user credentials to get folder details
+				var flds = appDlfsClient.GetPaths().ToList();
+				folders = flds.Where(pi => pi.IsDirectory == true)
 							  .ToList();
 			}
 			catch (Exception ex)
 			{
-				log.LogTrace(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
+				log.LogTrace(ex, $"{appDlfsClient.AccountName}/{appDlfsClient.Name} {ex.Message}");
 				return accessibleFolders;
 			}
 
@@ -200,7 +220,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 						try
 						{
-							var fd = GetFolderDetail(folder.Name);
+							// Attempt to retrieve the folder's detail
+							// using the calling user's credential
+							var fd = GetFolderDetailForUser(folder.Name);
 
 							if (fd != null)
 								accessibleFolders.Add(fd);
@@ -227,7 +249,25 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return accessibleFolders;
 		}
 
+		internal FolderDetail GetFolderDetailForUser(string folderName)
+		{
+			if (userDlfsClient == null) throw new InvalidOperationException();
+
+			return GetFolderDetail(folderName, userDlfsClient);
+		}
+
+		/// <summary>
+		/// Retrieves a FolderDetail object for the specified folder in the current file system
+		/// using the application's credential.
+		/// </summary>
+		/// <param name="folderName"></param>
+		/// <returns></returns>
 		internal FolderDetail GetFolderDetail(string folderName)
+		{
+			return GetFolderDetail(folderName, appDlfsClient);
+		}
+
+		private FolderDetail GetFolderDetail(string folderName, DataLakeFileSystemClient dlfsClient)
 		{
 			try
 			{
@@ -262,6 +302,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
+				// TODO: Does it make sense to log exceptions that indicate the user doesn't have access? Perhaps in verbose mode?
+				// We should expect there to be plenty of access exceptions
 				log.LogError(ex.Message, ex);
 			}
 

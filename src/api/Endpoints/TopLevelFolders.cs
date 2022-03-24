@@ -1,4 +1,6 @@
+using Azure.Core;
 using Azure.Identity;
+using Azure.Storage.Files.DataLake.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -7,16 +9,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UsEduCsu.Saas.Services;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
-using System.Collections.Generic;
-using Azure.Core;
-using Azure.Storage.Files.DataLake.Models;
-using System.Threading;
 
 namespace Microsoft.UsEduCsu.Saas
 {
@@ -55,7 +54,9 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Get User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
-			var folderOperations = new FolderOperations(log, userCred, storageUri, filesystem);
+			var folderOperations = new FolderOperations(storageUri, filesystem, log,
+				appTokenCredential: new DefaultAzureCredential(), userTokenCredential: userCred);
+
 			// Retrieve ALL top-level folders in the container that are accessible by the user
 			var folders = folderOperations.GetAccessibleFolders();
 
@@ -88,6 +89,9 @@ namespace Microsoft.UsEduCsu.Saas
 			return new OkObjectResult(sortedFolders);
 		}
 
+		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status201Created)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(StatusCodes.Status403Forbidden)]
 		[FunctionName("TopLevelFoldersPOST")]
 		public static async Task<IActionResult> TopLevelFoldersPOST(
 				[HttpTrigger(AuthorizationLevel.Function, "POST", Route = "TopLevelFolders/{account}/{filesystem}")]
@@ -144,7 +148,8 @@ namespace Microsoft.UsEduCsu.Saas
 			var storageUri = SasConfiguration.GetStorageUri(account);
 			TokenCredential ApiCredential = new DefaultAzureCredential();
 			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
-			var folderOperations = new FolderOperations(log, ApiCredential, storageUri, tlfp.FileSystem);
+			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
+				appTokenCredential: ApiCredential);
 
 			// Create Folders and Assign permissions
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);
@@ -169,7 +174,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// Pull back details for display
 			var folderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
 
-			return new OkObjectResult(folderDetail);
+			return new OkObjectResult(folderDetail) { StatusCode = StatusCodes.Status201Created };
 		}
 
 		private static async Task<Dictionary<string, AccessControlType>> ConvertToObjectId(ILogger log, List<string> userAccessList)
