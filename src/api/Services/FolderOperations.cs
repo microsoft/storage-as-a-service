@@ -32,17 +32,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			TokenCredential tokenCredential)
 		{
 			this.log = log;
+			this.storageUri = storageUri;
+
 			var costPerTB = Environment.GetEnvironmentVariable("COST_PER_TB");
 			if (costPerTB != null)
 				decimal.TryParse(costPerTB, out this.costPerTB);
 
-			// TODO: Call helper function to create DataLakeServiceClient
 			if (tokenCredential == null)
 			{
 				throw new InvalidOperationException($"Must always specify the appTokenCredential parameter.");
 			}
 
-			this.storageUri = storageUri;
 			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential).GetFileSystemClient(fileSystem);
 		}
 
