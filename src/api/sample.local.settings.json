@@ -9,7 +9,9 @@
 		"AZURE_CLIENT_SECRET": "A1B2...",
 		"FILESYSTEMS_API_KEY": "somerandomkey",
 		"CONFIGURATION_API_KEY": "anotherkey",
-		"CacheConnection": "<endpoint>.redis.cache.windows.net:6380,password=<key>,ssl=True,abortConnect=False"
+		"CacheConnection": "<endpoint>.redis.cache.windows.net:6380,password=<key>,ssl=True,abortConnect=False",
+		"API_CLIENT_ID": "c3d4...",
+		"API_CLIENT_SECRET": "abcd..."
 	},
 	"Host": {
 		"LocalHttpPort": 7071,
