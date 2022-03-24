@@ -103,59 +103,57 @@ namespace Microsoft.UsEduCsu.Saas
 		/// <summary>
 		/// Retrieves the containers in the specified storage account to which the specified account has access.
 		/// Access can be either via RBAC data plane roles or via ACLs on folders.
-		/// The UPN and the principal ID must refer to the same account.
+		/// The userCred and the principal ID must refer to the same account.
 		/// </summary>
 		/// <param name="log"></param>
-		/// <param name="account"></param>
-		/// <param name="principalId"></param>
+		/// <param name="account">The storage account for which to retrieve accessible containers.</param>
+		/// <param name="principalId">The principal ID for which to retrieve accessible containers.</param>
+		/// <param name="appCred">An access token for the app's identity.</param>
+		/// <param name="userCred">An access token to impersonate the calling user (same as principalId) when calling the Storage API.</param>
 		/// <returns>The list of containers to which the specified principal has access.</returns>
 		private static IList<string> GetContainers(ILogger log, string account, string principalId,
 			TokenCredential appCred, TokenCredential userCred)
 		{
+			// TODO: validate that userCred and principalId match?
+
 			// Define the return value (never return null)
-			var containers = new List<string>();
+			var accessibleContainers = new List<string>();
 
 			var serviceUri = SasConfiguration.GetStorageUri(account);
-			//var appCred = new DefaultAzureCredential();
 			var adls = new FileSystemOperations(log, appCred, serviceUri);
 
 			// Retrieve all the containers in the specified storage account
 			var fileSystems = adls.GetFilesystems();
 
-			// Transition to User Credentials
-			// TODO: This method is called from a loop, so retrieving the user credentials shouldn't be done here
-			//var userCred = CredentialHelper.GetUserCredentials(log, principalId);
-
-			// TODO: this is called from a loop , so this shouldn't be created in here
+			// TODO: This method is called from a loop, so this object shouldn't be created in here
 			var roleOperations = new RoleOperations(log, appCred);
 
 			// Check for RBAC data plane access to any container in the account
 			var containerDataPlaneRoleAssignments = roleOperations
 							.GetContainerRoleAssignments(account, principalId);
-			// HACK: Doing this in a loop is unnecessary
-			//.Where(ra => ra.Container == filesystem.Name);
-			// HACK: Unncessary, GetContainerRoleAssignments already performs this check
-			//			&& ra.PrincipalId == principalId);
 
 			// If the specified principal has any data plane RBAC assignment on any container
 			if (containerDataPlaneRoleAssignments.Count > 0)
 			{
-				// They have access to the container
-				containerDataPlaneRoleAssignments.ForEach(r => containers.Add(r.Container));
+				// They have access to these containers
+				containerDataPlaneRoleAssignments.ForEach(
+					r => accessibleContainers.Add(r.Container)
+				);
 			}
 
 			// For any containers where the principal doesn't have a data plane RBAC role
-			Parallel.ForEach(fileSystems.Where(fs => !containers.Any(c => c == fs.Name)), filesystem =>
+			Parallel.ForEach(fileSystems.Where(fs => !accessibleContainers.Any(c => c == fs.Name)), filesystem =>
 			{
 				// Evaluate top-level folder ACLs, check if user can read folders
 				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
+				// Check accessible folders using calling user's credentials
 				var folders = folderOps.GetAccessibleFolders(userCred, checkForAny: true);
 
 				if (folders.Count > 0)
-					containers.Add(filesystem.Name);
+					accessibleContainers.Add(filesystem.Name);
 			});
 
-			return containers;
+			return accessibleContainers;
 		}
 
 		private static async Task<IActionResult> FileSystemsPOST(HttpRequest req, ILogger log, string account)
@@ -185,8 +183,9 @@ namespace Microsoft.UsEduCsu.Saas
 			// Setup Azure Credential
 			var tokenCredential = new DefaultAzureCredential();
 
-			// Get Blob Owner
+			// Get the new container's Owner
 			var userOperations = new UserOperations(log, tokenCredential);
+			// TODO: Why could it not be a group? (Might even recommend it to be a group?)
 			var ownerId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
 			if (ownerId == null)
 				return new BadRequestErrorMessageResult("Owner identity not found. Please verify that the Owner is a valid member UPN and that the application has User.Read.All permission in the directory.");

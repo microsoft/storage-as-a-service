@@ -4,7 +4,6 @@ using Azure.Storage.Files.DataLake.Models;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
@@ -59,8 +58,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			catch (Exception ex)
 			{
 				fileSystems = new List<FileSystemItem>();
-				Debug.WriteLine(ex.Message);
+				log.LogError(ex, ex.Message);
 			}
+
 			return fileSystems;
 		}
 
@@ -79,7 +79,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				{ "Owner", owner }
 			};
 
-			// Create File System
+			// Create the new File System
 			var result = new Result();
 			try
 			{

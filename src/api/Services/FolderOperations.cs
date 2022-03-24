@@ -255,6 +255,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// </summary>
 		/// <param name="folderName"></param>
 		/// <returns></returns>
+		/// <remarks>This method is usually called in the user's context.</remarks>
 		internal FolderDetail GetFolderDetail(string folderName)
 		{
 			try
