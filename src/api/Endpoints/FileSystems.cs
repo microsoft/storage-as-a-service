@@ -1,3 +1,4 @@
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -63,6 +64,7 @@ namespace Microsoft.UsEduCsu.Saas
 			//var upn = claimsPrincipal.Identity.Name.ToLowerInvariant();
 			// TODO: principalId could be null
 			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
+			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 
 			// Get the Containers for a upn from each storage account
 			var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
@@ -72,13 +74,15 @@ namespace Microsoft.UsEduCsu.Saas
 			// Define the return value
 			var result = new List<FileSystemResult>();
 
+			var appCred = new DefaultAzureCredential();
+
 			Parallel.ForEach(accounts, acct =>
 			{
 				// TODO: Consider renaming to GetPermissionedContainers
-				var containers = GetContainers(log, acct, principalId);
+				var containers = GetContainers(log, acct, principalId, appCred: appCred, userCred: userCred);
 
 				// If the current user has access to at least 1 container in the current storage account
-				if (containers.Count > 1)
+				if (containers.Count > 0)
 				{
 					// Create a result object for the current storage account
 					var fs = new FileSystemResult()
@@ -107,22 +111,25 @@ namespace Microsoft.UsEduCsu.Saas
 		/// <param name="account"></param>
 		/// <param name="principalId"></param>
 		/// <returns>The list of containers to which the specified principal has access.</returns>
-		private static IList<string> GetContainers(ILogger log, string account, string principalId)
+		private static IList<string> GetContainers(ILogger log, string account, string principalId,
+			TokenCredential appCred, TokenCredential userCred)
 		{
 			// Define the return value (never return null)
 			var containers = new List<string>();
 
 			var serviceUri = SasConfiguration.GetStorageUri(account);
-			var appCred = new DefaultAzureCredential();
+			//var appCred = new DefaultAzureCredential();
 			var adls = new FileSystemOperations(log, appCred, serviceUri);
 
 			// Retrieve all the containers in the specified storage account
 			var fileSystems = adls.GetFilesystems();
 
 			// Transition to User Credentials
-			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
+			// TODO: This method is called from a loop, so retrieving the user credentials shouldn't be done here
+			//var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 
-			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			// TODO: this is called from a loop , so this shouldn't be created in here
+			var roleOperations = new RoleOperations(log, appCred);
 
 			// Check for RBAC data plane access to any container in the account
 			var containerDataPlaneRoleAssignments = roleOperations
