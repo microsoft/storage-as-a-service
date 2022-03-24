@@ -150,8 +150,8 @@ namespace Microsoft.UsEduCsu.Saas
 			Parallel.ForEach(fileSystems.Where(fs => !containers.Any(c => c == fs.Name)), filesystem =>
 			{
 				// Evaluate top-level folder ACLs, check if user can read folders
-				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred, userCred);
-				var folders = folderOps.GetAccessibleFolders(checkForAny: true);
+				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
+				var folders = folderOps.GetAccessibleFolders(userCred, checkForAny: true);
 
 				if (folders.Count > 0)
 					containers.Add(filesystem.Name);
@@ -209,9 +209,9 @@ namespace Microsoft.UsEduCsu.Saas
 			var roleOperations = new RoleOperations(log, tokenCredential);
 			roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerId);
 
-			// Get Root Folder Details
+			// Get the new container's root folder's details
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
-				appTokenCredential: tokenCredential);
+				tokenCredential);
 			var folderDetail = folderOperations.GetFolderDetail(string.Empty);
 
 			return new OkObjectResult(folderDetail) { StatusCode = StatusCodes.Status201Created };

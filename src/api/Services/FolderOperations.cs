@@ -16,9 +16,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 	internal class FolderOperations
 	{
 		private readonly ILogger log;
-		private readonly DataLakeFileSystemClient userDlfsClient;
-		private readonly DataLakeFileSystemClient appDlfsClient;
+		private readonly DataLakeFileSystemClient dlfsClient;
 		private readonly decimal costPerTB;
+		private readonly Uri storageUri;
 
 		/// <summary>
 		/// Initializes a new instance of the FolderOperations class.
@@ -26,11 +26,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="storageUri"></param>
 		/// <param name="fileSystem"></param>
 		/// <param name="log"></param>
-		/// <param name="appTokenCredential"></param>
+		/// <param name="tokenCredential"></param>
 		/// <param name="userTokenCredential"></param>
 		public FolderOperations(Uri storageUri, string fileSystem, ILogger log,
-			TokenCredential appTokenCredential,
-			TokenCredential userTokenCredential = null)
+			TokenCredential tokenCredential)
 		{
 			this.log = log;
 			var costPerTB = Environment.GetEnvironmentVariable("COST_PER_TB");
@@ -38,25 +37,23 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				decimal.TryParse(costPerTB, out this.costPerTB);
 
 			// TODO: Call helper function to create DataLakeServiceClient
-			if (appTokenCredential == null)
+			if (tokenCredential == null)
 			{
 				throw new InvalidOperationException($"Must always specify the appTokenCredential parameter.");
 			}
 
-			appDlfsClient = new DataLakeServiceClient(storageUri, appTokenCredential).GetFileSystemClient(fileSystem);
-
-			if (userTokenCredential != null)
-				userDlfsClient = new DataLakeServiceClient(storageUri, userTokenCredential).GetFileSystemClient(fileSystem);
+			this.storageUri = storageUri;
+			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential).GetFileSystemClient(fileSystem);
 		}
 
 		internal async Task<Result> CreateNewFolder(string folder)
 		{
 			var result = new Result();
-			log.LogTrace($"Creating the folder '{folder}' within the container '{appDlfsClient.Uri}'...");
+			log.LogTrace($"Creating the folder '{folder}' within the container '{dlfsClient.Uri}'...");
 
 			try
 			{
-				var directoryClient = appDlfsClient.GetDirectoryClient(folder);
+				var directoryClient = dlfsClient.GetDirectoryClient(folder);
 				var response = await directoryClient.CreateIfNotExistsAsync();  // Returns null if exists
 				result.Success = response?.GetRawResponse().Status == 201;
 
@@ -99,7 +96,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Send up changes
 			var result = new Result();
-			var directoryClient = appDlfsClient.GetDirectoryClient(folder);
+			var directoryClient = dlfsClient.GetDirectoryClient(folder);
 			var resultACL = await directoryClient.UpdateAccessControlRecursiveAsync(accessControlListUpdate);
 			result.Success = resultACL.GetRawResponse().Status == (int)HttpStatusCode.OK;
 			result.Message = result.Success ? null : "Error trying to assign the RWX permission to the folder. Error 500.";
@@ -111,7 +108,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			log.LogTrace($"Saving FundCode into container's metadata...");
 			try
 			{
-				var directoryClient = appDlfsClient.GetDirectoryClient(folder);
+				var directoryClient = dlfsClient.GetDirectoryClient(folder);
 
 				// Check the Last Calculated Date from the Metadata
 				var meta = (await directoryClient.GetPropertiesAsync()).Value.Metadata;
@@ -137,9 +134,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			const string sizeCalcDateKey = "SizeCalcDate";
 			const string sizeKey = "Size";
-			log.LogTrace($"Calculating size for ({appDlfsClient.Uri})/({folder})");
+			log.LogTrace($"Calculating size for ({dlfsClient.Uri})/({folder})");
 
-			var directoryClient = appDlfsClient.GetDirectoryClient(folder);
+			var directoryClient = dlfsClient.GetDirectoryClient(folder);
 
 			// Check the Last Calculated Date from the Metadata
 			var meta = (await directoryClient.GetPropertiesAsync()).Value.Metadata;
@@ -170,26 +167,26 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
-		/// Returns a (partial) list of top-level folders that the principal's whose token is a class member can access.
+		/// Returns a (partial) list of top-level folders that the principal's whose token is specified can access.
 		/// </summary>
 		/// <param name="checkForAny">If set to true, stops enumerating folders when the first permissioned folder is found.</param>
 		/// <returns>A list of top-level folders the principal represented by the current token has access to. If checkForAny is true, the list is only a partial list.</returns>
-		internal IList<FolderDetail> GetAccessibleFolders(bool checkForAny = false)
+		internal IList<FolderDetail> GetAccessibleFolders(TokenCredential userCred, bool checkForAny = false)
 		{
 			var accessibleFolders = new ObservableCollection<FolderDetail>();
 			List<PathItem> folders = null;
 
 			try
 			{
-				// Get all Top Level Folders
+				// Get all Top Level Folders, using the app identity
 				// They will be filtered later when using the user credentials to get folder details
-				var flds = appDlfsClient.GetPaths().ToList();
+				var flds = dlfsClient.GetPaths().ToList();
 				folders = flds.Where(pi => pi.IsDirectory == true)
 							  .ToList();
 			}
 			catch (Exception ex)
 			{
-				log.LogTrace(ex, $"{appDlfsClient.AccountName}/{appDlfsClient.Name} {ex.Message}");
+				log.LogTrace(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
 				return accessibleFolders;
 			}
 
@@ -213,6 +210,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			try
 			{
+				// Test retrieving folder details as the calling user
+				FolderOperations FOAsUser = new FolderOperations(this.storageUri, dlfsClient.Name, log, userCred);
+
 				Parallel.ForEach(folders, po, folder =>
 					{
 						if (po.CancellationToken.IsCancellationRequested)
@@ -222,7 +222,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 						{
 							// Attempt to retrieve the folder's detail
 							// using the calling user's credential
-							var fd = GetFolderDetailForUser(folder.Name);
+							var fd = FOAsUser.GetFolderDetail(folder.Name);
 
 							if (fd != null)
 								accessibleFolders.Add(fd);
@@ -249,13 +249,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return accessibleFolders;
 		}
 
-		internal FolderDetail GetFolderDetailForUser(string folderName)
-		{
-			if (userDlfsClient == null) throw new InvalidOperationException();
-
-			return GetFolderDetail(folderName, userDlfsClient);
-		}
-
 		/// <summary>
 		/// Retrieves a FolderDetail object for the specified folder in the current file system
 		/// using the application's credential.
@@ -263,11 +256,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="folderName"></param>
 		/// <returns></returns>
 		internal FolderDetail GetFolderDetail(string folderName)
-		{
-			return GetFolderDetail(folderName, appDlfsClient);
-		}
-
-		private FolderDetail GetFolderDetail(string folderName, DataLakeFileSystemClient dlfsClient)
 		{
 			try
 			{

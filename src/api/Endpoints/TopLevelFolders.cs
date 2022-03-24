@@ -55,17 +55,19 @@ namespace Microsoft.UsEduCsu.Saas
 			// Get User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 			var folderOperations = new FolderOperations(storageUri, filesystem, log,
-				appTokenCredential: new DefaultAzureCredential(), userTokenCredential: userCred);
+				new DefaultAzureCredential());
 
 			// Retrieve ALL top-level folders in the container that are accessible by the user
-			var folders = folderOperations.GetAccessibleFolders();
+			var folders = folderOperations.GetAccessibleFolders(userCred);
 
 			// Add Root Folder if they are the owner
 			// TODO: Possible improvement: if they are the owner per RBAC (or any RBAC data plane role?), simply retrieve all folders instead of checking each folder?
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 			var roles = roleOperations.GetContainerRoleAssignments(account, principalId)
 									.Where(ra => ra.Container == filesystem
-											&& ra.PrincipalId == principalId);
+											// HACK: GetContainerRoleAssignments already checks for principal Id
+											//	&& ra.PrincipalId == principalId
+											);
 
 			// TODO: Why only for the Owner data plane role?
 			if (roles.Any(ra => ra.RoleName.Contains("Owner")))
@@ -148,8 +150,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var storageUri = SasConfiguration.GetStorageUri(account);
 			TokenCredential ApiCredential = new DefaultAzureCredential();
 			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
-			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
-				appTokenCredential: ApiCredential);
+			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, ApiCredential);
 
 			// Create Folders and Assign permissions
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);

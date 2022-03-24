@@ -47,7 +47,7 @@ namespace Microsoft.UsEduCsu.Saas
 						.Where(pi => pi.IsDirectory == true);
 
 					var folderOperations = new FolderOperations(serviceUri, filesystem.Name, log,
-						appTokenCredential: new DefaultAzureCredential());
+						new DefaultAzureCredential());
 
 					long size = 0;
 					foreach (var folder in folders)
