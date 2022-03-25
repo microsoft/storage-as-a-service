@@ -146,8 +146,12 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				// Evaluate top-level folder ACLs, check if user can read folders
 				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
-				// Check accessible folders using calling user's credentials
-				var folders = folderOps.GetAccessibleFolders(userCred, checkForAny: true);
+				// Retrieve all folders in the container
+				var folderList = folderOps.GetFolderList();
+
+				// Check for any folder using calling user's credentials
+				var folderOpsAsUser = new FolderOperations(serviceUri, filesystem.Name, log, userCred);
+				var folders = folderOpsAsUser.GetAccessibleFolders(folderList, checkForAny: true);
 
 				if (folders.Count > 0)
 					accessibleContainers.Add(filesystem.Name);

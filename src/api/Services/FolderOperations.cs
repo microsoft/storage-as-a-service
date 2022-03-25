@@ -167,30 +167,39 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
-		/// Returns a (partial) list of top-level folders that the principal's whose token is specified can access.
+		/// Returns the complete list of folders for the current container.
 		/// </summary>
-		/// <param name="checkForAny">If set to true, stops enumerating folders when the first permissioned folder is found.</param>
-		/// <returns>A list of top-level folders the principal represented by the current token has access to. If checkForAny is true, the list is only a partial list.</returns>
-		internal IList<FolderDetail> GetAccessibleFolders(TokenCredential userCred, bool checkForAny = false)
+		/// <returns>An IList<PathItem> of all folders in the current container.</PathItem></returns>
+		internal IList<PathItem> GetFolderList()
 		{
-			var accessibleFolders = new ObservableCollection<FolderDetail>();
 			List<PathItem> folders = null;
 
 			try
 			{
 				// Get all Top Level Folders, using the app identity
 				// They will be filtered later when using the user credentials to get folder details
-				var flds = dlfsClient.GetPaths().ToList();
-				folders = flds.Where(pi => pi.IsDirectory == true)
-							  .ToList();
+				folders = dlfsClient.GetPaths()
+					.Where(pi => pi.IsDirectory == true)
+					.ToList();
 			}
 			catch (Exception ex)
 			{
-				log.LogTrace(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
-				return accessibleFolders;
+				log.LogError(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
 			}
 
-			// Find folders that have ACL entries for upn
+			return folders;
+		}
+
+		/// <summary>
+		/// Returns a (partial) list of top-level folders that the principal's whose token is specified can access.
+		/// </summary>
+		/// <param name="checkForAny">If set to true, stops enumerating folders when the first permissioned folder is found.</param>
+		/// <returns>A list of top-level folders the principal represented by the current token has access to. If checkForAny is true, the list is only a partial list.</returns>
+		internal IList<FolderDetail> GetAccessibleFolders(IList<PathItem> folders, bool checkForAny = false)
+		{
+			// Define the return value
+			var accessibleFolders = new ObservableCollection<FolderDetail>();
+
 			var cancelSource = new CancellationTokenSource();
 			var po = new ParallelOptions()
 			{
@@ -210,30 +219,16 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			try
 			{
-				// Test retrieving folder details as the calling user
-				FolderOperations FOAsUser = new FolderOperations(this.storageUri, dlfsClient.Name, log, userCred);
-
 				Parallel.ForEach(folders, po, folder =>
 					{
 						if (po.CancellationToken.IsCancellationRequested)
 							return;
 
-						try
-						{
-							// Attempt to retrieve the folder's detail
-							// using the calling user's credential
-							var fd = FOAsUser.GetFolderDetail(folder.Name);
+						// Attempt to retrieve the folder's detail
+						var fd = GetFolderDetail(folder.Name);
 
-							if (fd != null)
-								accessibleFolders.Add(fd);
-						}
-						catch (Exception ex)
-						{
-							// TODO: This trace message seems to lack context (which user, which storage account?)
-							// TODO: The method GetFolderDetail doesn't throw exceptions...
-							// if an exception occurs during the call to .Add, this message will be confusing
-							log.LogTrace(ex, $"User has no access to {folder.Name}.");
-						}
+						if (fd != null)
+							accessibleFolders.Add(fd);
 					}
 				);
 			}
@@ -250,12 +245,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
-		/// Retrieves a FolderDetail object for the specified folder in the current file system
-		/// using the application's credential.
+		/// Retrieves a FolderDetail object for the specified folder in the current file system.
 		/// </summary>
-		/// <param name="folderName"></param>
-		/// <returns></returns>
-		/// <remarks>This method is usually called in the user's context.</remarks>
+		/// <param name="folderName">The name of the folder.</param>
+		/// <returns>A FolderDetail instance with the metadata of the folder, or null if the folder is not accessible by the current identity.</returns>
 		internal FolderDetail GetFolderDetail(string folderName)
 		{
 			try

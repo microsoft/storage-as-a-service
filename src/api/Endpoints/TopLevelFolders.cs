@@ -58,8 +58,14 @@ namespace Microsoft.UsEduCsu.Saas
 			var folderOperations = new FolderOperations(storageUri, filesystem, log,
 				tokenCredential);
 
-			// Retrieve ALL top-level folders in the container that are accessible by the user
-			var folders = folderOperations.GetAccessibleFolders(userCred);
+			// Retrieve all folders in the container
+			var folderList = folderOperations.GetFolderList();
+
+			// Filter for ALL the top-level folders in the container that are accessible by the user
+			var folderOperationsAsUser = new FolderOperations(storageUri, filesystem, log,
+				userCred);
+
+			var folders = folderOperationsAsUser.GetAccessibleFolders(folderList);
 
 			// Retrieve the container's data plane RBAC role assignments for the calling user
 			// TODO: Possible improvement: if the calling user is the owner per RBAC (or any RBAC data plane role?),
