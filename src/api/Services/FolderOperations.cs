@@ -18,15 +18,31 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private readonly DataLakeFileSystemClient dlfsClient;
 		private readonly decimal costPerTB;
+		private readonly Uri storageUri;
 
-		public FolderOperations(ILogger log, TokenCredential tokenCredential, Uri storageUri, string fileSystem)
+		/// <summary>
+		/// Initializes a new instance of the FolderOperations class.
+		/// </summary>
+		/// <param name="storageUri"></param>
+		/// <param name="fileSystem"></param>
+		/// <param name="log"></param>
+		/// <param name="tokenCredential"></param>
+		/// <param name="userTokenCredential"></param>
+		public FolderOperations(Uri storageUri, string fileSystem, ILogger log,
+			TokenCredential tokenCredential)
 		{
 			this.log = log;
+			this.storageUri = storageUri;
+
 			var costPerTB = Environment.GetEnvironmentVariable("COST_PER_TB");
 			if (costPerTB != null)
 				decimal.TryParse(costPerTB, out this.costPerTB);
 
-			// TODO: Call helper function to create DataLakeServiceClient
+			if (tokenCredential == null)
+			{
+				throw new InvalidOperationException($"Must always specify the appTokenCredential parameter.");
+			}
+
 			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential).GetFileSystemClient(fileSystem);
 		}
 
@@ -52,7 +68,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				result.Message = ex.Message;
 				log.LogError(result.Message);
-			}
+			};
 
 			return result;
 		}
@@ -151,29 +167,39 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
-		/// Returns a (partial) list of top-level folders that the principal's whose token is a class member can access.
+		/// Returns the complete list of folders for the current container.
 		/// </summary>
-		/// <param name="checkForAny">If set to true, stops enumerating folders when the first permissioned folder is found.</param>
-		/// <returns>A list of top-level folders the principal represented by the current token has access to. If checkForAny is true, the list is only a partial list.</returns>
-		internal IList<FolderDetail> GetAccessibleFolders(bool checkForAny = false)
+		/// <returns>An IList<PathItem> of all folders in the current container.</PathItem></returns>
+		internal IList<PathItem> GetFolderList()
 		{
-			var accessibleFolders = new ObservableCollection<FolderDetail>();
 			List<PathItem> folders = null;
 
 			try
 			{
-				// Get all Top Level Folders
-				var flds = dlfsClient.GetPaths().ToList();
-				folders = flds.Where<PathItem>(pi => pi.IsDirectory != null && (bool)pi.IsDirectory)
-							  .ToList();
+				// Get all Top Level Folders, using the app identity
+				// They will be filtered later when using the user credentials to get folder details
+				folders = dlfsClient.GetPaths()
+					.Where(pi => pi.IsDirectory == true)
+					.ToList();
 			}
 			catch (Exception ex)
 			{
-				log.LogTrace(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
-				return accessibleFolders;
+				log.LogError(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
 			}
 
-			// Find folders that have ACL entries for upn
+			return folders;
+		}
+
+		/// <summary>
+		/// Returns a (partial) list of top-level folders that the principal's whose token is specified can access.
+		/// </summary>
+		/// <param name="checkForAny">If set to true, stops enumerating folders when the first permissioned folder is found.</param>
+		/// <returns>A list of top-level folders the principal represented by the current token has access to. If checkForAny is true, the list is only a partial list.</returns>
+		internal IList<FolderDetail> GetAccessibleFolders(IList<PathItem> folders, bool checkForAny = false)
+		{
+			// Define the return value
+			var accessibleFolders = new ObservableCollection<FolderDetail>();
+
 			var cancelSource = new CancellationTokenSource();
 			var po = new ParallelOptions()
 			{
@@ -198,20 +224,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 						if (po.CancellationToken.IsCancellationRequested)
 							return;
 
-						try
-						{
-							var fd = GetFolderDetail(folder.Name);
+						// Attempt to retrieve the folder's detail
+						var fd = GetFolderDetail(folder.Name);
 
-							if (fd != null)
-								accessibleFolders.Add(fd);
-						}
-						catch (Exception ex)
-						{
-							// TODO: This trace message seems to lack context (which user, which storage account?)
-							// TODO: The method GetFolderDetail doesn't throw exceptions...
-							// if an exception occurs during the call to .Add, this message will be confusing
-							log.LogTrace(ex, $"User has no access to {folder.Name}.");
-						}
+						if (fd != null)
+							accessibleFolders.Add(fd);
 					}
 				);
 			}
@@ -227,6 +244,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return accessibleFolders;
 		}
 
+		/// <summary>
+		/// Retrieves a FolderDetail object for the specified folder in the current file system.
+		/// </summary>
+		/// <param name="folderName">The name of the folder.</param>
+		/// <returns>A FolderDetail instance with the metadata of the folder, or null if the folder is not accessible by the current identity.</returns>
 		internal FolderDetail GetFolderDetail(string folderName)
 		{
 			try
@@ -262,6 +284,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
+				// TODO: Does it make sense to log exceptions that indicate the user doesn't have access? Perhaps in verbose mode?
+				// We should expect there to be plenty of access exceptions
 				log.LogError(ex.Message, ex);
 			}
 
