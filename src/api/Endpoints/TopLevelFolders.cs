@@ -129,6 +129,14 @@ namespace Microsoft.UsEduCsu.Saas
 			tlfp.StorageAcount ??= account;
 			tlfp.FileSystem ??= filesystem;
 
+			// Check Parameters
+			string error = null;
+			if (Services.Extensions.AnyNullOrEmpty(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
+			{
+				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
+				return new BadRequestErrorMessageResult(error);
+			}
+
 			// Authorize the calling user as owner of the container
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 			// TODO: Enhance the GetContainerRoleAssignments method to allow passing in a container name
@@ -142,14 +150,6 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				// TODO: Should be an HTTP 403
 				return new BadRequestErrorMessageResult("Must be a member of the Storage Blob Data Owner role on the file system to create Top-Level Folders.");
-			}
-
-			// Check Parameters
-			string error = null;
-			if (Services.Extensions.AnyNullOrEmpty(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
-			{
-				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
-				return new BadRequestErrorMessageResult(error);
 			}
 
 			// Call each of the steps in order and error out if anything fails
