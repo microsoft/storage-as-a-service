@@ -178,11 +178,14 @@ namespace Microsoft.UsEduCsu.Saas
 				// Convert UserAccessList to Object Ids (both users and groups)
 				var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
 
-				// Assign RWX ACL to each object ID
-				result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
+				if (objectAccessList.Count > 0)
+				{
+					// Assign RWX ACL to each object ID
+					result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
 
-				if (!result.Success)
-					return new BadRequestErrorMessageResult(result.Message);
+					if (!result.Success)
+						return new BadRequestErrorMessageResult(result.Message);
+				}
 			}
 			catch (Exception ex)
 			{
