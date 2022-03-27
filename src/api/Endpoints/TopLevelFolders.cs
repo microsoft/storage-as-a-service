@@ -173,11 +173,22 @@ namespace Microsoft.UsEduCsu.Saas
 			if (tlfp.UserAccessList.Count == 0)
 				tlfp.UserAccessList.Add(tlfp.FolderOwner);
 
-			// Convert UserAccessList to Object Ids (both users and groups)
-			var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
-			result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
-			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
+			try
+			{
+				// Convert UserAccessList to Object Ids (both users and groups)
+				var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
+
+				// Assign RWX ACL to each object ID
+				result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
+
+				if (!result.Success)
+					return new BadRequestErrorMessageResult(result.Message);
+			}
+			catch (Exception ex)
+			{
+				log.LogError(ex, "Exception while translating or assigning ACLs to new folder '{account}/{container}/{folder}'.", account, filesystem, tlfp.Folder);
+				return new BadRequestErrorMessageResult("Folder created, but unable to assign ACL to the specified user list.");
+			}
 
 			// Pull back details for display
 			var folderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
@@ -185,6 +196,12 @@ namespace Microsoft.UsEduCsu.Saas
 			return new OkObjectResult(folderDetail) { StatusCode = StatusCodes.Status201Created };
 		}
 
+		/// <summary>
+		/// Converts AAD UPNs and group names into object IDs.
+		/// </summary>
+		/// <param name="log"></param>
+		/// <param name="userAccessList"></param>
+		/// <returns></returns>
 		private static async Task<Dictionary<string, AccessControlType>> ConvertToObjectId(ILogger log, List<string> userAccessList)
 		{
 			var tokenCredential = new DefaultAzureCredential();
