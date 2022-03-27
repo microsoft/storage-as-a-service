@@ -66,11 +66,13 @@ const getOptions = (method) => {
 export const createFolder = async (storageAccount, fileSystem, owner, content) => {
 	const endpoint = URLS.createFolder.endpoint.replace('{account}', storageAccount).replace('{filesystem}', fileSystem)
 	const options = getOptions(URLS.createFolder.method)
+	let userAccessList = content.userAccess ? content.userAccess.replace(" ", "").replace(";", ",").split(",") : ''
+
 	options.body = JSON.stringify({
 		Folder: content.name,
 		FundCode: content.fundCode,
 		FolderOwner: owner,
-		UserAccessList: content.userAccess.replace(" ", "").replace(";", ",").split(",")
+		UserAccessList: userAccessList
 	})
 
 	try {
