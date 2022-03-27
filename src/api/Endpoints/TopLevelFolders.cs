@@ -217,8 +217,11 @@ namespace Microsoft.UsEduCsu.Saas
 
 			await Parallel.ForEachAsync(userAccessList, pOptions, async (item, cToken) =>
 			{
-				if (cToken.IsCancellationRequested)
+				if (cToken.IsCancellationRequested
+					|| string.IsNullOrEmpty(item))
+				{
 					return;
+				}
 
 				// If this access control entry is a UPN
 				if (IsUpn(item))
@@ -230,13 +233,13 @@ namespace Microsoft.UsEduCsu.Saas
 				}
 				else
 				{
-					// Assume it's a group name
+					// Assume it's a group name; translate inot a group Object ID
 					var gid = await groupOperations.GetObjectIdFromGroupName(item);
 					if (gid != null)
 						objectList.Add(gid, AccessControlType.Group);
 				}
 
-				// TODO: consider keeping track of which ACEs could not be translated and reporting back to user
+				// TODO: Consider keeping track of which ACEs could not be translated and reporting back to user
 			});
 
 			return objectList;
