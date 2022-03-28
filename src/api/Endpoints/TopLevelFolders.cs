@@ -129,6 +129,14 @@ namespace Microsoft.UsEduCsu.Saas
 			tlfp.StorageAcount ??= account;
 			tlfp.FileSystem ??= filesystem;
 
+			// Check Parameters
+			string error = null;
+			if (Services.Extensions.AnyNullOrEmpty(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
+			{
+				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
+				return new BadRequestErrorMessageResult(error);
+			}
+
 			// Authorize the calling user as owner of the container
 			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
 			// TODO: Enhance the GetContainerRoleAssignments method to allow passing in a container name
@@ -144,14 +152,6 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult("Must be a member of the Storage Blob Data Owner role on the file system to create Top-Level Folders.");
 			}
 
-			// Check Parameters
-			string error = null;
-			if (Services.Extensions.AnyNullOrEmpty(tlfp.FileSystem, tlfp.Folder, tlfp.FolderOwner, tlfp.FundCode, tlfp.StorageAcount))
-			{
-				error = $"{nameof(TopLevelFolderParameters)} is malformed.";
-				return new BadRequestErrorMessageResult(error);
-			}
-
 			// Call each of the steps in order and error out if anything fails
 			Result result = null;
 			var storageUri = SasConfiguration.GetStorageUri(account);
@@ -159,32 +159,76 @@ namespace Microsoft.UsEduCsu.Saas
 			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, ApiCredential);
 
-			// Create Folders and Assign permissions
+			// Create the new folder
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
-			// Folder Metadata
+			// Initialize the API response object
+			var retval = new FolderCreateResult();
+
+			// Assign the folder's metadata
 			result = await folderOperations.AddMetaData(tlfp.Folder, tlfp.FundCode, tlfp.FolderOwner);
 			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
+			{
+				log.LogError("Error while setting metadata for new folder '{account}/{container}/{folder}': '{resultMessage}'",
+					account, filesystem, tlfp.Folder, result.Message);
+				// At this point, the folder has been created.
+				// ==> Don't return error, but add message to return value
+				retval.Message = result.Message;
+			}
 
-			// Folder permissions
-			if (tlfp.UserAccessList.Count == 0)
-				tlfp.UserAccessList.Add(tlfp.FolderOwner);
+			// If an ACL for the new folder is specified
+			if (tlfp.UserAccessList != null
+				&& tlfp.UserAccessList.Count > 0)
+			{
 
-			// Convert UserAccessList to Object Ids (both users and groups)
-			var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
-			result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
-			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
+				try
+				{
+					// Convert UserAccessList to Object Ids (both users and groups)
+					var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
+
+					if (objectAccessList.Count > 0)
+					{
+						// Assign RWX ACL to each object ID
+						result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
+
+						if (!result.Success)
+						{
+							log.LogError("Error while assigning ACLs to new folder '{account}/{container}/{folder}': '{resultMessage}'",
+								account, filesystem, tlfp.Folder, result.Message);
+							// At this point, the folder has been created.
+							// ==> Don't return error, but add message to return value
+							retval.Message = result.Message;
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					log.LogError(ex, "Exception while translating or assigning ACLs to new folder '{account}/{container}/{folder}'.",
+						account, filesystem, tlfp.Folder);
+					// TODO: At this point, the folder has been created.
+					// ==> Don't return error, but add message to value
+					retval.Message = "Folder created, but unable to assign ACL to the specified user list.";
+				}
+			}
+			else
+			{
+				retval.Message = "No ACL assigned. Only root folder RBAC permissions will be inherited.";
+			}
 
 			// Pull back details for display
-			var folderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
+			retval.FolderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
 
-			return new OkObjectResult(folderDetail) { StatusCode = StatusCodes.Status201Created };
+			return new OkObjectResult(retval) { StatusCode = StatusCodes.Status201Created };
 		}
 
+		/// <summary>
+		/// Converts AAD UPNs and group names into object IDs.
+		/// </summary>
+		/// <param name="log"></param>
+		/// <param name="userAccessList"></param>
+		/// <returns></returns>
 		private static async Task<Dictionary<string, AccessControlType>> ConvertToObjectId(ILogger log, List<string> userAccessList)
 		{
 			var tokenCredential = new DefaultAzureCredential();
@@ -197,8 +241,11 @@ namespace Microsoft.UsEduCsu.Saas
 
 			await Parallel.ForEachAsync(userAccessList, pOptions, async (item, cToken) =>
 			{
-				if (cToken.IsCancellationRequested)
+				if (cToken.IsCancellationRequested
+					|| string.IsNullOrEmpty(item))
+				{
 					return;
+				}
 
 				// If this access control entry is a UPN
 				if (IsUpn(item))
@@ -210,13 +257,13 @@ namespace Microsoft.UsEduCsu.Saas
 				}
 				else
 				{
-					// Assume it's a group name
+					// Assume it's a group name; translate inot a group Object ID
 					var gid = await groupOperations.GetObjectIdFromGroupName(item);
 					if (gid != null)
 						objectList.Add(gid, AccessControlType.Group);
 				}
 
-				// TODO: consider keeping track of which ACEs could not be translated and reporting back to user
+				// TODO: Consider keeping track of which ACEs could not be translated and reporting back to user
 			});
 
 			return objectList;
@@ -262,6 +309,12 @@ namespace Microsoft.UsEduCsu.Saas
 			public string FolderOwner { get; set; }        // Probably will not stay as a string
 
 			public List<string> UserAccessList { get; set; }
+		}
+
+		internal class FolderCreateResult
+		{
+			public FolderOperations.FolderDetail FolderDetail { get; set; }
+			public string Message { get; set; }
 		}
 	}
 }

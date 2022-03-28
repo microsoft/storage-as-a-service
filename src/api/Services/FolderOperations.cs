@@ -49,7 +49,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal async Task<Result> CreateNewFolder(string folder)
 		{
 			var result = new Result();
-			log.LogTrace($"Creating the folder '{folder}' within the container '{dlfsClient.Uri}'...");
+			log.LogTrace($"Creating the folder '{folder}' within the container '{dlfsClient.Uri}'.");
 
 			try
 			{
@@ -60,14 +60,15 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				if (!result.Success)
 				{
 					if (response == null)
-						result.Message = "Folder already exists";
+						result.Message = $"Folder '{dlfsClient.AccountName}/{dlfsClient.Name}/{folder}' already exists.";
+
 					log.LogError(result.Message);
 				}
 			}
 			catch (Exception ex)
 			{
 				result.Message = ex.Message;
-				log.LogError(result.Message);
+				log.LogError(ex, result.Message);
 			};
 
 			return result;
