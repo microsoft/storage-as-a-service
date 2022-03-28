@@ -53,7 +53,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			try
 			{
-				fileSystems = dlsClient.GetFileSystems().ToList();
+				fileSystems = dlsClient.GetFileSystems()
+					.Where( fs => !(fs.IsDeleted == true))  // This shouldn't be necessary, but it seems that it is
+					.ToList();
 			}
 			catch (Exception ex)
 			{
