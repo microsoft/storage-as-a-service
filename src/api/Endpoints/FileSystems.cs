@@ -132,13 +132,18 @@ namespace Microsoft.UsEduCsu.Saas
 			var containerDataPlaneRoleAssignments = roleOperations
 							.GetContainerRoleAssignments(account, principalId);
 
+			// Join fileSystems and roleAssignments due to orphaned role assignments
+			var fileSystemRoleAssignments = fileSystems.Join(containerDataPlaneRoleAssignments,
+					fs => fs.Name,
+					ra => ra.Container,
+					(fs, ra) => ra)
+					.ToList();
+
 			// If the specified principal has any data plane RBAC assignment on any container
-			if (containerDataPlaneRoleAssignments.Count > 0)
+			if (fileSystemRoleAssignments.Count > 0)
 			{
 				// They have access to these containers
-				containerDataPlaneRoleAssignments.ForEach(
-					r => accessibleContainers.Add(r.Container)
-				);
+				fileSystemRoleAssignments.ForEach( r => accessibleContainers.Add(r.Container) );
 			}
 
 			// For any containers where the principal doesn't have a data plane RBAC role
