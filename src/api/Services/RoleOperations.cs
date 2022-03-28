@@ -12,18 +12,20 @@ using System.Linq;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
-	internal class RoleOperations
+	public class RoleOperations
 	{
 		// https://blogs.aaddevsup.xyz/2020/05/using-azure-management-libraries-for-net-to-manage-azure-ad-users-groups-and-rbac-role-assignments/
 
 		private readonly ILogger log;
 		private TokenCredentials tokenCredentials;
+		private TokenCredential tokenCredential;
 
 		private static IList<RoleDefinition> roleDefinitions;
 
-		public RoleOperations(ILogger log)
+		public RoleOperations(ILogger log, TokenCredential tokenCredential)
 		{
 			this.log = log;
+			this.tokenCredential = tokenCredential;
 		}
 
 		private void VerifyToken()
@@ -108,17 +110,12 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
-		/// Return a list of containers where the specified AAD principal has data plan access.
+		/// Return a list of containers where the specified AAD principal has data plane access.
 		/// </summary>
 		/// <param name="account">The storage account for which to retrieve container access.</param>
 		/// <param name="principalId">The AAD principal for which to retrieve role assignments.</param>
-		/// <returns>An IList<ContainerRole>.</returns>
-		public IList<ContainerRole> GetContainerRoleAssignments(string account, string principalId)
-		{
-			return GetContainerRoleAssignments(account).Where( ra => ra.PrincipalId == principalId).ToList();
-		}
-
-		internal IEnumerable<ContainerRole> GetContainerRoleAssignments(string account)
+		/// <returns>An List<ContainerRole>.</returns>
+		public List<ContainerRole> GetContainerRoleAssignments(string account, string principalId)
 		{
 			// TODO: Consider creating a TokenCredentialManager
 			// (local var) TokenCredentials tc = TokenCredentialManager.GetToken();
@@ -131,23 +128,26 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var amClient = new AuthorizationManagementClient(tokenCredentials);
 
 			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
-			if (roleDefinitions == null) {
+			if (roleDefinitions == null)
+			{
 				roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
 					.Where(rd => rd.RoleName.StartsWith("Storage Blob")).ToList();
 			}
 
 			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
-			var roleDefinitionIds = roleDefinitions.Select(rd => rd.Id);	// Create an IList<string> of the role definition IDs
+			var roleDefinitionIds = roleDefinitions.Select(rd => rd.Id);    // Create an IList<string> of the role definition IDs
 			var roleAssignments = amClient.RoleAssignments.ListForScope(accountResourceId)
 				.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
-					&& roleDefinitionIds.Contains(ra.RoleDefinitionId))
+					&& roleDefinitionIds.Contains(ra.RoleDefinitionId)
+					&& ra.PrincipalId == principalId)
 				// Transform matching role assignments into the method's return value
 				.Select(ra => new ContainerRole()
 				{
 					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId)).RoleName,
 					Container = ra.Scope.Split('/').Last(),
 					PrincipalId = ra.PrincipalId
-				});
+				})
+				.ToList();
 
 			return roleAssignments;
 		}
@@ -156,7 +156,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			public string RoleName { get; set; }
 			public string Container { get; set; }
-			public string PrincipalId {get;set;}
+			public string PrincipalId { get; set; }
 		}
 	}
 }

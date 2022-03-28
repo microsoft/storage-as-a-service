@@ -30,7 +30,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			foreach (var account in configResult.StorageAccounts)
 			{
-				var serviceUri = new Uri($"https://{account}.dfs.core.windows.net");
+				var serviceUri = SasConfiguration.GetStorageUri(account);
 				var serviceCLient = CreateDlsClientForUri(serviceUri);
 				var fileSystems = serviceCLient.GetFileSystems();
 
@@ -40,13 +40,13 @@ namespace Microsoft.UsEduCsu.Saas
 
 				foreach (var filesystem in fileSystems)
 				{
-					var containerUri = new Uri($"https://{account}.dfs.core.windows.net/{filesystem.Name}");
+					var containerUri = SasConfiguration.GetStorageUri(account, filesystem.Name);
 					var containerClient = CreateDlsClientForUri(serviceUri);
 					var fileSystemClient = containerClient.GetFileSystemClient(filesystem.Name);
 					var folders = fileSystemClient.GetPaths().Where<PathItem>(
 						pi => pi.IsDirectory == null ? false : (bool)pi.IsDirectory);
 
-					var folderOperations = new FolderOperations(serviceUri, filesystem.Name, log);
+					var folderOperations = new FolderOperations(log, new DefaultAzureCredential(), serviceUri, filesystem.Name);
 
 					long size = 0;
 					foreach (var folder in folders)
