@@ -159,44 +159,68 @@ namespace Microsoft.UsEduCsu.Saas
 			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, ApiCredential);
 
-			// Create Folders and Assign permissions
+			// Create the new folder
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult(result.Message);
 
-			// Folder Metadata
+			// Initialize the API response object
+			var retval = new FolderCreateResult();
+
+			// Assign the folder's metadata
 			result = await folderOperations.AddMetaData(tlfp.Folder, tlfp.FundCode, tlfp.FolderOwner);
 			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
-
-			// Folder permissions
-			if (tlfp.UserAccessList.Count == 0)
-				tlfp.UserAccessList.Add(tlfp.FolderOwner);
-
-			try
 			{
-				// Convert UserAccessList to Object Ids (both users and groups)
-				var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
+				log.LogError("Error while setting metadata for new folder '{account}/{container}/{folder}': '{resultMessage}'",
+					account, filesystem, tlfp.Folder, result.Message);
+				// At this point, the folder has been created.
+				// ==> Don't return error, but add message to return value
+				retval.Message = result.Message;
+			}
 
-				if (objectAccessList.Count > 0)
+			// If an ACL for the new folder is specified
+			if (tlfp.UserAccessList != null
+				&& tlfp.UserAccessList.Count > 0)
+			{
+
+				try
 				{
-					// Assign RWX ACL to each object ID
-					result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
+					// Convert UserAccessList to Object Ids (both users and groups)
+					var objectAccessList = await ConvertToObjectId(log, tlfp.UserAccessList);
 
-					if (!result.Success)
-						return new BadRequestErrorMessageResult(result.Message);
+					if (objectAccessList.Count > 0)
+					{
+						// Assign RWX ACL to each object ID
+						result = await folderOperations.AssignFullRwx(tlfp.Folder, objectAccessList);
+
+						if (!result.Success)
+						{
+							log.LogError("Error while assigning ACLs to new folder '{account}/{container}/{folder}': '{resultMessage}'",
+								account, filesystem, tlfp.Folder, result.Message);
+							// At this point, the folder has been created.
+							// ==> Don't return error, but add message to return value
+							retval.Message = result.Message;
+						}
+					}
+				}
+				catch (Exception ex)
+				{
+					log.LogError(ex, "Exception while translating or assigning ACLs to new folder '{account}/{container}/{folder}'.",
+						account, filesystem, tlfp.Folder);
+					// TODO: At this point, the folder has been created.
+					// ==> Don't return error, but add message to value
+					retval.Message = "Folder created, but unable to assign ACL to the specified user list.";
 				}
 			}
-			catch (Exception ex)
+			else
 			{
-				log.LogError(ex, "Exception while translating or assigning ACLs to new folder '{account}/{container}/{folder}'.", account, filesystem, tlfp.Folder);
-				return new BadRequestErrorMessageResult("Folder created, but unable to assign ACL to the specified user list.");
+				retval.Message = "No ACL assigned. Only root folder RBAC permissions will be inherited.";
 			}
 
 			// Pull back details for display
-			var folderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
+			retval.FolderDetail = folderOperations.GetFolderDetail(tlfp.Folder);
 
-			return new OkObjectResult(folderDetail) { StatusCode = StatusCodes.Status201Created };
+			return new OkObjectResult(retval) { StatusCode = StatusCodes.Status201Created };
 		}
 
 		/// <summary>
@@ -285,6 +309,12 @@ namespace Microsoft.UsEduCsu.Saas
 			public string FolderOwner { get; set; }        // Probably will not stay as a string
 
 			public List<string> UserAccessList { get; set; }
+		}
+
+		internal class FolderCreateResult
+		{
+			public FolderOperations.FolderDetail FolderDetail { get; set; }
+			public string Message { get; set; }
 		}
 	}
 }

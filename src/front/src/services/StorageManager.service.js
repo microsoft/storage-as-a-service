@@ -79,15 +79,17 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 		var response = await fetch(endpoint, options);
 		let folderResponse = {
 			Folder: "",
-			Error: ""
+			Message: ""
 		};
 
 		let body = await response.json();
 
-		if (response.status < 200 || response.status > 299)	// check for success
-			folderResponse.Error = body.Message;
-		else
-			folderResponse.Folder = body;
+		// If the result code is success (should always be HTTP 201)
+		if (response.status >= 200 && response.status <= 299)
+			folderResponse.Folder = body.folderDetail
+
+		// Regardless of success, there can always be a message
+		folderResponse.Message = body.message ? body.message : body.Message
 
 		return folderResponse
 	}
