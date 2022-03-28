@@ -31,9 +31,7 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				var serviceUri = SasConfiguration.GetStorageUri(account);
 				var serviceClient = CreateDlsClientForUri(serviceUri);
-				var fileSystems = serviceClient.GetFileSystems()
-					.Where(fs => !(fs.IsDeleted == true))  // This shouldn't be necessary, but it seems that it is
-					;
+				var fileSystems = serviceClient.GetFileSystems();
 
 				var msg = $"Analyzing {account}";
 				log.LogInformation(msg);
