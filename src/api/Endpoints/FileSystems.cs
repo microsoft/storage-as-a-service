@@ -143,7 +143,7 @@ namespace Microsoft.UsEduCsu.Saas
 			if (fileSystemRoleAssignments.Count > 0)
 			{
 				// They have access to these containers
-				fileSystemRoleAssignments.ForEach( r => accessibleContainers.Add(r.Container) );
+				fileSystemRoleAssignments.ForEach(r => accessibleContainers.Add(r.Container));
 			}
 
 			// For any containers where the principal doesn't have a data plane RBAC role
@@ -175,17 +175,18 @@ namespace Microsoft.UsEduCsu.Saas
 			// Extracting body object from the call and deserializing it.
 			var tlfp = await GetFileSystemParameters(req, log);
 			if (tlfp == null)
-				return new BadRequestErrorMessageResult($"{nameof(FileSystemParameters)} is missing.");
+				return new BadRequestErrorMessageResult($"{nameof(FileSystemParameters)} is missing or malformed. Review the API documentation and check the expected body contents.");
 
-			// Add Route Parameters
+			// Add Route Parameters, if needed
 			tlfp.StorageAcount ??= account;
 
 			// Check Parameters
 			string error = null;
 			if (Services.Extensions.AnyNull(tlfp.FileSystem, tlfp.Owner, tlfp.FundCode, tlfp.StorageAcount))
-				error = $"{nameof(FileSystemParameters)} is malformed.";
-			if (tlfp.Owner.Contains("#EXT#"))
-				error = "Guest accounts are not supported.";
+				error = $"{nameof(FileSystemParameters)} is malformed. Review the API documentation and check the expected body contents.";
+			else if (tlfp.Owner.Contains("#EXT#"))
+				error = "Guest accounts are not supported as container owners.";
+
 			if (error != null)
 				return new BadRequestErrorMessageResult(error);
 
@@ -194,10 +195,24 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Get the new container's Owner
 			var userOperations = new UserOperations(log, tokenCredential);
-			// TODO: Why could it not be a group? (Might even recommend it to be a group?)
-			var ownerId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
-			if (ownerId == null)
-				return new BadRequestErrorMessageResult("Owner identity not found. Please verify that the Owner is a valid member UPN and that the application has User.Read.All permission in the directory.");
+
+			string ownerObjectId;
+
+			// If the Owner value doesn't look like a GUID (the value has already been checked for null or empty)
+			if (!Guid.TryParse(tlfp.Owner, out Guid tested))
+			{
+				// Assume it's a UPN and translate it to the AAD object ID
+				// TODO: Why could it not be a group? (Might even recommend it to be a group?)
+				ownerObjectId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
+
+				if (string.IsNullOrEmpty(ownerObjectId))
+					return new BadRequestErrorMessageResult($"Owner identity not found in AAD. Please verify that '{tlfp.Owner}' is a valid member UPN or object ID and that the application has 'User.Read.All' permission in the directory.");
+			}
+			else
+			{
+				// Assume it's an AAD object ID
+				ownerObjectId = tlfp.Owner;
+			}
 
 			// Call each of the steps in order and error out if anytyhing fails
 			var storageUri = SasConfiguration.GetStorageUri(tlfp.StorageAcount);
@@ -213,7 +228,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Add Blob Owner
 			var roleOperations = new RoleOperations(log, tokenCredential);
-			roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerId);
+			roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerObjectId);
 
 			// Get the new container's root folder's details
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
@@ -237,7 +252,15 @@ namespace Microsoft.UsEduCsu.Saas
 				}
 			}
 
-			return JsonSerializer.Deserialize<FileSystemParameters>(body);
+			try
+			{
+				return JsonSerializer.Deserialize<FileSystemParameters>(body);
+			}
+			catch (Exception ex)
+			{
+				log.LogError(ex, ex.Message);
+				return null;
+			}
 		}
 
 		private class FileSystemResult
@@ -255,7 +278,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			public string FundCode { get; set; }
 
-			public string Owner { get; set; }        // Probably will not stay as a string
+			public string Owner { get; set; }
 		}
 	}
 }
