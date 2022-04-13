@@ -66,11 +66,24 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		public async Task<Result> CreateFileSystem(string fileSystemName, string owner, string fundCode)
 		{
+			var result = new Result();
+
 			// Check to see if File System already exists
-			var fileSystem = dlsClient.GetFileSystems(prefix: fileSystemName)
-				.FirstOrDefault(p => p.Name == fileSystemName);
-			if (fileSystem != null)
-				return new Result() { Message = $"A file system '{fileSystemName}' already exists in '{dlsClient.AccountName}'.", Success = true };
+			try
+			{
+				var fileSystem = dlsClient.GetFileSystems(prefix: fileSystemName)
+					.FirstOrDefault(p => p.Name == fileSystemName);
+
+				if (fileSystem != null)
+					return new Result() { Message = $"A file system '{fileSystemName}' already exists in '{dlsClient.AccountName}'.", Success = true };
+			}
+			catch (Exception ex)
+			{
+				string Message = $"Error while trying to query for the existence of container '{fileSystemName}' in account '{dlsClient.AccountName}': '{ex.Message}'.";
+				log.LogError(ex, Message);
+				result.Success = false;
+				result.Message = Message;
+			}
 
 			// Prepare metadata
 			var metadata = new Dictionary<string, string>
@@ -80,7 +93,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			};
 
 			// Create the new File System
-			var result = new Result();
 			try
 			{
 				var dlFileSystemResponse = await dlsClient.CreateFileSystemAsync(fileSystemName, PublicAccessType.None, metadata);
@@ -88,8 +100,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
+				string Message = $"Error while creating new container '{fileSystemName}' in account '{dlsClient.AccountName}': '{ex.Message}'.";
+				log.LogError(ex, Message);
 				result.Success = false;
-				result.Message = ex.Message;
+				result.Message = Message;
 			}
 
 			return result;
