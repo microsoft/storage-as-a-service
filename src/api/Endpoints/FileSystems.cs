@@ -225,15 +225,22 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Assign Other Execute Permission
 			result = await fileSystemOperations.SetRootOtherACL(tlfp.FileSystem);
+			if (!result.Success)
+				return new BadRequestErrorMessageResult(result.Message);
 
 			// Add Blob Owner
 			var roleOperations = new RoleOperations(log, tokenCredential);
-			roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerObjectId);
+			result = roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerObjectId);
+			if (!result.Success)
+				return new BadRequestErrorMessageResult(result.Message);
 
 			// Get the new container's root folder's details
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
 				tokenCredential);
 			var folderDetail = folderOperations.GetFolderDetail(string.Empty);
+
+			if (folderDetail is null)
+				return new BadRequestErrorMessageResult("File system creation succeeded, but unable to retrieve new container root folder details.");
 
 			return new OkObjectResult(folderDetail) { StatusCode = StatusCodes.Status201Created };
 		}
