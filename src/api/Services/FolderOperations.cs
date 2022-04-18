@@ -49,7 +49,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal async Task<Result> CreateNewFolder(string folder)
 		{
 			var result = new Result();
-			log.LogTrace($"Creating the folder '{folder}' within the container '{dlfsClient.Uri}'.");
+			log.LogTrace("Creating the folder '{folder}' within the container '{dlfsClientUri}'.",
+				folder, dlfsClient.Uri);
 
 			try
 			{
@@ -60,9 +61,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				if (!result.Success)
 				{
 					if (response == null)
+					{
+						log.LogError("Folder '{dlfsClientAccountName}/{dlfsClientName}/{folder}' already exists.",
+							dlfsClient.AccountName, dlfsClient.Name, folder);
 						result.Message = $"Folder '{dlfsClient.AccountName}/{dlfsClient.Name}/{folder}' already exists.";
-
-					log.LogError(result.Message);
+					}
 				}
 			}
 			catch (Exception ex)
@@ -77,7 +80,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal async Task<Result> AssignFullRwx(string folder, Dictionary<string, AccessControlType> userAccessList)
 		{
 			var ual = string.Join(", ", userAccessList);
-			log.LogTrace($"Assigning RWX permission to Folder Owner ({ual}) at folder's ({folder}) level...");
+			log.LogTrace("Assigning RWX permission to Folder Owner ({ual}) at folder's ({folder}) level...", ual, folder);
 
 			var accessControlListUpdate = new List<PathAccessControlItem>();
 			foreach (var user in userAccessList)
@@ -135,7 +138,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			const string sizeCalcDateKey = "SizeCalcDate";
 			const string sizeKey = "Size";
-			log.LogTrace($"Calculating size for ({dlfsClient.Uri})/({folder})");
+			log.LogTrace("Calculating size for ({dlfsClientUri})/({folder})", dlfsClient.Uri, folder);
 
 			var directoryClient = dlfsClient.GetDirectoryClient(folder);
 
@@ -185,7 +188,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
-				log.LogError(ex, $"{dlfsClient.AccountName}/{dlfsClient.Name} {ex.Message}");
+				log.LogError(ex, "{dlfsClientAccountName}/{dlfsClientName} {exMessage}",
+					dlfsClient.AccountName, dlfsClient.Name, ex.Message);
 			}
 
 			return folders;
