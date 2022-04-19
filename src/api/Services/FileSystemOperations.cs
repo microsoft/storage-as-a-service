@@ -36,12 +36,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 				// Update root container's ACL
 				var response = directoryClient.SetAccessControlList(acl).GetRawResponse();
-				result.Success = response.Status == ((int)HttpStatusCode.OK);
-				result.Message = result.Success ? null : $"Error adding Other as Execute on the root folder of container '{fileSystem}'. Error {response.Status}.";
+				result.Success = true; // response.Status == ((int)HttpStatusCode.OK);
+									   //result.Message = result.Success ? null : $"Error adding Other as Execute on the root folder of container '{fileSystem}'. Error {response.Status}.";
 				return result;
 			}
 			catch (Exception ex)
 			{
+				log.LogError(ex, ex.Message);
 				result.Message = ex.Message;
 				return result;
 			}
