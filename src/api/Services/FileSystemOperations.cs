@@ -80,10 +80,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
-				string Message = "Error while trying to query for the existence of container '{0}' in account '{1}': '{2}'.";
-				log.LogError(ex, Message, fileSystemName, dlsClient.AccountName, ex.Message);
+				log.LogError(ex, "Error while trying to query for the existence of container '{fileSystemName}' in account '{dlsClientAccountName}': '{exMessage}'.", fileSystemName, dlsClient.AccountName, ex.Message);
 				result.Success = false;
-				result.Message = string.Format(Message, fileSystemName, dlsClient.AccountName, ex.Message);
+				result.Message = $"Error while trying to query for the existence of container '{fileSystemName}' in account '{dlsClient.AccountName}': '{ex.Message}'."; ;
 			}
 
 			// Prepare metadata
@@ -101,10 +100,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (Exception ex)
 			{
-				string Message = "Error while creating new container '{0}' in account '{1}': '{2}'.";
-				log.LogError(ex, Message, fileSystemName, dlsClient.AccountName, ex.Message);
+				log.LogError(ex, "Error while creating new container '{fileSystemName}' in account '{dlsClientAccountName}': '{exMessage}'.", fileSystemName, dlsClient.AccountName, ex.Message);
 				result.Success = false;
-				result.Message = string.Format(Message, fileSystemName, dlsClient.AccountName, ex.Message);
+				result.Message = $"Error while creating new container '{fileSystemName}' in account '{dlsClient.AccountName}': '{ex.Message}'.";
 			}
 
 			return result;
