@@ -25,7 +25,8 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				IdentityToken it = await JsonSerializer.DeserializeAsync<IdentityToken>(req.Body);
 
-				log.LogInformation($"Looking for custom roles to assign to '{it.UserDetails}' (number of claims: {it.Claims.Length}).");
+				log.LogInformation("Looking for custom roles to assign to '{userDetails}' (number of claims: {claimsLength}).",
+					it.UserDetails, it.Claims.Length);
 
 				// TODO: Change "." to "-" in custom roles because staticwebapp.config.json doesn't support periods.
 				string[] additionalRoles = it.Claims
@@ -36,7 +37,8 @@ namespace Microsoft.UsEduCsu.Saas
 					.Select(c => c.Value.Replace(".", ""))
 					.ToArray();
 
-				log.LogInformation($"Assigning {additionalRoles.Length} additional role(s) '{string.Join(',', additionalRoles)}' to '{it.UserDetails}'.");
+				log.LogInformation("Assigning {additionalRolesLength} additional role(s) '{additionalRoles}' to '{userDetails}'.",
+					additionalRoles.Length, string.Join(',', additionalRoles), it.UserDetails);
 
 				rr.Roles = additionalRoles;
 

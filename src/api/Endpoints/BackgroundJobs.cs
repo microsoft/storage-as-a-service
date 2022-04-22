@@ -33,9 +33,8 @@ namespace Microsoft.UsEduCsu.Saas
 				var serviceClient = CreateDlsClientForUri(serviceUri);
 				var fileSystems = serviceClient.GetFileSystems();
 
-				var msg = $"Analyzing {account}";
-				log.LogInformation(msg);
-				sb.AppendLine(msg);
+				log.LogInformation("Analyzing {account}", account);
+				sb.AppendLine($"Analyzing {account}");
 
 				// TODO: Consider parallelizing?
 				foreach (var filesystem in fileSystems)
@@ -62,9 +61,8 @@ namespace Microsoft.UsEduCsu.Saas
 					fileSystemClient.SetMetadata(metadata);
 
 					// Report back results
-					msg = $"  {filesystem.Name} aggregate size {size} bytes";
-					log.LogInformation(msg);
-					sb.AppendLine(msg);
+					log.LogInformation("{fileSystemName} aggregate size {size} bytes", filesystem.Name, size);
+					sb.AppendLine($"  {filesystem.Name} aggregate size {size} bytes");
 				}
 			}
 
