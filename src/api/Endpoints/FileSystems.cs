@@ -226,13 +226,13 @@ namespace Microsoft.UsEduCsu.Saas
 			// Assign Other Execute Permission
 			result = await fileSystemOperations.SetRootOtherACL(tlfp.FileSystem);
 			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
+				return new BadRequestErrorMessageResult($"Error setting root ACL: {result.Message}");
 
 			// Add Blob Owner
 			var roleOperations = new RoleOperations(log, tokenCredential);
 			result = roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerObjectId);
 			if (!result.Success)
-				return new BadRequestErrorMessageResult(result.Message);
+				return new BadRequestErrorMessageResult($"Error assigning RBAC role: {result.Message}");
 
 			// Get the new container's root folder's details
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,

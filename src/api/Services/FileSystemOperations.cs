@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
@@ -28,16 +27,19 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				// Get Root Directory Client
 				var directoryClient = dlsClient.GetFileSystemClient(fileSystem).GetDirectoryClient(string.Empty);
+
+				// Retrieve the current ACL on the root directory
 				var acl = (await directoryClient.GetAccessControlAsync(userPrincipalName: true)).Value.AccessControlList.ToList();
 
-				// Add Other Entry
-				acl.Add(new PathAccessControlItem(AccessControlType.Other,
-					RolePermissions.Execute, false));
+				// Don't need to add "Other" because it's implicit
+				// Find the "Other" entry in the ACL
+				acl.Single(a => a.AccessControlType == AccessControlType.Other)
+					// Set permissions for "Other" to --X
+					.Permissions = RolePermissions.Execute;
 
 				// Update root container's ACL
 				var response = directoryClient.SetAccessControlList(acl).GetRawResponse();
-				result.Success = true; // response.Status == ((int)HttpStatusCode.OK);
-									   //result.Message = result.Success ? null : $"Error adding Other as Execute on the root folder of container '{fileSystem}'. Error {response.Status}.";
+				result.Success = true;
 				return result;
 			}
 			catch (Exception ex)
