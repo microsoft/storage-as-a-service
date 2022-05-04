@@ -139,7 +139,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (roleDefinitions == null)
 			{
 				roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
-					.Where(rd => rd.RoleName.StartsWith("Storage Blob")).ToList();
+					.Where(rd => rd.RoleName.StartsWith("Storage Blob")
+							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
+					.ToList();
 			}
 
 			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
