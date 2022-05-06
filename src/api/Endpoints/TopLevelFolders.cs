@@ -51,26 +51,26 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Find out user who is calling
 			var storageUri = SasConfiguration.GetStorageUri(account);
-			var tokenCredential = new DefaultAzureCredential();
+			var appCred = new DefaultAzureCredential();
 
 			// Get User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 			var folderOperations = new FolderOperations(storageUri, filesystem, log,
-				tokenCredential);
+				appCred, "AppIdentity");
 
 			// Retrieve all folders in the container
 			var folderList = folderOperations.GetFolderList();
 
 			// Filter for ALL the top-level folders in the container that are accessible by the user
 			var folderOperationsAsUser = new FolderOperations(storageUri, filesystem, log,
-				userCred);
+				userCred, principalId);
 
 			var folders = folderOperationsAsUser.GetAccessibleFolders(folderList);
 
 			// Retrieve the container's data plane RBAC role assignments for the calling user
 			// TODO: Possible improvement: if the calling user is the owner per RBAC (or any RBAC data plane role?),
 			// simply retrieve all folders instead of checking each folder (done in the the call above)?
-			var roleOperations = new RoleOperations(log, tokenCredential);
+			var roleOperations = new RoleOperations(log, appCred);
 			var roles = roleOperations.GetContainerRoleAssignments(account, principalId)
 									.Where(ra => ra.Container == filesystem);
 
@@ -157,7 +157,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var storageUri = SasConfiguration.GetStorageUri(account);
 			TokenCredential ApiCredential = new DefaultAzureCredential();
 			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
-			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, ApiCredential);
+			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, ApiCredential, "AppIdentity");
 
 			// Create the new folder
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);

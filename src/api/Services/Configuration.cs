@@ -2,6 +2,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("tests")]
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -38,9 +41,16 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		internal static Uri GetStorageUri(string account, string fileSystem = null)
 		{
+			ArgumentNullException.ThrowIfNull(account, nameof(account));
+
 			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
-			if (fileSystem != null)
+
+			if (!string.IsNullOrWhiteSpace(fileSystem))
+			{
+				// Append the container name to the end of the URI
 				storageUri = new Uri(storageUri, fileSystem);
+			}
+
 			return storageUri;
 		}
 

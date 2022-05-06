@@ -12,8 +12,7 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 {
 	public class FileSystemTests
 	{
-
-		ILogger log = new LoggerFactory().CreateLogger<FileSystemTests>();
+		private readonly ILogger log = new LoggerFactory().CreateLogger<FileSystemTests>();
 
 		public FileSystemTests()
 		{
@@ -62,7 +61,6 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 				dlsClient.DeleteFileSystem(filesystem.Name);
 			}
 		}
-
 
 		static void ConfigureEnvironmentVariablesFromLocalSettings()
 		{

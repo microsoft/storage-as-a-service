@@ -1,4 +1,4 @@
-﻿using Azure.Core;
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.Azure.Management.Authorization;
 using Microsoft.Azure.Management.Authorization.Models;
@@ -132,7 +132,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// Get Storage Account Resource ID
 			var accountResourceId = GetAccountResourceId(account);
 
-			// Get Auth Managment Client
+			// Get Auth Management Client
 			var amClient = new AuthorizationManagementClient(tokenCredentials);
 
 			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
