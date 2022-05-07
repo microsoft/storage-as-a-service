@@ -70,6 +70,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private RoleAssignment AddRoleAssignment(string scope, string roleName, string principalId)
 		{
 			VerifyToken();
+
 			var amClient = new AuthorizationManagementClient(tokenCredentials);
 			var roleDefinitions = amClient.RoleDefinitions.List(scope);
 			var roleDefinition = roleDefinitions.First(x => x.RoleName == roleName);
@@ -79,17 +80,20 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var roleAssignment = roleAssignments.FirstOrDefault(ra => ra.PrincipalId == principalId && ra.RoleDefinitionId == roleDefinition.Id);
 
 			// Create New Role Assignment
-			if (roleAssignment == null)
+			if (roleAssignment is null)
 			{
 				var racp = new RoleAssignmentCreateParameters(roleDefinition.Id, principalId);
 				var roleAssignmentId = Guid.NewGuid().ToString();
 				roleAssignment = amClient.RoleAssignments.Create(scope, roleAssignmentId, racp);
 			}
+
 			return roleAssignment;
 		}
 
-		public void AssignRoles(string account, string container, string ownerId)
+		public Result AssignRoles(string account, string container, string ownerId)
 		{
+			var result = new Result();
+
 			try
 			{
 				// Get Storage Account Resource ID
@@ -99,14 +103,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				string containerScope = $"{accountResourceId}/blobServices/default/containers/{container}";
 
 				// Allow user to manage ACL for container
-				var ra = AddRoleAssignment(containerScope, "Storage Blob Data Owner", ownerId);
+				_ = AddRoleAssignment(containerScope, "Storage Blob Data Owner", ownerId);
+
+				result.Success = true;
 			}
 			catch (Exception ex)
 			{
+				// TODO: Consider customizing error message
 				log.LogError(ex, ex.Message);
-				Console.WriteLine(ex.Message);
-				throw;
+				result.Message = ex.Message;
 			}
+
+			return result;
 		}
 
 		/// <summary>
@@ -131,7 +139,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (roleDefinitions == null)
 			{
 				roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
-					.Where(rd => rd.RoleName.StartsWith("Storage Blob")).ToList();
+					.Where(rd => rd.RoleName.StartsWith("Storage Blob")
+							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
+					.ToList();
 			}
 
 			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal

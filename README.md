@@ -1,6 +1,7 @@
 # Storage-as-a-Service for EDU
 
 ![workflow](https://github.com/microsoft/storage-as-a-service/actions/workflows/azure-swa-deploy.yml/badge.svg)
+[![CodeQL](https://github.com/microsoft/storage-as-a-service/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/microsoft/storage-as-a-service/actions/workflows/codeql-analysis.yml)
 ![GitHub issues by-label](https://img.shields.io/github/issues/microsoft/storage-as-a-service/enhancement?label=enhancement%20issues)
 ![GitHub issues by-label](https://img.shields.io/github/issues/microsoft/storage-as-a-service/bug?label=bug%20issues)
 ![GitHub issues by-label](https://img.shields.io/github/issues/microsoft/storage-as-a-service/documentation?label=docs%20issues)

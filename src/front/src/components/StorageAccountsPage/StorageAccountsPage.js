@@ -97,16 +97,26 @@ const StorageAccountsPage = ({ strings }) => {
 					const _directories = [...directories, response.Folder].sort((a, b) => a.uri < b.uri ? -1 : a.uri > b.uri ? 1 : 0)
 					setDirectories(_directories)
 
+					let thisToastMessage = strings.directoryCreated(response.Folder.name)
+
+					// If a message was provided in addition to the FolderDetail object
+					if (response.Message)
+						// Append it to the toast
+						// TODO: Create a visual line break. <br /> gets displayed as <br />, not a line break
+						thisToastMessage += '\n' + response.Message;
+
 					// Display a toast
-					displayToast(strings.directoryCreated(response.Folder.name))
+					displayToast(thisToastMessage)
 				}
 				else {
-					console.error(response.Error);
-					displayErrorToast(response.Error);
+					// Log and display the error message
+					console.error(response.Message);
+					displayErrorToast(response.Message);
 				}
 			})
 			.catch(error => {
 				console.error(error)
+				displayErrorToast(error)
 			})
 	}
 
