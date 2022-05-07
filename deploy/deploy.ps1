@@ -12,6 +12,8 @@
 # TODO: Use DeploymentScripts when scripting's needed?
 # TODO: Generate secrets inside Bicep?
 
+# TODO: Create API app registration in addition to SWA app registration
+
 [CmdletBinding()]
 Param(
 	#
@@ -136,6 +138,7 @@ if (! $ServicePrincipal -and ! $DoNotCreateAppReg) {
 	Write-Verbose "Creating new Azure AD App Registration $ServicePrincipalName"
 
 	# Define SPN's permissions to Microsoft Graph
+	# TODO: Add GroupMember.Read.All, API app permission
 	$AppAccess = @{
 		# Microsoft Graph
 		ResourceAppId  = "00000003-0000-0000-c000-000000000000";
