@@ -1,4 +1,4 @@
-#Requires -Modules "Az"
+#Requires -Modules "Az", "Az.ResourceGraph", "Microsoft.Graph"
 #Requires -PSEdition Core
 
 # Use these parameters to customize the deployment instead of modifying the default parameter values
@@ -62,16 +62,16 @@ function Confirm-SwaAppSettings {
 	[CmdletBinding()]
 	param (
 		[Parameter(Position = 1)]
-		[Microsoft.Azure.PowerShell.Cmdlets.Websites.Models.Api20201201.StaticSiteArmResource]$swa
+		$appSettings
 	)
 
-	$requiredProperties = @("API_CLIENT_ID", "API_CLIENT_SECRET", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID", `
+	# LATER: Provide impact statement for each setting
+
+	# TODO: Re-add API_CLIENT_ID, API_CLIENT_SECRET
+	$requiredProperties = @("AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID", `
 			"CacheConnection", "DATALAKE_STORAGE_ACCOUNTS")
 	# Properties that should be in the Static Web App app settings, but are technically optional
 	$recommendedProperties = @("APPINSIGHTS_INSTRUMENTATIONKEY", "CONFIGURATION_API_KEY", "FILESYSTEMS_API_KEY", "COST_PER_TB")
-
-	# Get the App Settings of the Static Web App
-	$appSettings = Get-SwaAppSettings $swa.Name
 
 	# Test the recommended properties first
 	# This will not throw, just output a warning
@@ -106,18 +106,18 @@ function Test-RequiredAppSetting {
 		[string]$propertyName
 	)
 
-	# TODO: This returns $true on a partial match
-	#$appSettings.PSObject.Properties.Name
+	# Check if the specified property name occurs in the collection of
+	# property names of the App Settings object
 	[bool]$propertyExists = [bool]($appSettings.PSObject.Properties.Name -match "\b$propertyName\b")
-	#[bool]$propertyExists = [bool](Get-Member -Name $propertyName -InputObject $appSettings -MemberType Property)
 	[bool]$propertyValid = $true
 
 	if (! $propertyExists) {
 		Write-Host "$IssueDetectedText Static Web App configuration must have a setting '$propertyName'." -ForegroundColor Red
 		$propertyValid = $false
 	}
-
-	# TODO: Value validation
+	else {
+		# TODO: Value validation
+	}
 
 	return $propertyValid
 }
@@ -131,11 +131,104 @@ function Test-RecommendedAppSetting {
 		[string]$propertyName
 	)
 
-	# TODO: This returns $true on a partial match
 	[bool]$propertyExists = [bool]($appSettings.PSObject.Properties.Name -match "\b$propertyName\b")
 
 	if (! $propertyExists) {
 		Write-Warning "$RecommendationText Static Web App configuration should have a setting '$propertyName'."
+	}
+}
+
+function Get-StorageAccounts {
+	[CmdletBinding()]
+	param (
+		[Parameter(Position = 1)]
+		$appSettings
+	)
+
+	[string[]]$separators = ",", ";"
+	[System.StringSplitOptions]$option = [System.StringSplitOptions]::RemoveEmptyEntries
+
+	[string[]]$storageAccounts = $appSettings.DATALAKE_STORAGE_ACCOUNTS.ToString().Split($separators, $option)
+
+	# TODO: Warn on duplicates
+
+	return $storageAccounts
+}
+
+function Get-ApiPrincipalId {
+	[CmdletBinding()]
+	param (
+		[Parameter(Position = 1)]
+		$appSettings
+	)
+
+	Write-Verbose "Looking up AAD Object ID for Static Web App's AZURE_CLIENT_ID"
+	$AppClientId = $appSettings.AZURE_CLIENT_ID
+
+	$App = Get-MgApplication -Filter "AppId eq '$AppClientId'"
+
+	return $App.Id
+}
+
+function Confirm-StorageAccount {
+	[CmdletBinding()]
+	param (
+		[Parameter(Position = 1)]
+		[string]$storageAccountName,
+		[Parameter(Position = 2)]
+		[string]$apiPrincipalId
+	)
+
+	# Confirm the storage account exists
+	# Cannot use Get-AzStorageAccount because we don't know the subscription or resource group of the storage account
+	# Use Resource Graph instead, because a storage account must be globally unique
+	# Same method is used in the application code
+	Write-Verbose "Querying Azure Resource Graph for ADLS Gen 2 account '$storageAccountName'"
+
+	$response = Search-AzGraph -First 1 -Verbose:$false -Query @"
+	Resources
+	| where name == '$storageAccountName'
+		and type =~ 'microsoft.storage/storageaccounts'
+		and kind == 'StorageV2'
+		and properties['isHnsEnabled']
+	| limit 1
+	| project id, resourceGroup
+"@
+
+	# If the storage account wasn't found with the Graph query
+	if ($response.Count -lt 1) {
+		throw @"
+Cannot find storage account with name '$storageAccountName'. Possible causes:
+		- The account does not exist.
+		- You don't have access to the subscription where the account is created.
+		- The storage account is not a General Purpose V2 account.
+		- The storage account does not have hierarchical namespace enabled (ADLS Gen 2).
+"@
+	}
+
+	#$storageAccountRG = $response.ResourceGroup
+	$storageAccountId = $response.Id
+
+	Write-Verbose "Retrieving Azure role assignments"
+	$roleAssignments = Get-AzRoleAssignment -Scope $storageAccountId -ObjectId $apiPrincipalId
+
+	# LATER: Look up instead of hardcoding?
+	$requiredAssignmentRoleDefinitionIds = @(
+		@{Id = "b7e6dc6d-f1e8-4753-8033-0f276bb0955b"; Name = "Storage Blob Data Owner" },
+		@{Id = "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9"; Name = "User Access Administrator" })
+
+	[int]$requiredAssignmentCount = $requiredAssignmentRoleDefinitionIds.Length
+
+	if (! $roleAssignments -or $roleAssignments.Count -lt $requiredAssignmentCount) {
+		throw "The AAD principal '$apiPrincipalId' does not have the minimum required ($requiredAssignmentCount) role assignments on storage account '$storageAccountName'."
+	}
+
+	foreach ($roleDefinition in $requiredAssignmentRoleDefinitionIds) {
+		Write-Verbose "Verifying that AAD principal '$apiPrincipalId' has '$($roleDefinition.Name)' assigned on storage account '$storageAccountName'"
+
+		if (! $($roleAssignments | Where-Object { $_.RoleDefinitionId -eq $roleDefinition.Id })) {
+			throw "The AAD principal '$apiPrincipalId' does not have the '$($roleDefinition.Name)' (role definition ID '$($roleDefinition.Id)') assigned on storage account '$storageAccountName'."
+		}
 	}
 }
 
@@ -158,16 +251,37 @@ function Diagnose() {
 
 	Confirm-SwaProperties $swa
 
-	Confirm-SwaAppSettings $swa
+	# Get the App Settings of the Static Web App
+	$appSettings = Get-SwaAppSettings $swaName
+
+	# Confirm all required App Settings are present
+	Confirm-SwaAppSettings $appSettings
+
+	# Get the SWA's AAD object ID (based on the client ID found in App Settings)
+	[string]$apiPrincipalId = Get-ApiPrincipalId $appSettings
+	# Get the storage account list configured for the app
+	[string[]]$storageAccounts = Get-StorageAccounts $appSettings
+
+	if ($storageAccounts.Length -lt 1) {
+		throw "No storage account names are configured in DATALAKE_STORAGE_ACCOUNTS"
+	}
+
+	foreach ($storageAccount in $storageAccounts) {
+		Confirm-StorageAccount $storageAccount $apiPrincipalId
+	}
 }
 
 Set-StrictMode -Version "Latest"
 
 $PSDefaultParameterValues = @{}
 $PSDefaultParameterValues += @{'*:ErrorAction' = 'SilentlyContinue' }
+Set-Item -Path Env:\SuppressAzurePowerShellBreakingChangeWarnings -Value $true
+
+Connect-MgGraph -Scopes "Application.Read.All"
 
 try {
 	Diagnose $swaName $rgName
+
 	Write-Host "`nNo issues detected." -ForegroundColor Green
 }
 catch {
