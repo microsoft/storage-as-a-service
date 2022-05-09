@@ -68,7 +68,7 @@ function Confirm-SwaAppSettings {
 	# LATER: Provide impact statement for each setting
 
 	# TODO: Re-add API_CLIENT_ID, API_CLIENT_SECRET
-	$requiredProperties = @("AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID", `
+	$requiredProperties = @("API_CLIENT_ID", "API_CLIENT_SECRET", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID", `
 			"CacheConnection", "DATALAKE_STORAGE_ACCOUNTS")
 	# Properties that should be in the Static Web App app settings, but are technically optional
 	$recommendedProperties = @("APPINSIGHTS_INSTRUMENTATIONKEY", "CONFIGURATION_API_KEY", "FILESYSTEMS_API_KEY", "COST_PER_TB")
@@ -230,6 +230,8 @@ Cannot find storage account with name '$storageAccountName'. Possible causes:
 			throw "The AAD principal '$apiPrincipalId' does not have the '$($roleDefinition.Name)' (role definition ID '$($roleDefinition.Id)') assigned on storage account '$storageAccountName'."
 		}
 	}
+
+	# TODO: Validate no network ACLs
 }
 
 function Diagnose() {
