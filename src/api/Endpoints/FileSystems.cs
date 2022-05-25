@@ -43,6 +43,7 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			// Check for logged in user
 			ClaimsPrincipal claimsPrincipal;
+
 			try
 			{
 				claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
@@ -73,14 +74,27 @@ namespace Microsoft.UsEduCsu.Saas
 			var result = new List<FileSystemResult>();
 
 			var appCred = new DefaultAzureCredential();
+			RoleOperations roleOperations = new(log, appCred);
 
 			Parallel.ForEach(accounts, acct =>
 			{
-				// TODO: Consider renaming to GetPermissionedContainers
-				var containers = GetContainers(log, acct, principalId, appCred: appCred, userCred: userCred);
+				IList<string> containers = null;
+
+				try
+				{
+					// TODO: Consider renaming to GetPermissionedContainers
+					containers = GetContainers(log, acct, principalId, appCred: appCred,
+						userCred: userCred, roleOperations);
+				}
+				catch (Exception ex)
+				{
+					log.LogError(ex, "Error while retrieving containers for storage account '{acct}': '{Message}'.", acct, ex.Message);
+					// Eat the exception here because otherwise a failure to read one account's
+					// RBAC permissions wil cause the entire operation to fail
+				}
 
 				// If the current user has access to at least 1 container in the current storage account
-				if (containers.Count > 0)
+				if (containers?.Count > 0)
 				{
 					// Create a result object for the current storage account
 					var fs = new FileSystemResult()
@@ -112,7 +126,8 @@ namespace Microsoft.UsEduCsu.Saas
 		/// <param name="userCred">An access token to impersonate the calling user (same as principalId) when calling the Storage API.</param>
 		/// <returns>The list of containers to which the specified principal has access.</returns>
 		private static IList<string> GetContainers(ILogger log, string account, string principalId,
-			TokenCredential appCred, TokenCredential userCred)
+			TokenCredential appCred, TokenCredential userCred,
+			RoleOperations roleOps)
 		{
 			// TODO: validate that userCred and principalId match?
 
@@ -125,18 +140,25 @@ namespace Microsoft.UsEduCsu.Saas
 			// Retrieve all the containers in the specified storage account
 			var fileSystems = adls.GetFilesystems();
 
-			// TODO: This method is called from a loop, so this object shouldn't be created in here
-			var roleOperations = new RoleOperations(log, appCred);
-
 			// Check for RBAC data plane access to any container in the account
-			var containerDataPlaneRoleAssignments = roleOperations
-							.GetContainerRoleAssignments(account, principalId);
+			IList<RoleOperations.ContainerRole> containerDataPlaneRoleAssignments = null;
+
+			try
+			{
+				containerDataPlaneRoleAssignments = roleOps
+								.GetContainerRoleAssignments(account, principalId);
+			}
+			catch (Exception ex)
+			{
+				log.LogError(ex, "Unable to retrieve container RBAC assignments for '{account}'", account);
+				throw;
+			}
 
 			// Join fileSystems and roleAssignments due to orphaned role assignments
 			var fileSystemRoleAssignments = fileSystems.Join(containerDataPlaneRoleAssignments,
 					fs => fs.Name,
 					ra => ra.Container,
-					(fs, ra) => ra)
+					(_, ra) => ra)
 					.ToList();
 
 			// If the specified principal has any data plane RBAC assignment on any container
@@ -150,12 +172,12 @@ namespace Microsoft.UsEduCsu.Saas
 			Parallel.ForEach(fileSystems.Where(fs => !accessibleContainers.Any(c => c == fs.Name)), filesystem =>
 			{
 				// Evaluate top-level folder ACLs, check if user can read folders
-				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
+				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred, "AppIdentity");
 				// Retrieve all folders in the container
 				var folderList = folderOps.GetFolderList();
 
 				// Check for any folder using calling user's credentials
-				var folderOpsAsUser = new FolderOperations(serviceUri, filesystem.Name, log, userCred);
+				var folderOpsAsUser = new FolderOperations(serviceUri, filesystem.Name, log, userCred, principalId);
 				var folders = folderOpsAsUser.GetAccessibleFolders(folderList, checkForAny: true);
 
 				if (folders.Count > 0)
@@ -236,7 +258,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Get the new container's root folder's details
 			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
-				tokenCredential);
+				tokenCredential, "AppIdentity");
 			var folderDetail = folderOperations.GetFolderDetail(string.Empty);
 
 			if (folderDetail is null)

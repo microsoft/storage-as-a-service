@@ -18,7 +18,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private readonly DataLakeFileSystemClient dlfsClient;
 		private readonly decimal costPerTB;
-		private readonly Uri storageUri;
+		private readonly string principalId;
 
 		/// <summary>
 		/// Initializes a new instance of the FolderOperations class.
@@ -27,23 +27,24 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="fileSystem"></param>
 		/// <param name="log"></param>
 		/// <param name="tokenCredential"></param>
-		/// <param name="userTokenCredential"></param>
+		/// <param name="principalId"></param>
 		public FolderOperations(Uri storageUri, string fileSystem, ILogger log,
-			TokenCredential tokenCredential)
+			TokenCredential tokenCredential, string principalId)
 		{
+			ArgumentNullException.ThrowIfNull(tokenCredential, nameof(tokenCredential));
+
 			this.log = log;
-			this.storageUri = storageUri;
+			this.principalId = principalId;
 
 			var costPerTB = Environment.GetEnvironmentVariable("COST_PER_TB");
-			if (costPerTB != null)
-				decimal.TryParse(costPerTB, out this.costPerTB);
+			if (!string.IsNullOrWhiteSpace(costPerTB))
+				_ = decimal.TryParse(costPerTB, out this.costPerTB);
 
-			if (tokenCredential == null)
-			{
-				throw new InvalidOperationException($"Must always specify the appTokenCredential parameter.");
-			}
-
-			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential).GetFileSystemClient(fileSystem);
+			// TODO: Avoid creating a new DataLakeServiceClient every time
+			// (FolderOperations objects are created in loops)
+			// Possible solution: store tokenCredential and associated client in a static dictionary?
+			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential)
+				.GetFileSystemClient(fileSystem);
 		}
 
 		internal async Task<Result> CreateNewFolder(string folder)
@@ -58,21 +59,19 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				var response = await directoryClient.CreateIfNotExistsAsync();  // Returns null if exists
 				result.Success = response?.GetRawResponse().Status == 201;
 
-				if (!result.Success)
+				if (!result.Success
+					&& response == null)
 				{
-					if (response == null)
-					{
-						log.LogError("Folder '{dlfsClientAccountName}/{dlfsClientName}/{folder}' already exists.",
-							dlfsClient.AccountName, dlfsClient.Name, folder);
-						result.Message = $"Folder '{dlfsClient.AccountName}/{dlfsClient.Name}/{folder}' already exists.";
-					}
+					log.LogError("Folder '{dlfsClientAccountName}/{dlfsClientName}/{folder}' already exists.",
+						dlfsClient.AccountName, dlfsClient.Name, folder);
+					result.Message = $"Folder '{dlfsClient.AccountName}/{dlfsClient.Name}/{folder}' already exists.";
 				}
 			}
 			catch (Exception ex)
 			{
 				result.Message = ex.Message;
 				log.LogError(ex, result.Message);
-			};
+			}
 
 			return result;
 		}
@@ -96,7 +95,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					defaultScope: true);
 				accessControlListUpdate.Add(access);
 				accessControlListUpdate.Add(defaultAccess);
-			};
+			}
 
 			// Send up changes
 			var result = new Result();
@@ -131,6 +130,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				return new Result { Success = false, Message = ex.Message };
 			}
+
 			return new Result() { Success = true };
 		}
 
@@ -198,8 +198,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <summary>
 		/// Returns a (partial) list of top-level folders that the principal's whose token is specified can access.
 		/// </summary>
-		/// <param name="checkForAny">If set to true, stops enumerating folders when the first permissioned folder is found.</param>
-		/// <returns>A list of top-level folders the principal represented by the current token has access to. If checkForAny is true, the list is only a partial list.</returns>
+		/// <param name="checkForAny">If set to true, stops enumerating folders
+		/// when the first permissioned folder is found.</param>
+		/// <returns>A list of top-level folders the principal represented by the current token has access to.
+		/// If checkForAny is true, the list is only a partial list.</returns>
 		internal IList<FolderDetail> GetAccessibleFolders(IList<PathItem> folders, bool checkForAny = false)
 		{
 			// Define the return value
@@ -239,6 +241,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 			catch (OperationCanceledException ex)
 			{
+				// TODO: Is this log entry worth the overhead?
 				log.LogTrace(ex, "Parallel op cancelled.");
 			}
 			finally
@@ -287,11 +290,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 				return fd;
 			}
+			catch (AuthenticationFailedException ex)
+			{
+				// We should expect there to be plenty of authentication exceptions
+				// Trace instead of log as exception
+				log.LogTrace(ex, "Authentication to '{AccountName}/{Container}/{Folder}' failed for principal '{principalId}'. Exception Message: '{Message}'.",
+					dlfsClient.AccountName, dlfsClient.Name, folderName, principalId, ex.Message);
+			}
 			catch (Exception ex)
 			{
-				// TODO: Does it make sense to log exceptions that indicate the user doesn't have access? Perhaps in verbose mode?
-				// We should expect there to be plenty of access exceptions
-				log.LogError(ex.Message, ex);
+				log.LogError(ex, "Error while retrieving folder details for '{AccountName}/{Container}/{Folder}' with principal '{principalId}'. Exception Message: '{Message}'.",
+					dlfsClient.AccountName, dlfsClient.Name, folderName, principalId, ex.Message);
+				// The callers expect null, no exception handling in callers ==> eat the exception
 			}
 
 			return null;
