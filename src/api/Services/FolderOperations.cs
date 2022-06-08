@@ -334,7 +334,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				Cost = cost.HasValue ? cost.Value.ToString() : "NA",
 				FundCode = metadata.ContainsKey("FundCode") ? metadata["FundCode"] : null,
 				UserAccess = userAccess,
-				URI = uri.ToString(),
+				// Uri.ToString() always appends a trailing /, remove it (#82)
+				URI = uri.ToString().TrimEnd('/'),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
 			};
 
