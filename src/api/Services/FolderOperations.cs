@@ -336,6 +336,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				UserAccess = userAccess,
 				URI = uri.ToString(),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
+				StorageExplorerURI =  $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystemPath&path={folder}&container={dlfsClient.Name}&serviceEndpoint={dlfsClient.Uri}"
 			};
 
 			return fd;
@@ -378,6 +379,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string Region { get => "Not Implemented"; }
 			public string URI { get; set; }
 			public IList<string> UserAccess { get; set; }
+			public string StorageExplorerURI {get; set; }
 		}
 	}
 }
