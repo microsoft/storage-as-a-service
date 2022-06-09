@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -326,6 +327,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			TranslateGroups(userAccess); // TODO: Opportunity for caching here
 
+			var seFolderName = HttpUtility.UrlEncode(folder.Length > 0 ? folder + "/" : string.Empty);
+			var seEndpoint = HttpUtility.UrlEncode(dlfsClient.Uri.ToString());
+
 			// Create Folder Details
 			var fd = new FolderDetail()
 			{
@@ -337,6 +341,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// Uri.ToString() always appends a trailing /, remove it (#82)
 				URI = uri.ToString().TrimEnd('/'),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
+				StorageExplorerURI = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystemPath&container={dlfsClient.Name}&serviceEndpoint={seEndpoint}&path={seFolderName}"
 			};
 
 			return fd;
@@ -379,6 +384,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string Region { get => "Not Implemented"; }
 			public string URI { get; set; }
 			public IList<string> UserAccess { get; set; }
+			public string StorageExplorerURI {get; set; }
 		}
 	}
 }
