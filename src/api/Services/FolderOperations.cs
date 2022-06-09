@@ -326,6 +326,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			TranslateGroups(userAccess); // TODO: Opportunity for caching here
 
+			var seFolderName = folder.Length > 0 ? folder + "/" : string.Empty;
 			// Create Folder Details
 			var fd = new FolderDetail()
 			{
@@ -336,7 +337,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				UserAccess = userAccess,
 				URI = uri.ToString(),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
-				StorageExplorerURI =  $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystemPath&path={folder}&container={dlfsClient.Name}&serviceEndpoint={dlfsClient.Uri}"
+				StorageExplorerURI =  $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&serviceEndpoint={dlfsClient.Uri}&container={dlfsClient.Name}&type=fileSystemPath&path={seFolderName}"
 			};
 
 			return fd;
