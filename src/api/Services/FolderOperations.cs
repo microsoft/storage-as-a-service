@@ -328,7 +328,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			TranslateGroups(userAccess); // TODO: Opportunity for caching here
 
 			var seFolderName = HttpUtility.UrlEncode(folder.Length > 0 ? folder + "/" : string.Empty);
-			var seEndpoint = HttpUtility.UrlEncode(dlfsClient.Uri.ToString());
+			var seEndpoint = HttpUtility.UrlEncode(dlfsClient.Uri.ToString()); // TODO: Opportunity for efficiency
 
 			// Create Folder Details
 			var fd = new FolderDetail()
@@ -384,7 +384,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string Region { get => "Not Implemented"; }
 			public string URI { get; set; }
 			public IList<string> UserAccess { get; set; }
-			public string StorageExplorerURI {get; set; }
+			public string StorageExplorerURI { get; set; }
 		}
 	}
 }

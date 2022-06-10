@@ -7,6 +7,7 @@ import DirectoriesTableMembers from './DirectoriesTableMembers'
 import './DirectoriesTable.css'
 import StorageExplorerIcon from '../../images/storage-explorer.svg'
 import IconButton from "@mui/material/IconButton"
+import Tooltip from '@mui/material/Tooltip'
 
 export const DirectoriesTable = ({ data, onDetails, onEdit, strings }) => {
 	return (
@@ -54,10 +55,12 @@ export const DirectoriesTable = ({ data, onDetails, onEdit, strings }) => {
 							</td>
 							<td className='actions'>
 								{onEdit && <EditIcon onClick={() => onEdit(row)} className='action' />}
-								{onDetails && <DetailsIcon onClick={() => onDetails(row)} className='action' />}
-								<IconButton aria-label={strings.openInStorageExplorerLabel} size='small' onClick={() => { window.open(row.storageExplorerURI); return false }}>
-									<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />
-								</IconButton>
+								{onDetails && <Tooltip arrow title="Open details" placement='top'><DetailsIcon onClick={() => onDetails(row)} className='action' /></Tooltip>}
+								<Tooltip arrow title={strings.openInStorageExplorerLabel} placement='top'>
+									<IconButton aria-label={strings.openInStorageExplorerLabel} size='small' onClick={() => { window.open(row.storageExplorerURI); return false }}>
+										<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />
+									</IconButton>
+								</Tooltip>
 							</td>
 						</tr>
 					)

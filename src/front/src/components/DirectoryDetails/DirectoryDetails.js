@@ -7,6 +7,7 @@ import DirectoriesTableMembers from '../DirectoriesTable/DirectoriesTableMembers
 import CopyIcon from '@mui/icons-material/ContentCopy';
 import FilledCopyIcon from '@mui/icons-material/ContentCopyTwoTone';
 import StorageExplorerIcon from '../../images/storage-explorer.svg'
+import Tooltip from "@mui/material/Tooltip"
 
 const DirectoryDetails = ({ data, strings }) => {
 
@@ -61,12 +62,16 @@ const DirectoryDetails = ({ data, strings }) => {
 			</Grid>
 			<Grid item xs={12} className='detail'>
 				<div className='label'>{strings.uriLabel}:</div><span>{format(data.uri)}</span>
-				<IconButton aria-label={strings.copyToClipboardLabel} onClick={() => handleCopyUrl(data.uri)} color={copied ? 'success' : 'secondary'} size='small'>
-					{copied ? <FilledCopyIcon /> : <CopyIcon />}
-				</IconButton>
-				<IconButton aria-label={strings.openInStorageExplorerLabel} size='large' onClick={() => { window.open(data.storageExplorerURI); return false }}>
-					<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />
-				</IconButton>
+				<Tooltip arrow title={strings.copyToClipboardLabel} placement='top'>
+					<IconButton aria-label={strings.copyToClipboardLabel} onClick={() => handleCopyUrl(data.uri)} color={copied ? 'success' : 'secondary'} size='small'>
+						{copied ? <FilledCopyIcon /> : <CopyIcon />}
+					</IconButton>
+				</Tooltip>
+				<Tooltip arrow title={strings.openInStorageExplorerLabel} placement='top'>
+					<IconButton aria-label={strings.openInStorageExplorerLabel} size='large' onClick={() => { window.open(data.storageExplorerURI); return false }}>
+						<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />
+					</IconButton>
+				</Tooltip>
 			</Grid>
 		</Grid>
 	)
