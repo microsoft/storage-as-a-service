@@ -22,6 +22,7 @@ const strings = {
 		monthlyCostLabel: 'Monthly Cost',
 		spaceUsedLabel: 'Space Used',
 		whoHasAccessLabel: 'Who Has Access?',
+		openInStorageExplorerLabel: 'Open in Storage Explorer',
 	},
 	directoryDetails: {
 		accessTierLabel: 'Storage type',
@@ -45,6 +46,8 @@ const strings = {
 		storageExplorerLabel: 'Via Storage Explorer',
 		storageExplorerUrl: 'https://aka.ms/storageexplorer',
 		totalFilesLabel: 'Total files',
+		openInStorageExplorerLabel: 'Open in Storage Explorer',
+		copyToClipboardLabel: 'Copy to clipboard',
 		uriLabel: 'URL',
 	},
 	directoryEditor: {
