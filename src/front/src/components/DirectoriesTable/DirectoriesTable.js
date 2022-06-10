@@ -56,7 +56,7 @@ export const DirectoriesTable = ({ data, onDetails, onEdit, strings }) => {
 								{onEdit && <EditIcon onClick={() => onEdit(row)} className='action' />}
 								{onDetails && <DetailsIcon onClick={() => onDetails(row)} className='action' />}
 								<IconButton aria-label={strings.openInStorageExplorerLabel} size='small' onClick={() => { window.open(row.storageExplorerURI); return false }}>
-									<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} />
+									<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />
 								</IconButton>
 							</td>
 						</tr>

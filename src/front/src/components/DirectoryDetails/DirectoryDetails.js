@@ -65,7 +65,7 @@ const DirectoryDetails = ({ data, strings }) => {
 					{copied ? <FilledCopyIcon /> : <CopyIcon />}
 				</IconButton>
 				<IconButton aria-label={strings.openInStorageExplorerLabel} size='large' onClick={() => { window.open(data.storageExplorerURI); return false }}>
-					<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} />
+					<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />
 				</IconButton>
 			</Grid>
 		</Grid>
