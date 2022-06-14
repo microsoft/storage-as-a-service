@@ -54,10 +54,10 @@ const ConnectDetails = ({ data, strings }) => {
 			</div>
 			<Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
 				<Tabs value={value} onChange={handleChange}>
-					<Tab label={strings.storageExplorerLabel} icon={<img src={StorageExplorerIcon} />} iconPosition="start" />
-					<Tab label={strings.storageExplorerLinkLabel} icon={<img src={StorageExplorerIcon} />} iconPosition="start" />
+					<Tab label={strings.storageExplorerLabel} icon={<img alt="" src={StorageExplorerIcon} />} iconPosition="start" />
+					<Tab label={strings.storageExplorerLinkLabel} icon={<img alt="" src={StorageExplorerIcon} />} iconPosition="start" />
 					<Tab label={strings.azcopyLabel} />
-					<Tab label={strings.rcloneLabel} icon={<img src={rcloneIcon} width="18px" />} iconPosition="start" />
+					<Tab label={strings.rcloneLabel} icon={<img alt="" src={rcloneIcon} width="18px" />} iconPosition="start" />
 				</Tabs>
 			</Box>
 			<TabPanel value={value} index={0}>
