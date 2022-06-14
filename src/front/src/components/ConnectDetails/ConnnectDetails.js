@@ -112,7 +112,10 @@ const ConnectDetails = ({ data, strings }) => {
 				<p>TODO: Screenshots of Storage Explorer dialogs</p>
 			</TabPanel>
 			<TabPanel value={value} index={2}>
-				<p>Pending</p>
+				<p>TODO: Detail and screenshots</p>
+				<p>Get azcopy 10.15</p>
+				<p>Log in with azcopy</p>
+				<p>Execute an azcopy command to copy between storage folders: <pre>azcopy cp ...</pre></p>
 			</TabPanel>
 			<TabPanel value={value} index={2}>
 				<p>Pending</p>
