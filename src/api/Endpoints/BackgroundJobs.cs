@@ -14,6 +14,7 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class BackgroundJobs
 	{
+		// TODO: Why is this a POST?
 		[FunctionName("CalculateAllFolderSizes")]
 		public static async Task<IActionResult> CalculateAllFolderSizes(
 			[HttpTrigger(AuthorizationLevel.Function, "POST", Route = "Configuration/CalculateFolderSizes")]
@@ -32,21 +33,19 @@ namespace Microsoft.UsEduCsu.Saas
 				var serviceUri = SasConfiguration.GetStorageUri(account);
 				var serviceClient = CreateDlsClientForUri(serviceUri);
 				var fileSystems = serviceClient.GetFileSystems();
+				var appCred = new DefaultAzureCredential();
 
 				log.LogInformation("Analyzing {account}", account);
-				sb.AppendLine($"Analyzing {account}");
+				sb.Append("Analyzing ").AppendLine(account);
 
 				// TODO: Consider parallelizing?
 				foreach (var filesystem in fileSystems)
 				{
-					var containerUri = SasConfiguration.GetStorageUri(account, filesystem.Name);
-					var containerClient = CreateDlsClientForUri(serviceUri);
-					var fileSystemClient = containerClient.GetFileSystemClient(filesystem.Name);
+					var fileSystemClient = serviceClient.GetFileSystemClient(filesystem.Name);
 					var folders = fileSystemClient.GetPaths()
 						.Where(pi => pi.IsDirectory == true);
 
-					var folderOperations = new FolderOperations(serviceUri, filesystem.Name, log,
-						new DefaultAzureCredential(), "AppIdentity");
+					var folderOperations = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
 
 					long size = 0;
 					foreach (var folder in folders)
@@ -62,7 +61,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 					// Report back results
 					log.LogInformation("{fileSystemName} aggregate size {size} bytes", filesystem.Name, size);
-					sb.AppendLine($"  {filesystem.Name} aggregate size {size} bytes");
+					sb.Append("  ").Append(filesystem.Name).Append(" aggregate size ").Append(size).AppendLine(" bytes");
 				}
 			}
 
