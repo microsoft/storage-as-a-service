@@ -344,10 +344,5 @@ namespace Microsoft.UsEduCsu.Saas
 
 			public string Owner { get; set; }
 		}
-
-		private class FileSystem
-		{
-			public string Owner { get; set; }
-		}
 	}
 }
