@@ -20,8 +20,44 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
 	{
-		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status201Created)]
+		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+		[ProducesResponseType(StatusCodes.Status404NotFound)]
+		[FunctionName("FileSystemsContainer")]
+		public static IActionResult GetContainer(
+			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "FileSystems/{account}/{container}")]
+			HttpRequest req,
+			ILogger log, string account, string container)
+		{
+			if (!SasConfiguration.ValidateSharedKey(req, SasConfiguration.ApiKey.FileSystems))
+			{
+				return new UnauthorizedResult();
+			}
+
+			if (Services.Extensions.AnyNullOrEmpty(account, container))
+			{
+				return new BadRequestResult();
+			}
+
+			var ServiceUri = SasConfiguration.GetStorageUri(account);
+
+			FolderOperations fo = new(ServiceUri, container, log);
+
+			if (fo.FileSystemExists())
+			{
+				return new OkObjectResult(fo.GetFolderDetail(string.Empty));
+			}
+			else
+			{
+				return new NotFoundResult();
+			}
+		}
+
+		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status201Created)]
+		[ProducesResponseType(typeof(List<FileSystemResult>), StatusCodes.Status200OK)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[FunctionName("FileSystems")]
 		public static async Task<IActionResult> Run(
 			[HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
@@ -172,7 +208,7 @@ namespace Microsoft.UsEduCsu.Saas
 			Parallel.ForEach(fileSystems.Where(fs => !accessibleContainers.Any(c => c == fs.Name)), filesystem =>
 			{
 				// Evaluate top-level folder ACLs, check if user can read folders
-				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred, "AppIdentity");
+				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
 				// Retrieve all folders in the container
 				var folderList = folderOps.GetFolderList();
 
@@ -257,8 +293,7 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult($"Error assigning RBAC role: {result.Message}");
 
 			// Get the new container's root folder's details
-			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log,
-				tokenCredential, "AppIdentity");
+			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, tokenCredential);
 			var folderDetail = folderOperations.GetFolderDetail(string.Empty);
 
 			if (folderDetail is null)

@@ -24,11 +24,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <summary>
 		/// Initializes a new instance of the FolderOperations class.
 		/// </summary>
-		/// <param name="storageUri"></param>
-		/// <param name="fileSystem"></param>
-		/// <param name="log"></param>
-		/// <param name="tokenCredential"></param>
-		/// <param name="principalId"></param>
+		/// <param name="storageUri">The URI of the storage account.</param>
+		/// <param name="fileSystem">The name of the container.</param>
+		/// <param name="log">An ILogger implementation.</param>
+		/// <param name="tokenCredential">An OAuth token credential for access to Azure Storage.</param>
+		/// <param name="principalId">The AAD principal ID if <paramref name="tokenCredential"/>
+		/// is for a user, or a string to identify the application if <paramref name="tokenCredential"/>
+		/// is the API's identity.</param>
 		public FolderOperations(Uri storageUri, string fileSystem, ILogger log,
 			TokenCredential tokenCredential, string principalId)
 		{
@@ -46,6 +48,38 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// Possible solution: store tokenCredential and associated client in a static dictionary?
 			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential)
 				.GetFileSystemClient(fileSystem);
+		}
+
+		/// <summary>
+		/// Creates a new instance of the FolderOperations class with a
+		/// new DefaultAzureCredential.
+		/// </summary>
+		/// <param name="storageUri">The storage account URI.</param>
+		/// <param name="fileSystem">The name of the container.</param>
+		/// <param name="log">An ILogger implementation.</param>
+		public FolderOperations(Uri storageUri, string fileSystem, ILogger log)
+			: this(storageUri, fileSystem, log, new DefaultAzureCredential())
+		{ }
+
+		/// <summary>
+		/// Creates a new instance of the FolderOperations class with a
+		/// the specified TokenCredential being the API's identity.
+		/// </summary>
+		/// <param name="storageUri">The storage account URI.</param>
+		/// <param name="fileSystem">The name of the container.</param>
+		/// <param name="log">An ILogger implementation.</param>
+		/// <param name="appCred">The API's OAuth token credential.</param>
+		public FolderOperations(Uri storageUri, string fileSystem, ILogger log, TokenCredential appCred)
+			: this(storageUri, fileSystem, log, appCred, "AppIdentity")
+		{ }
+
+		/// <summary>
+		/// Determines if the file system associated with this instance exists.
+		/// </summary>
+		/// <returns>True if the file system exists; otherwise, false.</returns>
+		internal bool FileSystemExists()
+		{
+			return dlfsClient.Exists();
 		}
 
 		internal async Task<Result> CreateNewFolder(string folder)

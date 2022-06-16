@@ -22,7 +22,7 @@ namespace Microsoft.UsEduCsu.Saas
 	public static class TopLevelFolders
 	{
 		[FunctionName("TopLevelFoldersGET")]
-		public static async Task<IActionResult> TopLevelFoldersGET(
+		public static IActionResult TopLevelFoldersGET(
 			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "TopLevelFolders/{account}/{filesystem}/{user?}")]
 			HttpRequest req, string account, string filesystem, string user, ILogger log)
 		{
@@ -55,8 +55,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Get User Credentials
 			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
-			var folderOperations = new FolderOperations(storageUri, filesystem, log,
-				appCred, "AppIdentity");
+			var folderOperations = new FolderOperations(storageUri, filesystem, log, appCred);
 
 			// Retrieve all folders in the container
 			var folderList = folderOperations.GetFolderList();
@@ -156,8 +155,7 @@ namespace Microsoft.UsEduCsu.Saas
 			Result result = null;
 			var storageUri = SasConfiguration.GetStorageUri(account);
 			TokenCredential ApiCredential = new DefaultAzureCredential();
-			var fileSystemOperations = new FileSystemOperations(log, ApiCredential, storageUri);
-			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, ApiCredential, "AppIdentity");
+			var folderOperations = new FolderOperations(storageUri, tlfp.FileSystem, log, ApiCredential);
 
 			// Create the new folder
 			result = await folderOperations.CreateNewFolder(tlfp.Folder);
