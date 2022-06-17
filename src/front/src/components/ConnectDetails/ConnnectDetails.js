@@ -5,6 +5,10 @@ import CloudDownload from '@mui/icons-material/CloudDownload'
 import step2Image from './StorageExplorer.png'
 import step3Image from './SelectResource.png'
 import step4Image from './SelectAuthenticationMethod.png'
+import dlStep1Image from './directLinkOpen.png'
+import dlStep2Image from './directLinkAccount.png'
+import dlStep3Image from './directLinkName.png'
+import dlStep4Image from './directLinkSummary.png'
 import './ConnectDetails.css'
 import Tab from "@mui/material/Tab"
 import Tabs from "@mui/material/Tabs"
@@ -47,6 +51,21 @@ const ConnectDetails = ({ data, strings }) => {
 		setValue(newValue);
 	};
 
+	const seSteps =
+		[
+			{ name: strings.step2Label, image: step2Image },
+			{ name: strings.step3Label, image: step3Image },
+			{ name: strings.step4Label, image: step4Image }
+		]
+
+	const dlSteps =
+		[
+			{ name: strings.deepLinkStep2Label, image: dlStep1Image },
+			{ name: strings.deepLinkStep3Label, image: dlStep2Image },
+			{ name: strings.deepLinkStep4Label, image: dlStep3Image },
+			{ name: strings.deepLinkStep4Label, image: dlStep4Image }
+		]
+
 	return (
 		<div className='connectDetails'>
 			<div className='title'>
@@ -74,42 +93,44 @@ const ConnectDetails = ({ data, strings }) => {
 								<Button target='_blank' href={strings.storageExplorerUrl} variant='outlined' startIcon={<CloudDownload />}>{strings.download}</Button>
 							</div>
 						</div>
-						<div className='step-divider' />
-						<div className='step'>
-							<div className='step-label'>
-								{strings.step2Label}
-							</div>
-							<div className='step-content'>
-								<img src={step2Image} alt={strings.step2Label} />
-							</div>
-						</div>
-						<div className='step-divider' />
-						<div className='step'>
-							<div className='step-label'>
-								{strings.step3Label}
-							</div>
-							<div className='step-content'>
-								<img src={step3Image} alt={strings.step3Label} />
-							</div>
-						</div>
-						<div className='step-divider' />
-						<div className='step'>
-							<div className='step-label'>
-								{strings.step4Label}
-							</div>
-							<div className='step-content'>
-								<img src={step4Image} alt={strings.step4Label} />
-							</div>
-						</div>
+						{
+							seSteps.map(step => (
+								<div className='step'>
+									<div className='step-divider' />
+									<div className='step-label'>
+										{step.name}
+									</div>
+									<div className='step-content'>
+										<img src={step.image} alt={step.name} />
+									</div>
+								</div>
+							))
+						}
 					</div>
 				</div>
 			</TabPanel>
 			<TabPanel value={value} index={1}>
-				<p>Download and install Storage Explorer first.</p>
-				<Button variant="outlined" aria-label={strings.openInStorageExplorerLabel} startIcon={<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />} size='large' onClick={() => { window.open(data.storageExplorerURI); return false }}>
-					Click to open in Storage Explorer
-				</Button>
-				<p>TODO: Screenshots of Storage Explorer dialogs</p>
+				<div className='storageExplorer-steps'>
+					<div className='step'>
+						<div className='step-label'>
+							{strings.step1Label}
+						</div>
+						<div className='step-content'>
+							<Button target='_blank' href={strings.storageExplorerUrl} variant='outlined' startIcon={<CloudDownload />}>{strings.download}</Button>
+							<Button variant="outlined" aria-label={strings.openInStorageExplorerLabel} startIcon={<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />} size='large' onClick={() => { window.open(data.storageExplorerURI); return false }}>
+								Click to open in Storage Explorer
+							</Button>
+						</div>
+					</div>
+					{dlSteps.map(step => (
+						<div className='step'>
+							<div className='step-divider' />
+							<div className='step-label'>{step.name}</div>
+							<div className='step-content'><img src={step.image} alt={step.name} />
+							</div>
+						</div>
+					))}
+				</div>
 			</TabPanel>
 			<TabPanel value={value} index={2}>
 				<p>TODO: Detail and screenshots</p>
@@ -136,6 +157,10 @@ ConnectDetails.propTypes = {
 		storageExplorerLinkLabel: PropTypes.string,
 		rcloneLabel: PropTypes.string,
 		azcopyLabel: PropTypes.string,
+		deepLinkStep1Label: PropTypes.string,
+		deepLinkStep2Label: PropTypes.string,
+		deepLinkStep3Label: PropTypes.string,
+		deepLinkStep4Label: PropTypes.string
 	})
 }
 
@@ -152,6 +177,10 @@ ConnectDetails.defaultProps = {
 		storageExplorerLinkLabel: 'Storage Explorer (Direct Link)',
 		rcloneLabel: 'rclone',
 		azcopyLabel: 'azcopy',
+		deepLinkStep1Label: 'Open',
+		deepLinkStep2Label: 'Account',
+		deepLinkStep3Label: 'Name',
+		deepLinkStep4Label: 'Summary',
 	}
 }
 
