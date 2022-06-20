@@ -52,6 +52,12 @@ const strings = {
 		openInStorageExplorerLabel: 'Open in Storage Explorer',
 		copyToClipboardLabel: 'Copy to clipboard',
 		uriLabel: 'URL',
+		deepLinkStep1Label: '2.	Open',
+		deepLinkStep2Label: '3.	Account',
+		deepLinkStep3Label: '4.	Name',
+		deepLinkStep4Label: '5.	Summary',
+		azStep1: '2. Login Steps',
+		azStep2: '3. Login to Azure Active Directory'
 	},
 	directoryEditor: {
 		cancel: 'Cancel',
