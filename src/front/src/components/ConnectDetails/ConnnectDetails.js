@@ -84,43 +84,12 @@ const ConnectDetails = ({ data, strings }) => {
 			</div>
 			<Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
 				<Tabs value={value} onChange={handleChange}>
-					<Tab label={strings.storageExplorerLabel} icon={<img alt="" src={StorageExplorerIcon} />} iconPosition="start" />
 					<Tab label={strings.storageExplorerLinkLabel} icon={<img alt="" src={StorageExplorerIcon} />} iconPosition="start" />
+					<Tab label={strings.storageExplorerLabel} icon={<img alt="" src={StorageExplorerIcon} />} iconPosition="start" />
 					<Tab label={strings.azcopyLabel} />
-					<Tab label={strings.rcloneLabel} icon={<img alt="" src={rcloneIcon} width="18px" />} iconPosition="start" />
 				</Tabs>
 			</Box>
 			<TabPanel value={value} index={0}>
-				<div className='storageExplorer'>
-					{/* <div className='storageExplorer-title'>
-						{strings.storageExplorerLabel}:
-					</div> */}
-					<div className='storageExplorer-steps'>
-						<div className='step'>
-							<div className='step-label'>
-								{strings.step1Label}
-							</div>
-							<div className='step-content'>
-								<Button target='_blank' href={strings.storageExplorerUrl} variant='outlined' startIcon={<CloudDownload />}>{strings.download}</Button>
-							</div>
-						</div>
-						{
-							seSteps.map(step => (
-								<div className='step'>
-									<div className='step-divider' />
-									<div className='step-label'>
-										{step.name}
-									</div>
-									<div className='step-content'>
-										<img src={step.image} alt={step.name} />
-									</div>
-								</div>
-							))
-						}
-					</div>
-				</div>
-			</TabPanel>
-			<TabPanel value={value} index={1}>
 				<div className="storageExplorer">
 					<div className='storageExplorer-steps'>
 						<div className='step'>
@@ -146,6 +115,33 @@ const ConnectDetails = ({ data, strings }) => {
 					</div>
 				</div>
 			</TabPanel>
+			<TabPanel value={value} index={1}>
+				<div className='storageExplorer'>
+					<div className='storageExplorer-steps'>
+						<div className='step'>
+							<div className='step-label'>
+								{strings.step1Label}
+							</div>
+							<div className='step-content'>
+								<Button target='_blank' href={strings.storageExplorerUrl} variant='outlined' startIcon={<CloudDownload />}>{strings.download}</Button>
+							</div>
+						</div>
+						{
+							seSteps.map(step => (
+								<div className='step'>
+									<div className='step-divider' />
+									<div className='step-label'>
+										{step.name}
+									</div>
+									<div className='step-content'>
+										<img src={step.image} alt={step.name} />
+									</div>
+								</div>
+							))
+						}
+					</div>
+				</div>
+			</TabPanel>
 			<TabPanel value={value} index={2}>
 				<div className="storageExplorer">
 					<div className='storageExplorer-steps'>
@@ -155,7 +151,13 @@ const ConnectDetails = ({ data, strings }) => {
 							<p align="left">Using the azcopy command makes it easy to move and copy files in
 							command line or automated processes. Note that when copying files from a folder to a folder, ensure
 							the target folder has a / at the end.</p>
-							<p align="left">	azcopy cp "{source}" "{target}" --recursive=true</p>
+							<p align="left">
+								azcopy cp "{source}" "{target}"
+								--overwrite=prompt
+								--s2s-preserve-access-tier=false
+								--include-directory-stub=false
+								--recursive
+								--log-level=INFO</p>
 						</div>
 					</div>
 						<div className='step'>
@@ -183,9 +185,6 @@ const ConnectDetails = ({ data, strings }) => {
 						</div>
 					</div>
 				</div>
-			</TabPanel>
-			<TabPanel value={value} index={3}>
-				<p>Pending</p>
 			</TabPanel>
 		</div>
 	)
