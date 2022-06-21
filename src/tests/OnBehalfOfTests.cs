@@ -1,19 +1,13 @@
 
+using Azure.Identity;
+using Azure.Storage.Files.DataLake;
 using Microsoft.Extensions.Logging;
 using Microsoft.UsEduCsu.Saas.Services;
-using Xunit;
-
 using System;
-using Azure.Identity;
-using Microsoft.Extensions.Configuration;
-using System.IO;
-using Azure.Core;
-using Azure.Storage;
-using Azure.Storage.Files.DataLake;
-using System.Linq;
-using Microsoft.Extensions.Azure;
-using System.Threading;
 using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using Xunit;
 
 namespace tests
 {
@@ -21,14 +15,16 @@ namespace tests
 	{
 		static ILogger logger = new LoggerFactory().CreateLogger<OnBehalfOfTests>();
 		static ILogger log = logger;
-		string envTenantId, envClientId, envClientSecret;
+		string? envTenantId, envClientId, envClientSecret;
 
 		public OnBehalfOfTests()
 		{
 			ConfigureEnvironmentVariablesFromLocalSettings();
+#pragma warning disable CS8601 // Possible null reference assignment.
 			envTenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
 			envClientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
 			envClientSecret = Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
+#pragma warning restore CS8601 // Possible null reference assignment.
 		}
 
 		[Fact]
@@ -39,7 +35,7 @@ namespace tests
 
 			// Get PRincipal Id as App Service Principal
 			var owner = "StorageUser@contosou.com";
-			var userOperations = new UserOperations(log, appCreds );
+			var userOperations = new UserOperations(log, appCreds);
 			var ownerId = await userOperations.GetObjectIdFromUPN(owner);
 
 			// Get FileSystem as App Service Principal
@@ -66,7 +62,7 @@ namespace tests
 					{
 						try
 						{
-							if (path.IsDirectory.Value)
+							if (path.IsDirectory == true)
 							{
 								var filePaths = fileSystemClient.GetPaths(path.Name).ToList();
 								Debug.WriteLine($"{path.Name} file count {filePaths.Count}");
@@ -82,7 +78,7 @@ namespace tests
 
 					}
 				}
-				catch(Exception ex)
+				catch
 				{
 					Debug.WriteLine($"No access to {filesystem.Name}");
 				}
