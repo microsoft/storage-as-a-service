@@ -69,7 +69,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// Retrieve the container's data plane RBAC role assignments for the calling user
 			// TODO: Possible improvement: if the calling user is the owner per RBAC (or any RBAC data plane role?),
 			// simply retrieve all folders instead of checking each folder (done in the the call above)?
-			var roleOperations = new RoleOperations(log, appCred);
+			var roleOperations = new RoleOperations(log);
 			var roles = roleOperations.GetContainerRoleAssignments(account, principalId)
 									.Where(ra => ra.Container == filesystem);
 
@@ -137,7 +137,7 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			// Authorize the calling user as owner of the container
-			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			var roleOperations = new RoleOperations(log);
 			// TODO: Enhance the GetContainerRoleAssignments method to allow passing in a container name
 			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserPrincipalId(claimsPrincipal))
 							.Where(ra => ra.Container == tlfp.FileSystem)

@@ -13,6 +13,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
 
@@ -25,22 +26,75 @@ namespace Microsoft.UsEduCsu.Saas
 			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "FileSystemsRbac")] HttpRequest req,
 			ILogger log)
 		{
-			RoleOperations ro = new(log, new DefaultAzureCredential());
+			RoleOperations ro = new(log);
+			var appCred = new DefaultAzureCredential();
 
 			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
 
-			if (cpr.IsValid)
-			{
-				var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
-				principalId = "bf4ec1cb-f520-4e22-bcf9-6b28577f3624"; // StorageUser@contosou.com
+			if (!cpr.IsValid) return new UnauthorizedResult();
 
-				return new OkObjectResult(
-					ro.GetStorageDataPlaneRoles("df22ba11-ee48-422f-bbb0-9f71bcab0ab5", principalId));
-			}
-			else
+			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
+			// TODO: Foreach parallel (?) for subscriptions
+			var SubscriptionId = SasConfiguration.ManagedSubscriptions;
+
+			IList<RoleOperations.StorageDataPlaneRole> roleAssignments =
+				ro.GetStorageDataPlaneRoles(SubscriptionId, principalId);
+
+			// TODO: Unit test for pattern
+			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
+			Regex re = new Regex(ScopePattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+			IList<FileSystemResult> results = new List<FileSystemResult>();
+
+			// Process the role assignments into storage accounts and container names
+			foreach (var sdpr in roleAssignments)
 			{
-				return new UnauthorizedResult();
+				// Determine if this is a storage account or container assignment
+				// No support currently for higher-level assignments
+				Match m = re.Match(sdpr.Scope);
+				if (m.Success)
+				{
+					// There will always be a storage account name if there was a match
+					string storageAccountName = m.Groups["accountName"].Value;
+					// Find an existing entry for this storage account in the result set
+					// HACK: Can't parallelize like this... but we shouldn't have to
+					FileSystemResult fsr = results
+						.SingleOrDefault(fsr => fsr.Name.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase)) ??
+						new();
+
+					if (string.IsNullOrEmpty(fsr.Name))
+					{
+						// This is a new entry
+						fsr.Name = storageAccountName;
+						results.Add(fsr);
+					}
+
+					// Determine if this is a container-level assignment
+					if (m.Groups["containerName"].Success)
+					{
+						// Assume access is only to this container
+						fsr.FileSystems.Add(m.Groups["containerName"].Value);
+					}
+					else
+					{
+						var serviceUri = SasConfiguration.GetStorageUri(fsr.Name);
+
+						// Access is to entire storage account; return all containers
+						var adls = new FileSystemOperations(log, appCred, serviceUri);
+
+						// Retrieve all the containers in the specified storage account
+						var fileSystems = adls.GetFilesystems();
+						// Override any prior added container names
+						fsr.FileSystems = fileSystems.Select(fs => fs.Name).ToList();
+					}
+				}
+				else
+				{
+					// TODO: Log that scope format doesn't match expectation
+				}
 			}
+
+			return new OkObjectResult(results);
 		}
 
 		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
@@ -87,6 +141,7 @@ namespace Microsoft.UsEduCsu.Saas
 			HttpRequest req,
 			ILogger log, string account)
 		{
+			// TODO: Is the account param ever used?
 
 			if (req.Method == HttpMethods.Post)
 				return await FileSystemsPOST(req, log, account);
@@ -132,8 +187,9 @@ namespace Microsoft.UsEduCsu.Saas
 			// Define the return value
 			var result = new List<FileSystemResult>();
 
+			RoleOperations roleOperations = new(log);
+
 			var appCred = new DefaultAzureCredential();
-			RoleOperations roleOperations = new(log, appCred);
 
 			Parallel.ForEach(accounts, acct =>
 			{
@@ -310,7 +366,7 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult($"Error setting root ACL: {result.Message}");
 
 			// Add Blob Owner
-			var roleOperations = new RoleOperations(log, tokenCredential);
+			var roleOperations = new RoleOperations(log);
 			result = roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerObjectId);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult($"Error assigning RBAC role: {result.Message}");
@@ -354,7 +410,7 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			public string Name { get; set; }
 
-			public List<string> FileSystems { get; set; }
+			public List<string> FileSystems { get; internal set; } = new List<string>();
 		}
 
 		internal class FileSystemParameters

@@ -21,6 +21,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal static string ApiClientSecret = Environment.GetEnvironmentVariable("API_CLIENT_SECRET");
 
 		internal static string CacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
+		internal static string ManagedSubscriptions = Environment.GetEnvironmentVariable("MANAGED_SUBSCRIPTIONS");
 
 		internal static ConfigurationResult GetConfiguration()
 		{

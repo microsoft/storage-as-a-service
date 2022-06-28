@@ -6,6 +6,7 @@ using Microsoft.Azure.Management.ResourceGraph;
 using Microsoft.Azure.Management.ResourceGraph.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
+using Microsoft.Rest.Azure;
 using Microsoft.Rest.Azure.OData;
 using System;
 using System.Collections.Generic;
@@ -19,14 +20,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		private readonly ILogger log;
 		private TokenCredentials tokenCredentials;
-		private TokenCredential tokenCredential;
 
+		// Caches the list of storage plane data role definitions
 		private static IList<RoleDefinition> roleDefinitions;
 
-		public RoleOperations(ILogger log, TokenCredential tokenCredential)
+		public RoleOperations(ILogger log)
 		{
 			this.log = log;
-			this.tokenCredential = tokenCredential;
 		}
 
 		private void VerifyToken()
@@ -36,6 +36,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				var tokenRequestContext = new TokenRequestContext(new[] { "https://management.azure.com/.default" });
 				var accessToken = new DefaultAzureCredential().GetToken(tokenRequestContext);
 				tokenCredentials = new TokenCredentials(accessToken.Token);
+				// TODO: Determine when to expire the tokenCredentials object based on accessToken.ExpiresOn
 			}
 		}
 
@@ -124,18 +125,22 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// </summary>
 		/// <param name="subscriptionId"></param>
 		/// <param name="principalId"></param>
-		/// <returns></returns>
-		public List<ContainerRole> GetStorageDataPlaneRoles(string subscriptionId, string principalId)
+		/// <returns>A list of storage accounts and containers where the specified principal has the storage data plane role.</returns>
+		public IList<StorageDataPlaneRole> GetStorageDataPlaneRoles(string subscriptionId, string principalId)
 		{
 			// TODO: Consider creating a TokenCredentialManager
 			// (local var) TokenCredentials tc = TokenCredentialManager.GetToken();
 			VerifyToken();
 
-			// Get Auth Management Client
-			var amClient = new AuthorizationManagementClient(tokenCredentials);
-			amClient.SubscriptionId = subscriptionId;
+			// Get Auth Management Client, initialized with the current subscription ID
+			var amClient = new AuthorizationManagementClient(tokenCredentials)
+			{
+				SubscriptionId = subscriptionId
+			};
 
-			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
+			// Find all the applicable built-in role definition IDs that would give a
+			// principal access to storage account data plane
+			// TODO: Abstract into VerifyRoleCredentials() method
 			if (roleDefinitions == null)
 			{
 				roleDefinitions = amClient.RoleDefinitions.List($"/subscriptions/{subscriptionId}/")
@@ -151,12 +156,29 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			ODataQuery<RoleAssignmentFilter> q = new ODataQuery<RoleAssignmentFilter>();
 			q.Filter = $"assignedTo('{principalId}')";
 
-			return amClient.RoleAssignments.ListForSubscription(q)
+			// HACK: What's the point of this?
+			//RoleAssignmentFilter raf = new RoleAssignmentFilter(principalId);
+			//System.Diagnostics.Debug.WriteLine(raf.ToString());
+
+			/* Query the subscription's role assignments for the specified principal.
+			 * This will only return role assignments where the provided token has
+			 * Microsoft.Authorization/roleAssignments/read authorization.
+			 * For example, by granting the app registration User Access Administrator on storage accounts
+			 * in the specified subscription, this call will return any role assignment granted on the storage accounts.
+			 * NOTE: Storage-as-a-service does not currently support role assignments at levels higher than storage account.
+			 * I.e., a storage data plane role assignment at the resource group level or higher will not be reflected correctly.
+			 */
+			IPage<RoleAssignment> res = amClient.RoleAssignments.ListForSubscription(q);
+			return res
+				// Filter for storage data plane roles
+				// This cannot be done on the server side
 				.Where(ra => roleDefinitionIds.Contains(ra.RoleDefinitionId))
-				.Select(ra => new ContainerRole()
+				// Transform the result set in a custom object
+				.Select(ra => new StorageDataPlaneRole()
 				{
 					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId)).RoleName,
-					Container = ra.Scope.Split('/').Last(),
+					Scope = ra.Scope,
+					PrincipalType = ra.PrincipalType,
 					PrincipalId = ra.PrincipalId
 				})
 			 	.ToList();
@@ -213,6 +235,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string RoleName { get; set; }
 			public string Container { get; set; }
 			public string PrincipalId { get; set; }
+		}
+
+		public class StorageDataPlaneRole
+		{
+			public string RoleName { get; set; }
+			public string Scope { get; set; }
+			public string PrincipalId { get; set; }
+			public string PrincipalType { get; set; }
 		}
 	}
 }
