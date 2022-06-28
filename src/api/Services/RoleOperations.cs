@@ -6,6 +6,7 @@ using Microsoft.Azure.Management.ResourceGraph;
 using Microsoft.Azure.Management.ResourceGraph.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
+using Microsoft.Rest.Azure.OData;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -118,6 +119,50 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
+		/// Retrieves any Azure Storage data plane roles (Storage Blob Data *) roles for the specified
+		/// principal ID on the specified subscription.
+		/// </summary>
+		/// <param name="subscriptionId"></param>
+		/// <param name="principalId"></param>
+		/// <returns></returns>
+		public List<ContainerRole> GetStorageDataPlaneRoles(string subscriptionId, string principalId)
+		{
+			// TODO: Consider creating a TokenCredentialManager
+			// (local var) TokenCredentials tc = TokenCredentialManager.GetToken();
+			VerifyToken();
+
+			// Get Auth Management Client
+			var amClient = new AuthorizationManagementClient(tokenCredentials);
+			amClient.SubscriptionId = subscriptionId;
+
+			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
+			if (roleDefinitions == null)
+			{
+				roleDefinitions = amClient.RoleDefinitions.List($"/subscriptions/{subscriptionId}/")
+					.Where(rd => rd.RoleName.StartsWith("Storage Blob Data")
+							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
+					.ToList();
+			}
+
+			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
+			var roleDefinitionIds = roleDefinitions.Select(rd => rd.Id);    // Create an IList<string> of the role definition IDs
+
+			// Filter the role assignments query by the AAD object ID of the signed in user
+			ODataQuery<RoleAssignmentFilter> q = new ODataQuery<RoleAssignmentFilter>();
+			q.Filter = $"assignedTo('{principalId}')";
+
+			return amClient.RoleAssignments.ListForSubscription(q)
+				.Where(ra => roleDefinitionIds.Contains(ra.RoleDefinitionId))
+				.Select(ra => new ContainerRole()
+				{
+					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId)).RoleName,
+					Container = ra.Scope.Split('/').Last(),
+					PrincipalId = ra.PrincipalId
+				})
+			 	.ToList();
+		}
+
+		/// <summary>
 		/// Return a list of containers where the specified AAD principal has data plane access.
 		/// </summary>
 		/// <param name="account">The storage account for which to retrieve container access.</param>
@@ -139,13 +184,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (roleDefinitions == null)
 			{
 				roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
-					.Where(rd => rd.RoleName.StartsWith("Storage Blob")
+					.Where(rd => rd.RoleName.StartsWith("Storage Blob Data")
 							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
 					.ToList();
 			}
 
 			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
 			var roleDefinitionIds = roleDefinitions.Select(rd => rd.Id);    // Create an IList<string> of the role definition IDs
+																			// TODO: Add ODataQuery to filter for principal ID
 			var roleAssignments = amClient.RoleAssignments.ListForScope(accountResourceId)
 				.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
 					&& roleDefinitionIds.Contains(ra.RoleDefinitionId)

@@ -20,6 +20,29 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
 	{
+		[FunctionName("FileSystemsByRbac")]
+		public static IActionResult GetContainersByRbac(
+			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "FileSystemsRbac")] HttpRequest req,
+			ILogger log)
+		{
+			RoleOperations ro = new(log, new DefaultAzureCredential());
+
+			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
+
+			if (cpr.IsValid)
+			{
+				var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
+				principalId = "bf4ec1cb-f520-4e22-bcf9-6b28577f3624"; // StorageUser@contosou.com
+
+				return new OkObjectResult(
+					ro.GetStorageDataPlaneRoles("df22ba11-ee48-422f-bbb0-9f71bcab0ab5", principalId));
+			}
+			else
+			{
+				return new UnauthorizedResult();
+			}
+		}
+
 		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -343,6 +366,50 @@ namespace Microsoft.UsEduCsu.Saas
 			public string FundCode { get; set; }
 
 			public string Owner { get; set; }
+		}
+
+		internal class ClaimsPrincipalResult
+		{
+			// TODO: Refactor UserOperations to return this instead of a ClaimsPrincipal
+			// Move some of this logic into UserOperations.GetClaimsPrincipal
+
+			/// <summary>
+			/// Constructs a potentially valid ClaimsPrincipalResult using the specified ClaimsPrincipal.
+			/// </summary>
+			/// <param name="cp"></param>
+			/// <exception cref="ArgumentNullException"></exception>
+			public ClaimsPrincipalResult(ClaimsPrincipal cp)
+			{
+				if (!Services.Extensions.AnyNull(cp, cp.Identity))
+				{
+					ClaimsPrincipal = cp;
+					// IsValid is false by default, only need to set if it's a valid principal
+					IsValid = true;
+				}
+				else
+				{
+					ClaimsPrincipal = null;
+					Message = "Call requires an authenticated user.";
+				}
+			}
+
+			/// <summary>
+			/// Constructs an invalid ClaimsPrincipalResult using the specified error message.
+			/// </summary>
+			/// <param name="errorMessage"></param>
+			/// <exception cref="ArgumentNullException"></exception>
+			public ClaimsPrincipalResult(string errorMessage)
+			{
+				if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
+
+				ClaimsPrincipal = null;
+				Message = errorMessage;
+			}
+
+			public bool IsValid { get; set; }
+			public string Message { get; set; }
+			public ClaimsPrincipal ClaimsPrincipal { get; private set; }
+			// TODO: Add UserPrincipalId property as a shortcut
 		}
 	}
 }
