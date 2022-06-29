@@ -17,7 +17,6 @@ import Tabs from "@mui/material/Tabs"
 import Box from "@mui/material/Box"
 import Typography from '@mui/material/Typography';
 import StorageExplorerIcon from '../../images/storage-explorer.svg'
-import rcloneIcon from './rclone.png'
 
 function TabPanel(props) {
 	const { children, value, index, ...other } = props;
@@ -203,7 +202,6 @@ ConnectDetails.propTypes = {
 		step4Label: PropTypes.string,
 		storageExplorerLabel: PropTypes.string,
 		storageExplorerLinkLabel: PropTypes.string,
-		rcloneLabel: PropTypes.string,
 		azcopyLabel: PropTypes.string,
 		deepLinkStep1Label: PropTypes.string,
 		deepLinkStep2Label: PropTypes.string,
@@ -227,7 +225,6 @@ ConnectDetails.defaultProps = {
 		step4Label: '4. Select "Sign in using Azure Active Directory"',
 		storageExplorerLabel: 'Storage Explorer (Manual)',
 		storageExplorerLinkLabel: 'Storage Explorer (Direct Link)',
-		rcloneLabel: 'rclone',
 		azcopyLabel: 'azcopy',
 		deepLinkStep1Label: '2. Open',
 		deepLinkStep2Label: '3. Account',
