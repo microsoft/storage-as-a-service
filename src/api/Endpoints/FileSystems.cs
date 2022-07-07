@@ -16,6 +16,9 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
+using Azure.Storage.Files.DataLake;
+using System.Reflection.Metadata.Ecma335;
+using System.Web;
 
 namespace Microsoft.UsEduCsu.Saas
 {
@@ -242,6 +245,64 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Send back the Accounts and FileSystems
 			return new OkObjectResult(result);
+		}
+
+
+		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
+		[ProducesResponseType(StatusCodes.Status400BadRequest)]
+		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+		[ProducesResponseType(StatusCodes.Status404NotFound)]
+		[FunctionName("FileSystemDetails")]
+		public static IActionResult FileSystemDetails(HttpRequest req, ILogger log, string account)
+		{
+			var fileSystemDetails = GetFileSystemDetailsForAccount(account);
+			return new OkObjectResult(fileSystemDetails);
+		}
+
+		internal static IList<FileSystemDetail> GetFileSystemDetailsForAccount(string account)
+		{
+			// Get Environmental Info
+			decimal costPerTB = 0.0M;
+			if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COST_PER_TB")))
+				_ = decimal.TryParse(Environment.GetEnvironmentVariable("COST_PER_TB"), out costPerTB);
+
+			// Get Account Information
+			var storageUri = SasConfiguration.GetStorageUri(account);
+			TokenCredential ApiCredential = new DefaultAzureCredential();
+			var storageAccountClient = new DataLakeServiceClient(storageUri, ApiCredential);
+
+			// Need to get the filesytems
+			var filesystems = storageAccountClient.GetFileSystems()
+					.Where(c => c != null)  // Filter for the future
+					.Select(l => new { l.Name, l.Properties, l.Properties.LastModified, l.Properties.Metadata })
+					.ToList();
+
+			// Build additional details
+			var fileSystemDetails = new List<FileSystemDetail>();
+			foreach (var fs in filesystems)
+			{
+				var seEndpoint = HttpUtility.UrlEncode(new Uri(storageUri, fs.Name).ToString());
+				var metadata = fs.Metadata ?? new Dictionary<string, string>();
+				long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
+				decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
+
+				var fsd = new FileSystemDetail()
+				{
+					Name = fs.Name,
+					LastModified = fs.LastModified.ToString("u"),
+					FundCode = metadata.ContainsKey("FundCode") ? metadata["FundCode"] : null,
+					Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
+					Size = size.HasValue ? size.Value.ToString("N") : String.Empty,
+					Cost = cost.HasValue ? cost.Value.ToString("C") : String.Empty,
+					URI = HttpUtility.UrlEncode(fs.Name.Length > 0 ? fs.Name + "/" : string.Empty),
+					StorageExplorerURI = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={fs.Name}&serviceEndpoint={seEndpoint}",
+					UserAccess = new List<string>() { "Not implemented yet" }
+				};
+				fileSystemDetails.Add(fsd);
+			}
+
+			// Return result
+			return fileSystemDetails;
 		}
 
 		/// <summary>

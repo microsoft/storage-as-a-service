@@ -20,6 +20,16 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 		}
 
 		[Fact]
+		public void GetFileSystemDetails()
+		{
+			var account = "stsaasdemoeastus0202";
+			var x = FileSystems.GetFileSystemDetailsForAccount(account);
+
+			Assert.True(x.Count > 0);
+
+		}
+
+		//  [Fact] TODO: Should I remove this?
 		public async void CreateManyFileSystems()
 		{
 			var owner = "john@contosou.com";
@@ -46,7 +56,7 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 			}
 		}
 
-		[Fact]
+		//	[Fact] TODO: Should I remove this?
 		public void DeleteAllFileSystems()
 		{
 			var account = "stsaasdemoeastus0202";
