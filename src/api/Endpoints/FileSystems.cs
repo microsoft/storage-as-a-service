@@ -13,6 +13,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Azure.Storage.Files.DataLake;
@@ -23,6 +24,97 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
 	{
+		[FunctionName("FileSystemsByRbac")]
+		public static IActionResult GetContainersByRbac(
+			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "FileSystemsRbac")] HttpRequest req,
+			ILogger log)
+		{
+			RoleOperations ro = new(log);
+			var appCred = new DefaultAzureCredential();
+
+			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
+
+			if (!cpr.IsValid) return new UnauthorizedResult();
+
+			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
+			// TODO: Foreach parallel (?) for subscriptions
+			var SubscriptionId = SasConfiguration.ManagedSubscriptions;
+
+			// TODO: See about getting them out in order?
+			IList<RoleOperations.StorageDataPlaneRole> roleAssignments =
+				ro.GetStorageDataPlaneRoles(SubscriptionId, principalId);
+
+			// TODO: Unit test for pattern
+			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
+			Regex re = new Regex(ScopePattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+			IList<FileSystemResult> results = new List<FileSystemResult>();
+
+			// Process the role assignments into storage accounts and container names
+			foreach (var sdpr in roleAssignments)
+			{
+				// Determine if this is a storage account or container assignment
+				// No support currently for higher-level assignments
+				Match m = re.Match(sdpr.Scope);
+
+				if (m.Success)
+				{
+					// There will always be a storage account name if there was a match
+					string storageAccountName = m.Groups["accountName"].Value;
+
+					// Find an existing entry for this storage account in the result set
+					// Can't parallelize like this... but we shouldn't have to
+					FileSystemResult fsr = results
+						.SingleOrDefault(fsr => fsr.Name.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
+
+					// If this is a new FileSystemResult
+					// (as opposed to retrieved from this function's return value)
+					if (fsr == null)
+					{
+						// Set the storage account name property and add to result set
+						fsr = new FileSystemResult() { Name = storageAccountName };
+						results.Add(fsr);
+					}
+
+					// If there are potentially containers in this storage account
+					// that aren't listed yet
+					if (!fsr.AllFileSystems)
+					{
+						// Determine if this is a container-level assignment
+						// that hasn't been added to the list of containers yet
+						if (m.Groups["containerName"].Success
+							&& !fsr.FileSystems.Contains(m.Groups["containerName"].Value))
+						{
+							// Assume access is only to this container
+							fsr.FileSystems.Add(m.Groups["containerName"].Value);
+						}
+						else
+						{
+							var serviceUri = SasConfiguration.GetStorageUri(fsr.Name);
+
+							// Access is to entire storage account; return all containers
+							var adls = new FileSystemOperations(log, appCred, serviceUri);
+
+							// Retrieve all the containers in the specified storage account
+							var fileSystems = adls.GetFilesystems();
+							// Override any prior added container names
+							// I.e., completely replace the list of containers
+							fsr.FileSystems = fileSystems.Select(fs => fs.Name).ToList();
+
+							// There can't be any more containers in this storage account
+							fsr.AllFileSystems = true;
+						}
+					}
+				}
+				else
+				{
+					// TODO: Log that scope format doesn't match expectation
+				}
+			}
+
+			return new OkObjectResult(results);
+		}
+
 		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -67,6 +159,7 @@ namespace Microsoft.UsEduCsu.Saas
 			HttpRequest req,
 			ILogger log, string account)
 		{
+			// TODO: Is the account param ever used?
 
 			if (req.Method == HttpMethods.Post)
 				return await FileSystemsPOST(req, log, account);
@@ -112,8 +205,9 @@ namespace Microsoft.UsEduCsu.Saas
 			// Define the return value
 			var result = new List<FileSystemResult>();
 
+			RoleOperations roleOperations = new(log);
+
 			var appCred = new DefaultAzureCredential();
-			RoleOperations roleOperations = new(log, appCred);
 
 			Parallel.ForEach(accounts, acct =>
 			{
@@ -348,7 +442,7 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult($"Error setting root ACL: {result.Message}");
 
 			// Add Blob Owner
-			var roleOperations = new RoleOperations(log, tokenCredential);
+			var roleOperations = new RoleOperations(log);
 			result = roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerObjectId);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult($"Error assigning RBAC role: {result.Message}");
@@ -392,7 +486,9 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			public string Name { get; set; }
 
-			public List<string> FileSystems { get; set; }
+			public List<string> FileSystems { get; internal set; } = new List<string>();
+
+			public bool AllFileSystems { get; set; }
 		}
 
 		internal class FileSystemParameters
@@ -404,6 +500,50 @@ namespace Microsoft.UsEduCsu.Saas
 			public string FundCode { get; set; }
 
 			public string Owner { get; set; }
+		}
+
+		internal class ClaimsPrincipalResult
+		{
+			// TODO: Refactor UserOperations to return this instead of a ClaimsPrincipal
+			// Move some of this logic into UserOperations.GetClaimsPrincipal
+
+			/// <summary>
+			/// Constructs a potentially valid ClaimsPrincipalResult using the specified ClaimsPrincipal.
+			/// </summary>
+			/// <param name="cp"></param>
+			/// <exception cref="ArgumentNullException"></exception>
+			public ClaimsPrincipalResult(ClaimsPrincipal cp)
+			{
+				if (!Services.Extensions.AnyNull(cp, cp.Identity))
+				{
+					ClaimsPrincipal = cp;
+					// IsValid is false by default, only need to set if it's a valid principal
+					IsValid = true;
+				}
+				else
+				{
+					ClaimsPrincipal = null;
+					Message = "Call requires an authenticated user.";
+				}
+			}
+
+			/// <summary>
+			/// Constructs an invalid ClaimsPrincipalResult using the specified error message.
+			/// </summary>
+			/// <param name="errorMessage"></param>
+			/// <exception cref="ArgumentNullException"></exception>
+			public ClaimsPrincipalResult(string errorMessage)
+			{
+				if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
+
+				ClaimsPrincipal = null;
+				Message = errorMessage;
+			}
+
+			public bool IsValid { get; set; }
+			public string Message { get; set; }
+			public ClaimsPrincipal ClaimsPrincipal { get; private set; }
+			// TODO: Add UserPrincipalId property as a shortcut
 		}
 	}
 }

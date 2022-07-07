@@ -3,6 +3,7 @@
 	"Values": {
 		"FUNCTIONS_WORKER_RUNTIME": "dotnet",
 		"DATALAKE_STORAGE_ACCOUNTS": "storageaccountname1,storageaccountname2",
+		"MANAGED_SUBSCRIPTIONS": "subscription-id",
 		"COST_PER_TB": 1,
 		"AZURE_TENANT_ID": "c725...",
 		"AZURE_CLIENT_ID": "4d3f...",

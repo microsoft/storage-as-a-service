@@ -2,7 +2,6 @@
 using Azure.Identity;
 using Azure.Storage;
 using Azure.Storage.Files.DataLake;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.UsEduCsu.Saas.Services;
 using System;
@@ -40,7 +39,7 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 			var account = "stsaasdemoeastus0202";
 			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
 			var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
-			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			var roleOperations = new RoleOperations(log);
 
 			var rng = new Random();
 
