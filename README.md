@@ -16,7 +16,7 @@ Some of the capabilities currently provided by the system are:
 * Dynamic addition of folder's owner under initial folder.
 * Exposure of "how to use" the storage infrastructure through Web UI.
 
-![image](/docs/assets/sas-welcome-page.png)
+![Home page screenshot](/docs/assets/sas-welcome-page.png)
 
 ## Background
 
@@ -38,7 +38,11 @@ In the Azure Data Lake, each diretory or file can have 32 ACL entries, of which 
 
 The installation requires a GitHub account, an Azure Static Web App, a Key Vault, an Application Registration in Azure AD, and of course the Azure Storage Accounts with Hierarchical Namespace enabled.
 
-The installation instructions can be found at [Installation](/docs/Installation.md)
+The installation instructions can be found at [Installation](/docs/Installation.md).
+
+![Architecture Diagram](/docs/assets/Architecture.png)
+
+*Download a [Visio file](/docs/assets/Architecture.vsdx) of this diagram.*
 
 ## Contributing
 
