@@ -37,6 +37,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// TODO: Foreach parallel (?) for subscriptions
 			var SubscriptionId = SasConfiguration.ManagedSubscriptions;
 
+			// TODO: See about getting them out in order?
 			IList<RoleOperations.StorageDataPlaneRole> roleAssignments =
 				ro.GetStorageDataPlaneRoles(SubscriptionId, principalId);
 
@@ -52,40 +53,54 @@ namespace Microsoft.UsEduCsu.Saas
 				// Determine if this is a storage account or container assignment
 				// No support currently for higher-level assignments
 				Match m = re.Match(sdpr.Scope);
+
 				if (m.Success)
 				{
 					// There will always be a storage account name if there was a match
 					string storageAccountName = m.Groups["accountName"].Value;
-					// Find an existing entry for this storage account in the result set
-					// HACK: Can't parallelize like this... but we shouldn't have to
-					FileSystemResult fsr = results
-						.SingleOrDefault(fsr => fsr.Name.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase)) ??
-						new();
 
-					if (string.IsNullOrEmpty(fsr.Name))
+					// Find an existing entry for this storage account in the result set
+					// Can't parallelize like this... but we shouldn't have to
+					FileSystemResult fsr = results
+						.SingleOrDefault(fsr => fsr.Name.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
+
+					// If this is a new FileSystemResult
+					// (as opposed to retrieved from this function's return value)
+					if (fsr == null)
 					{
-						// This is a new entry
-						fsr.Name = storageAccountName;
+						// Set the storage account name property and add to result set
+						fsr = new FileSystemResult() { Name = storageAccountName };
 						results.Add(fsr);
 					}
 
-					// Determine if this is a container-level assignment
-					if (m.Groups["containerName"].Success)
+					// If there are potentially containers in this storage account
+					// that aren't listed yet
+					if (!fsr.AllFileSystems)
 					{
-						// Assume access is only to this container
-						fsr.FileSystems.Add(m.Groups["containerName"].Value);
-					}
-					else
-					{
-						var serviceUri = SasConfiguration.GetStorageUri(fsr.Name);
+						// Determine if this is a container-level assignment
+						// that hasn't been added to the list of containers yet
+						if (m.Groups["containerName"].Success
+							&& !fsr.FileSystems.Contains(m.Groups["containerName"].Value))
+						{
+							// Assume access is only to this container
+							fsr.FileSystems.Add(m.Groups["containerName"].Value);
+						}
+						else
+						{
+							var serviceUri = SasConfiguration.GetStorageUri(fsr.Name);
 
-						// Access is to entire storage account; return all containers
-						var adls = new FileSystemOperations(log, appCred, serviceUri);
+							// Access is to entire storage account; return all containers
+							var adls = new FileSystemOperations(log, appCred, serviceUri);
 
-						// Retrieve all the containers in the specified storage account
-						var fileSystems = adls.GetFilesystems();
-						// Override any prior added container names
-						fsr.FileSystems = fileSystems.Select(fs => fs.Name).ToList();
+							// Retrieve all the containers in the specified storage account
+							var fileSystems = adls.GetFilesystems();
+							// Override any prior added container names
+							// I.e., completely replace the list of containers
+							fsr.FileSystems = fileSystems.Select(fs => fs.Name).ToList();
+
+							// There can't be any more containers in this storage account
+							fsr.AllFileSystems = true;
+						}
 					}
 				}
 				else
@@ -411,6 +426,8 @@ namespace Microsoft.UsEduCsu.Saas
 			public string Name { get; set; }
 
 			public List<string> FileSystems { get; internal set; } = new List<string>();
+
+			public bool AllFileSystems { get; set; }
 		}
 
 		internal class FileSystemParameters
