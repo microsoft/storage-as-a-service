@@ -1,5 +1,6 @@
 using Azure.Core;
 using Azure.Identity;
+using Azure.Storage.Files.DataLake;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -15,106 +16,13 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Web.Http;
-using Azure.Storage.Files.DataLake;
-using System.Reflection.Metadata.Ecma335;
 using System.Web;
+using System.Web.Http;
 
 namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
 	{
-		[FunctionName("FileSystemsByRbac")]
-		public static IActionResult GetContainersByRbac(
-			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "FileSystemsRbac")] HttpRequest req,
-			ILogger log)
-		{
-			RoleOperations ro = new(log);
-			var appCred = new DefaultAzureCredential();
-
-			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
-
-			if (!cpr.IsValid) return new UnauthorizedResult();
-
-			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
-			// TODO: Foreach parallel (?) for subscriptions
-			var SubscriptionId = SasConfiguration.ManagedSubscriptions;
-
-			// TODO: See about getting them out in order?
-			IList<RoleOperations.StorageDataPlaneRole> roleAssignments =
-				ro.GetStorageDataPlaneRoles(SubscriptionId, principalId);
-
-			// TODO: Unit test for pattern
-			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
-			Regex re = new Regex(ScopePattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-			IList<FileSystemResult> results = new List<FileSystemResult>();
-
-			// Process the role assignments into storage accounts and container names
-			foreach (var sdpr in roleAssignments)
-			{
-				// Determine if this is a storage account or container assignment
-				// No support currently for higher-level assignments
-				Match m = re.Match(sdpr.Scope);
-
-				if (m.Success)
-				{
-					// There will always be a storage account name if there was a match
-					string storageAccountName = m.Groups["accountName"].Value;
-
-					// Find an existing entry for this storage account in the result set
-					// Can't parallelize like this... but we shouldn't have to
-					FileSystemResult fsr = results
-						.SingleOrDefault(fsr => fsr.Name.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
-
-					// If this is a new FileSystemResult
-					// (as opposed to retrieved from this function's return value)
-					if (fsr == null)
-					{
-						// Set the storage account name property and add to result set
-						fsr = new FileSystemResult() { Name = storageAccountName };
-						results.Add(fsr);
-					}
-
-					// If there are potentially containers in this storage account
-					// that aren't listed yet
-					if (!fsr.AllFileSystems)
-					{
-						// Determine if this is a container-level assignment
-						// that hasn't been added to the list of containers yet
-						if (m.Groups["containerName"].Success
-							&& !fsr.FileSystems.Contains(m.Groups["containerName"].Value))
-						{
-							// Assume access is only to this container
-							fsr.FileSystems.Add(m.Groups["containerName"].Value);
-						}
-						else
-						{
-							var serviceUri = SasConfiguration.GetStorageUri(fsr.Name);
-
-							// Access is to entire storage account; return all containers
-							var adls = new FileSystemOperations(log, appCred, serviceUri);
-
-							// Retrieve all the containers in the specified storage account
-							var fileSystems = adls.GetFilesystems();
-							// Override any prior added container names
-							// I.e., completely replace the list of containers
-							fsr.FileSystems = fileSystems.Select(fs => fs.Name).ToList();
-
-							// There can't be any more containers in this storage account
-							fsr.AllFileSystems = true;
-						}
-					}
-				}
-				else
-				{
-					// TODO: Log that scope format doesn't match expectation
-				}
-			}
-
-			return new OkObjectResult(results);
-		}
-
 		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]

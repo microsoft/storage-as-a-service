@@ -57,6 +57,15 @@
 			]
 		},
 		{
+			"route": "/api/StorageAccounts",
+			"methods": [
+				"GET"
+			],
+			"allowedRoles": [
+				"authenticated"
+			]
+		},
+		{
 			"route": "/api/TopLevelFolders",
 			"methods": [
 				"GET",

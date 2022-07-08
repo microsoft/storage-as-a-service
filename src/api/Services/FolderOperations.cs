@@ -375,6 +375,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// Uri.ToString() always appends a trailing /, remove it (#82)
 				URI = uri.ToString().TrimEnd('/'),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
+				// TODO: Centralize the creation of the direct link
 				StorageExplorerURI = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystemPath&container={dlfsClient.Name}&serviceEndpoint={seEndpoint}&path={seFolderName}"
 			};
 

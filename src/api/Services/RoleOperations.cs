@@ -8,9 +8,11 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
 using Microsoft.Rest.Azure;
 using Microsoft.Rest.Azure.OData;
+using Microsoft.UsEduCsu.Saas.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -42,6 +44,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		private string GetAccountResourceId(string account)
 		{
+			// TODO: Move to ResourceOperations class?
+
 			string accountResourceId = string.Empty;
 			try
 			{
@@ -67,6 +71,92 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 
 			return accountResourceId;
+		}
+
+		/// <summary>
+		/// Retrieves a complete list of storage accounts and containers in those storage accounts
+		/// that the specified principal ID can access based on RBAC data plane roles.
+		/// </summary>
+		/// <param name="principalId"></param>
+		/// <returns></returns>
+		internal IList<StorageAccountAndContainers> GetAccessibleContainersForPrincipal(string principalId)
+		{
+			ArgumentNullException.ThrowIfNull(principalId, nameof(principalId));
+
+			var appCred = new DefaultAzureCredential();
+
+			// TODO: Foreach parallel (?) for subscriptions
+			var SubscriptionId = SasConfiguration.ManagedSubscriptions;
+
+			// TODO: Getting them out in order of storage account to make processing more efficient?
+			IList<StorageDataPlaneRole> roleAssignments = GetStorageDataPlaneRoles(SubscriptionId, principalId);
+
+			// TODO: Unit test for pattern
+			// TODO: Consider having class-level (static) scoped compiled Regex instance
+			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
+			Regex re = new(ScopePattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+			List<StorageAccountAndContainers> results = new();
+
+			// Process the role assignments into storage account and container names
+			foreach (var sdpr in roleAssignments)
+			{
+				// Determine if this is a storage account or container assignment
+				// (No support currently for higher-level assignments, it would require a list of storage accounts.)
+				Match m = re.Match(sdpr.Scope);
+
+				if (m.Success)
+				{
+					// There will always be a storage account name if there was a Regex match
+					string storageAccountName = m.Groups["accountName"].Value;
+
+					// Find an existing entry for this storage account in the result set
+					StorageAccountAndContainers fsr = results
+						.SingleOrDefault(fsr => fsr.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
+
+					// If this is the first time we've encountered this storage account
+					if (fsr == null)
+					{
+						// Set the storage account name property and add to result set
+						fsr = new StorageAccountAndContainers() { StorageAccountName = storageAccountName };
+						results.Add(fsr);
+					}
+
+					// If there are potentially containers in this storage account that aren't listed yet
+					if (!fsr.AllContainers)
+					{
+						// Determine if this is a container-level assignment
+						// that hasn't been added to the list of containers yet
+						if (m.Groups["containerName"].Success
+							&& !fsr.Containers.Contains(m.Groups["containerName"].Value))
+						{
+							// Assume access is only to this container
+							fsr.Containers.Add(m.Groups["containerName"].Value);
+						}
+						else
+						{
+							// The role assignment applies to the entire storage account
+							var serviceUri = SasConfiguration.GetStorageUri(fsr.StorageAccountName);
+
+							// Access is to entire storage account; retrieve all containers
+							var adls = new FileSystemOperations(log, appCred, serviceUri);
+							var containers = adls.GetContainers();
+
+							// Replace any previously included containers
+							fsr.Containers = containers.Select(fs => fs.Name).ToList();
+
+							// There can't be any more containers in this storage account
+							fsr.AllContainers = true;
+						}
+					}
+				}
+				else
+				{
+					// TODO: Log that scope format doesn't match expectation
+				}
+			}
+
+			return results;
 		}
 
 		private RoleAssignment AddRoleAssignment(string scope, string roleName, string principalId)
