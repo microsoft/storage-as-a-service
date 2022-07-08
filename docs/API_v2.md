@@ -23,7 +23,7 @@ Retrieves the list of storage accounts the signed in user can access.
 ]
 ```
 
-`GET /api/StorageAccounts/{container}`
+`GET /api/StorageAccounts/{accountName}`
 
 Retrieves the list of containers and container details the signed in user can access.
 
