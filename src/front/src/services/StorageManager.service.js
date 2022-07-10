@@ -1,12 +1,11 @@
 import URLS from '../config/urls'
 import HttpException from './HttpException'
 
-
 /**
  * Returns the list of storage accounts and their file systems (containers)
  */
-export const getFileSystems = async () => {
-	const { endpoint, method } = URLS.fileSystems
+ export const getStorageAccounts = async () => {
+	const { endpoint, method } = URLS.storageAccounts
 	const options = getOptions(method)
 
 	return fetch(endpoint, options)
@@ -24,6 +23,28 @@ export const getFileSystems = async () => {
 		})
 }
 
+
+/**
+ * Returns the list of file systems (containers) for a storage account
+ */
+export const getFileSystems = async (storageAccount) => {
+	const endpoint = URLS.fileSystems.endpoint.replace('{account}', storageAccount)
+	const options = getOptions(URLS.fileSystems.method)
+
+	return fetch(endpoint, options)
+		.then(response => {
+			if (response.status === 200) {
+				return response.json()
+			} else {
+				throw new HttpException(response.status, response.statusText)
+			}
+		})
+		.catch(error => {
+			console.log(`Call to API (${endpoint}) failed with the following details:`)
+			console.log(error)
+			throw error
+		})
+}
 
 /**
  * Returns the list of directories

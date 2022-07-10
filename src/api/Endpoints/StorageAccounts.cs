@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -16,8 +17,8 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("StorageAccountsGET")]
 		public static IActionResult Get(
-			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "StorageAccounts")] HttpRequest req,
-			ILogger log)
+			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
+			ILogger log,  string account)
 		{
 			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
 
@@ -25,11 +26,34 @@ namespace Microsoft.UsEduCsu.Saas
 
 			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
 
-			StorageAccountOperations sao = new(log);
-			// TODO: Check for refresh parameter
-			var result = sao.GetAccessibleStorageAccounts(principalId);
+			// List of STorage Accounts or List of Containers for a storage account
+			if (string.IsNullOrEmpty(account)) {
+				StorageAccountOperations sao = new(log);
+				var result = sao.GetAccessibleStorageAccounts(principalId);				// TODO: Check for refresh parameter
+				return new OkObjectResult(result);
+			} else {
+				var containers = GetFileSystemsForAccount(account);
+				return new OkObjectResult(containers);
+			}
+		}
 
-			return new OkObjectResult(result);
+		private static List<ContainerDetail> GetFileSystemsForAccount(string account)
+		{
+			var listContainers = new List<ContainerDetail>();
+			var x = new ContainerDetail() {
+				Name = "ContainerA",
+				Metadata = new Dictionary<string,string>() {
+					{ "Cost","$1234.56"},
+					{ "Size", "100 GB"}
+				},
+				Access = new List<StorageRbacEntry>() {
+					new StorageRbacEntry {RoleName = "Reader", PrincipalName = "John", PrincipalId = "abcd-1234"},
+					new StorageRbacEntry {RoleName = "Contributor", PrincipalName = "Sven", PrincipalId = "abcd-1234"}
+				}
+			};
+			listContainers.Add(x);
+
+			return listContainers;
 		}
 	}
 }

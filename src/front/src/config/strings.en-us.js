@@ -67,6 +67,17 @@ const strings = {
 		save: 'Save',
 		title: 'Creating a new folder',
 	},
+	fileSystemsPage: {
+		actionsLabel: 'Actions',
+		containerLabel: 'File System (container)',
+		fundCodeLabel: 'Fund Code',
+		members: count => `${count} members`,
+		monthlyCostLabel: 'Monthly Cost',
+		spaceUsedLabel: 'Space Used',
+		whoHasAccessLabel: 'Who Has Access?',
+		openInStorageExplorerLabel: 'Open in Storage Explorer',
+	}
+
 }
 
 export default strings
