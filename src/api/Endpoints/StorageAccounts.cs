@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Web;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -40,8 +42,12 @@ namespace Microsoft.UsEduCsu.Saas
 		private static List<ContainerDetail> GetFileSystemsForAccount(string account)
 		{
 			var listContainers = new List<ContainerDetail>();
+			var name = "ContainerA";
+			var storageUri = SasConfiguration.GetStorageUri(account);
+			var seEndpoint = HttpUtility.UrlEncode(new Uri(storageUri, name).ToString());
 			var x = new ContainerDetail() {
-				Name = "ContainerA",
+				Name = name,
+				StorageExplorerDirectLink = new Uri($"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={name}&serviceEndpoint={seEndpoint}"),
 				Metadata = new Dictionary<string,string>() {
 					{ "Cost","$1234.56"},
 					{ "Size", "100 GB"}

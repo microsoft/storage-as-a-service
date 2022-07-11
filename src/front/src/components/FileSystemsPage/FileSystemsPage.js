@@ -177,9 +177,9 @@ const FileSystemsPage = ({ strings }) => {
 											<td className='actions'>
 												{onEdit && <EditIcon onClick={() => onEdit(row)} className='action' />}
 												{onDetails && <Tooltip arrow title="Open details" placement='top'><DetailsIcon onClick={() => onDetails(row)} className='action' /></Tooltip>}
-												<Tooltip arrow title={strings.openInStorageExplorerLabel} placement='top'>
-													<IconButton aria-label={strings.openInStorageExplorerLabel} size='small' onClick={() => { window.open(row.storageExplorerURI); return false }}>
-														<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />
+												<Tooltip arrow title={strings.fileSystemsPage.openInStorageExplorerLabel} placement='top'>
+													<IconButton aria-label={strings.fileSystemsPage.openInStorageExplorerLabel} size='small' onClick={() => { window.open(row.storageExplorerDirectLink); return false }}>
+														<img src={StorageExplorerIcon} title={strings.fileSystemsPage.openInStorageExplorerLabel} alt={strings.fileSystemsPage.openInStorageExplorerLabel} />
 													</IconButton>
 												</Tooltip>
 											</td>
