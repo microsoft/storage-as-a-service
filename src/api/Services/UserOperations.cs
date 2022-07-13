@@ -28,39 +28,54 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		public async Task<string> GetObjectIdFromUPN(string upn)
 		{
-			// TODO: Consider moving this method to GroupOperations and renaming GroupOperations to GraphClientOperations
-			try
+			var user = await GetUser(upn);
+			return user?.Id;
+		}
+
+		public async Task<string> GetDisplayName(string userIdentifier) {
+			var user = await GetUser(userIdentifier);
+			return user?.DisplayName;
+		}
+
+		private async Task<User> GetUser(string userIdentifier)
+		{
+			var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });
+			var cancellationToken = new CancellationToken();
+			var accessToken = await tokenCredential.GetTokenAsync(tokenRequestContext, cancellationToken);
+			var authProvider = new DelegateAuthenticationProvider((requestMessage) =>
 			{
-				var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });
-				var cancellationToken = new CancellationToken();
-				var accessToken = await tokenCredential.GetTokenAsync(tokenRequestContext, cancellationToken);
-				var authProvider = new DelegateAuthenticationProvider((requestMessage) =>
+				requestMessage
+					.Headers
+					.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
+				requestMessage
+					.Headers
+					.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+				return Task.FromResult(0);
+			});
+			var graphClient = new GraphServiceClient(authProvider);
+
+			Func<User> GetUserMethod = () => {
+				try
 				{
-					requestMessage
-						.Headers
-						.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
-					requestMessage
-						.Headers
-						.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+					// Retrieve a user by userPrincipalName
+					var myTask = graphClient
+						.Users[userIdentifier]
+						.Request()
+						.GetAsync(cancellationToken);
 
-					return Task.FromResult(0);
-				});
+					return myTask.Result;
+				}
+				catch (Exception ex)
+				{
+					log.LogError(ex, ex.Message);
+					return null;
+				}
+			};
 
-				var graphClient = new GraphServiceClient(authProvider);
-
-				// Retrieve a user by userPrincipalName
-				var user = await graphClient
-					.Users[upn]
-					.Request()
-					.GetAsync(cancellationToken);
-
-				return user?.Id;    // TODO: Opportunity for caching
-			}
-			catch (Exception ex)
-			{
-				log.LogError(ex, ex.Message);
-				return null;
-			}
+			var cacheHelper = CacheHelper.GetRedisCacheHelper(log);
+			var user = cacheHelper.Users(userIdentifier, GetUserMethod);
+			return user;
 		}
 
 		public static ClaimsPrincipal GetClaimsPrincipal(HttpRequest req)

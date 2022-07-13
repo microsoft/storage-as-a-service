@@ -169,7 +169,9 @@ const FileSystemsPage = ({ strings }) => {
 												{row.metadata.Cost}
 											</td>
 											<td className='owner'>
-												{row.access.map(ac => ac.roleName + ": " + ac.principalName)}
+												<table>
+												{row.access.map(ac => {return (<tr><td>{ac.roleName}</td><td>{ac.principalName}</td></tr>) })}
+												</table>
 											</td>
 											<td className='fundcode'>
 												{row.metadata.FundCode}

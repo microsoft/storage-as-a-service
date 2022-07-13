@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Web;
+using Azure.Core;
+using Azure.Identity;
+using Azure.Storage.Files.DataLake;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -18,7 +23,7 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("StorageAccountsGET")]
-		public static IActionResult Get(
+		public static async Task<IActionResult> Get(
 			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
 			ILogger log,  string account)
 		{
@@ -34,7 +39,7 @@ namespace Microsoft.UsEduCsu.Saas
 				var result = sao.GetAccessibleStorageAccounts(principalId);				// TODO: Check for refresh parameter
 				return new OkObjectResult(result);
 			} else {
-				var containers = GetFileSystemsForAccount(account);
+				var containers = await PopulateContainerDetail(account, principalId, log);
 				return new OkObjectResult(containers);
 			}
 		}
@@ -60,6 +65,73 @@ namespace Microsoft.UsEduCsu.Saas
 			listContainers.Add(x);
 
 			return listContainers;
+		}
+
+
+		internal static async Task<List<ContainerDetail>> PopulateContainerDetail(string account, string principalId, ILogger log)
+		{
+			// Get Environmental Info
+			decimal costPerTB = 0.0M;
+			if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COST_PER_TB")))
+				_ = decimal.TryParse(Environment.GetEnvironmentVariable("COST_PER_TB"), out costPerTB);
+
+			// Get Account Information
+			var storageUri = SasConfiguration.GetStorageUri(account);
+			TokenCredential ApiCredential = new DefaultAzureCredential();
+			var storageAccountClient = new DataLakeServiceClient(storageUri, ApiCredential);
+
+			// Setup the Role Operations
+			var roleOperations = new RoleOperations(log);
+			var accountAndContainers = roleOperations.GetAccessibleContainersForPrincipal(principalId);
+			var accessibleContainers = accountAndContainers
+					.First( a => a.StorageAccountName == account).Containers;
+
+			// Need to get the filesytems
+			var filesystems = storageAccountClient.GetFileSystems()
+					.Where(c => accessibleContainers.Contains(c.Name))  // Filter for the future
+					.Select(l => new { l.Name, l.Properties, l.Properties.LastModified, l.Properties.Metadata })
+					.ToList();
+
+			// User Operations
+			var uo = new UserOperations(log, ApiCredential);
+
+			// Build additional details
+			var containerDetails = new List<ContainerDetail>();
+			foreach (var fs in filesystems)
+			{
+				var metadata = (Dictionary<string,string>) ((fs.Metadata != null) ? fs.Metadata : new Dictionary<string,string>());
+				var seEndpoint = HttpUtility.UrlEncode(new Uri(storageUri, fs.Name).ToString());
+				long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
+				decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
+
+				metadata["Size"] = size.HasValue ? size.Value.ToString("N") : String.Empty;
+				metadata["Cost"] =cost.HasValue ? cost.Value.ToString("C") : String.Empty;
+
+				//https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments?$filter={$filter}&api-version=2015-07-01*/
+				var xx = roleOperations.GetAccountResourceId(account);
+				var resourceType = "Microsoft.Storage/storageAccounts/blobServices/containers";
+				var resourceName = fs.Name;
+				var containerResourceId = $"{xx}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments";
+				var roles = roleOperations.GetStorageDataPlaneRoles(containerResourceId);
+				var rbacEntries = roles.Select( r => new StorageRbacEntry() {
+										RoleName = r.RoleName.Replace("Storage Blob Data ",string.Empty),
+										PrincipalId = r.PrincipalId
+									} )
+							.ToList();
+				rbacEntries.ForEach( async role => role.PrincipalName = await uo.GetDisplayName(role.PrincipalId));
+
+				var cd = new ContainerDetail() {
+					Name = fs.Name,
+					Metadata = metadata,
+					Access = rbacEntries,
+					StorageExplorerDirectLink = new Uri($"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={fs.Name}&serviceEndpoint={seEndpoint}")
+				};
+
+				containerDetails.Add(cd);
+			}
+
+			// Return result
+			return containerDetails;
 		}
 	}
 }

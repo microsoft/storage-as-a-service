@@ -44,6 +44,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			string storageAccountName, bool forceRefresh = false)
 		{
 			throw new NotImplementedException();
+
+			// Pull data from cache
+			// Refresh if needed GetAccessibleStorageAccounts
+			// Filter on storage accounts, pull the containers
+
 		}
 	}
 }

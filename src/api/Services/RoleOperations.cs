@@ -42,7 +42,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 		}
 
-		private string GetAccountResourceId(string account)
+		internal string GetAccountResourceId(string account)
 		{
 			// TODO: Move to ResourceOperations class?
 
@@ -218,6 +218,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <returns></returns>
 		public IList<StorageDataPlaneRole> GetStorageDataPlaneRoles(string containerResourceId)
 		{
+			// https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments?$filter={$filter}&api-version=2015-07-01
 			return GetStorageDataPlaneRolesByScope(containerResourceId);
 		}
 
@@ -260,8 +261,15 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			 * in the specified subscription, this call will return any role assignment granted on the storage accounts.
 			 * NOTE: Storage-as-a-service does not currently support role assignments at levels higher than storage account.
 			 * I.e., a storage data plane role assignment at the resource group level or higher will not be reflected correctly.
+			 GET https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments?$filter={$filter}&api-version=2015-07-01
 			 */
-			IPage<RoleAssignment> res = amClient.RoleAssignments.ListForScope(scope, q);
+			IPage<RoleAssignment> res = null;
+			try {
+				res = amClient.RoleAssignments.ListForScope(scope, q);
+			}
+			catch (Exception ex) {
+				log.LogError(ex, ex.Message);
+			}
 
 			return res
 				// Filter for storage data plane roles
@@ -300,8 +308,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <returns>An List<ContainerRole>.</returns>
 		public List<ContainerRole> GetContainerRoleAssignments(string account, string principalId)
 		{
-			// TODO: Consider creating a TokenCredentialManager
-			// (local var) TokenCredentials tc = TokenCredentialManager.GetToken();
 			VerifyToken();
 
 			// Get Storage Account Resource ID

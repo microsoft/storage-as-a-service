@@ -155,18 +155,6 @@ namespace Microsoft.UsEduCsu.Saas
 			return new OkObjectResult(result);
 		}
 
-
-		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
-		[ProducesResponseType(StatusCodes.Status400BadRequest)]
-		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
-		[ProducesResponseType(StatusCodes.Status404NotFound)]
-		[FunctionName("FileSystemDetails")]
-		public static IActionResult FileSystemDetails(HttpRequest req, ILogger log, string account)
-		{
-			var fileSystemDetails = GetFileSystemDetailsForAccount(account);
-			return new OkObjectResult(fileSystemDetails);
-		}
-
 		internal static IList<FileSystemDetail> GetFileSystemDetailsForAccount(string account)
 		{
 			// Get Environmental Info

@@ -2,12 +2,14 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
 using Microsoft.UsEduCsu.Saas.Data;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -20,6 +22,29 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			_cache = cache;
 			_logger = log;
+		}
+
+		public User Users(string userIdentifier, Func<User> updateMethod)
+		{
+			ArgumentNullException.ThrowIfNull(userIdentifier, nameof(userIdentifier));
+
+			byte[] list = _cache.Get($"user_{userIdentifier}");
+
+			// The cache will return value if f
+			if (list != null)
+				return JsonSerializer.Deserialize<User>(list);
+
+			// Get User by invoking Function
+			User user = updateMethod.Invoke();
+
+			// Serialize the storageAccountList to a UTF-8 JSON string
+			MemoryStream s = new();
+			JsonSerializer.Serialize(s, user, typeof(User));
+
+			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
+			_cache.Set($"user_{userIdentifier}", s.ToArray(), new() { AbsoluteExpiration = DateTimeOffset.UtcNow.AddHours(1) });
+
+			return user;
 		}
 
 		public string GetAccessToken(string userName)

@@ -8,6 +8,6 @@ namespace Microsoft.UsEduCsu.Saas.Data
 
 		public IList<string> Containers { get; internal set; } = new List<string>();
 
-		public bool AllContainers { get; set; }
+		public bool AllContainers { get; set; }		// Principal has read acces on storage account & list is All containers
 	}
 }
