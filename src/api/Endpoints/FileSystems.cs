@@ -225,7 +225,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var adls = new FileSystemOperations(log, appCred, serviceUri);
 
 			// Retrieve all the containers in the specified storage account
-			var fileSystems = adls.GetFilesystems();
+			var fileSystems = adls.GetContainers();
 
 			// Check for RBAC data plane access to any container in the account
 			IList<RoleOperations.ContainerRole> containerDataPlaneRoleAssignments = null;
@@ -303,7 +303,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var tokenCredential = new DefaultAzureCredential();
 
 			// Get the new container's Owner
-			var userOperations = new UserOperations(log, tokenCredential);
+			var graphOperations = new GraphOperations(log, tokenCredential);
 
 			string ownerObjectId;
 
@@ -312,7 +312,7 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				// Assume it's a UPN and translate it to the AAD object ID
 				// TODO: Why could it not be a group? (Might even recommend it to be a group?)
-				ownerObjectId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
+				ownerObjectId = graphOperations.GetObjectIdFromUPN(tlfp.Owner);
 
 				if (string.IsNullOrEmpty(ownerObjectId))
 					return new BadRequestErrorMessageResult($"Owner identity not found in AAD. Please verify that '{tlfp.Owner}' is a valid member UPN or object ID and that the application has 'User.Read.All' permission in the directory.");

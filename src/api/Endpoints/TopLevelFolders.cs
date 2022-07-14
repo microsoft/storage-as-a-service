@@ -231,7 +231,7 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			var tokenCredential = new DefaultAzureCredential();
 			var userOperations = new UserOperations(log, tokenCredential);
-			var groupOperations = new GroupOperations(log, tokenCredential);
+			var graphOperations = new GraphOperations(log, tokenCredential);
 
 			var objectList = new Dictionary<string, AccessControlType>();
 
@@ -249,14 +249,14 @@ namespace Microsoft.UsEduCsu.Saas
 				if (IsUpn(item))
 				{
 					// Translate the UPN into a principal ID
-					var uid = await userOperations.GetObjectIdFromUPN(item);
+					var uid = graphOperations.GetObjectIdFromUPN(item);
 					if (uid != null)
 						objectList.Add(uid, AccessControlType.User);
 				}
 				else
 				{
 					// Assume it's a group name; translate inot a group Object ID
-					var gid = await groupOperations.GetObjectIdFromGroupName(item);
+					var gid = graphOperations.GetObjectIdFromGroupName(item);
 					if (gid != null)
 						objectList.Add(gid, AccessControlType.Group);
 				}

@@ -337,11 +337,19 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				{
 					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId)).RoleName,
 					Container = ra.Scope.Split('/').Last(),
-					PrincipalId = ra.PrincipalId
+					PrincipalId = ra.PrincipalId,
+					Id = ra.Id
 				})
 				.ToList();
 
 			return roleAssignments;
+		}
+
+		internal void DeleteRoleAssignment(string roleAssignmentId)
+		{
+			VerifyToken();
+			var amClient = new AuthorizationManagementClient(tokenCredentials);			// Get Auth Management Client
+			amClient.RoleAssignments.DeleteById(roleAssignmentId);
 		}
 
 		public class ContainerRole
@@ -349,6 +357,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string RoleName { get; set; }
 			public string Container { get; set; }
 			public string PrincipalId { get; set; }
+			public string Id { get; set; }
 		}
 
 		public class StorageDataPlaneRole

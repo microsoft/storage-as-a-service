@@ -34,7 +34,7 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 		{
 			var owner = "john@contosou.com";
 			var userOperations = new UserOperations(log, new DefaultAzureCredential());
-			var ownerId = await userOperations.GetObjectIdFromUPN(owner);
+			var ownerId = ""; //await userOperations.GetObjectIdFromUPN(owner);
 
 			var account = "stsaasdemoeastus0202";
 			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");

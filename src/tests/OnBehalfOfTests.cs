@@ -36,7 +36,7 @@ namespace tests
 			// Get PRincipal Id as App Service Principal
 			var owner = "StorageUser@contosou.com";
 			var userOperations = new UserOperations(log, appCreds);
-			var ownerId = await userOperations.GetObjectIdFromUPN(owner);
+			var ownerId = ""; //await userOperations.GetObjectIdFromUPN(owner);
 
 			// Get FileSystem as App Service Principal
 			var account = "stsaasdemoeastus02";

@@ -24,27 +24,29 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			_logger = log;
 		}
 
-		public User Users(string userIdentifier, Func<User> updateMethod)
+		public DirectoryObject DirectoryObjects(string objectIdentifier, Func<DirectoryObject> updateMethod)
 		{
-			ArgumentNullException.ThrowIfNull(userIdentifier, nameof(userIdentifier));
+			ArgumentNullException.ThrowIfNull(objectIdentifier, nameof(objectIdentifier));
 
-			byte[] list = _cache.Get($"user_{userIdentifier}");
+			byte[] list = _cache.Get($"directoryObject_{objectIdentifier}");
 
 			// The cache will return value if f
 			if (list != null)
-				return JsonSerializer.Deserialize<User>(list);
+				return JsonSerializer.Deserialize<DirectoryObject>(list);
 
 			// Get User by invoking Function
-			User user = updateMethod.Invoke();
+			DirectoryObject dirObj = updateMethod.Invoke();
+			if (dirObj == null)
+				return null;
 
 			// Serialize the storageAccountList to a UTF-8 JSON string
 			MemoryStream s = new();
-			JsonSerializer.Serialize(s, user, typeof(User));
+			JsonSerializer.Serialize(s, dirObj, typeof(DirectoryObject));
 
 			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
-			_cache.Set($"user_{userIdentifier}", s.ToArray(), new() { AbsoluteExpiration = DateTimeOffset.UtcNow.AddHours(1) });
+			_cache.Set($"directoryObject_{objectIdentifier}", s.ToArray(), new() { AbsoluteExpiration = DateTimeOffset.UtcNow.AddHours(1) });
 
-			return user;
+			return dirObj;
 		}
 
 		public string GetAccessToken(string userName)
