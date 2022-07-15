@@ -92,7 +92,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 					//https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments?$filter={$filter}&api-version=2015-07-01*/
 					var xx = roleOperations.GetAccountResourceId(account);
-					var resourceType = "Microsoft.Storage/storageAccounts/blobServices/containers";
+					var resourceType = "blobServices/default/containers";
 					var resourceName = fs.Name;
 					var containerResourceId = $"{xx}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments";
 					var roles = roleOperations.GetStorageDataPlaneRoles(containerResourceId);

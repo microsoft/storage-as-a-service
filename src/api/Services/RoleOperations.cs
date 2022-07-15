@@ -84,17 +84,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			ArgumentNullException.ThrowIfNull(principalId, nameof(principalId));
 
 			var appCred = new DefaultAzureCredential();
+			var SubscriptionId = SasConfiguration.ManagedSubscriptions;         // TODO: Foreach parallel (?) for subscriptions
 
-			// TODO: Foreach parallel (?) for subscriptions
-			var SubscriptionId = SasConfiguration.ManagedSubscriptions;
-
-			// TODO: Getting them out in order of storage account to make processing more efficient?
-			IList<StorageDataPlaneRole> roleAssignments = GetStorageDataPlaneRoles(SubscriptionId, principalId);
+			IList<StorageDataPlaneRole> roleAssignments = GetStorageDataPlaneRoles(SubscriptionId, principalId);            // TODO: Getting them out in order of storage account to make processing more efficient?
 
 			// TODO: Unit test for pattern
-			// TODO: Consider having class-level (static) scoped compiled Regex instance
 			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
-			Regex re = new(ScopePattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+			Regex re = new(ScopePattern, RegexOptions.Compiled | RegexOptions.IgnoreCase);          // TODO: Consider having class-level (static) scoped compiled Regex instance
 
 			List<StorageAccountAndContainers> results = new();
 
@@ -104,55 +100,41 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// Determine if this is a storage account or container assignment
 				// (No support currently for higher-level assignments, it would require a list of storage accounts.)
 				Match m = re.Match(sdpr.Scope);
+				if (!m.Success)
+					continue;   // No Match, move to next one
 
-				if (m.Success)
+				// There will always be a storage account name if there was a Regex match
+				string storageAccountName = m.Groups["accountName"].Value;
+
+				// Find an existing entry for this storage account in the result set
+				StorageAccountAndContainers fsr = results
+					.SingleOrDefault(fsr => fsr.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
+
+				// If this is the first time we've encountered this storage account, Set the storage account name property and add to result set
+				if (fsr == null)
 				{
-					// There will always be a storage account name if there was a Regex match
-					string storageAccountName = m.Groups["accountName"].Value;
-
-					// Find an existing entry for this storage account in the result set
-					StorageAccountAndContainers fsr = results
-						.SingleOrDefault(fsr => fsr.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
-
-					// If this is the first time we've encountered this storage account
-					if (fsr == null)
-					{
-						// Set the storage account name property and add to result set
-						fsr = new StorageAccountAndContainers() { StorageAccountName = storageAccountName };
-						results.Add(fsr);
-					}
-
-					// If there are potentially containers in this storage account that aren't listed yet
-					if (!fsr.AllContainers)
-					{
-						// Determine if this is a container-level assignment
-						// that hasn't been added to the list of containers yet
-						if (m.Groups["containerName"].Success
-							&& !fsr.Containers.Contains(m.Groups["containerName"].Value))
-						{
-							// Assume access is only to this container
-							fsr.Containers.Add(m.Groups["containerName"].Value);
-						}
-						else
-						{
-							// The role assignment applies to the entire storage account
-							var serviceUri = SasConfiguration.GetStorageUri(fsr.StorageAccountName);
-
-							// Access is to entire storage account; retrieve all containers
-							var adls = new FileSystemOperations(log, appCred, serviceUri);
-							var containers = adls.GetContainers();
-
-							// Replace any previously included containers
-							fsr.Containers = containers.Select(fs => fs.Name).ToList();
-
-							// There can't be any more containers in this storage account
-							fsr.AllContainers = true;
-						}
-					}
+					fsr = new StorageAccountAndContainers() { StorageAccountName = storageAccountName };
+					results.Add(fsr);
 				}
-				else
+
+				// If there are potentially containers in this storage account that aren't listed yet
+				if (!fsr.AllContainers)
 				{
-					// TODO: Log that scope format doesn't match expectation
+					var containerGroup = m.Groups["containerName"];
+					// Determine if this is a container-level assignment that hasn't been added to the list of containers yet
+					if (containerGroup.Success && !fsr.Containers.Contains(containerGroup.Value))
+					{
+						fsr.Containers.Add(containerGroup.Value);       // Assume access is only to this container
+					}
+					else
+					{
+						// The role assignment applies to the entire storage account
+						var serviceUri = SasConfiguration.GetStorageUri(fsr.StorageAccountName);
+						var adls = new FileSystemOperations(log, appCred, serviceUri);
+						var containers = adls.GetContainers();                      // Access is to entire storage account; retrieve all containers
+						fsr.Containers = containers.Select(fs => fs.Name).ToList();                     // Replace any previously included containers
+						fsr.AllContainers = true;                       // There can't be any more containers in this storage account
+					}
 				}
 			}
 
@@ -224,8 +206,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		private IList<StorageDataPlaneRole> GetStorageDataPlaneRolesByScope(string scope, string principalId = null)
 		{
-			// TODO: Consider creating a TokenCredentialManager
-			// (local var) TokenCredentials tc = TokenCredentialManager.GetToken();
 			VerifyToken();
 
 			// Get Auth Management Client, initialized with the current subscription ID
@@ -237,21 +217,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (roleDefinitions == null)
 			{
 				roleDefinitions = amClient.RoleDefinitions.List(scope)
-					.Where(rd => rd.RoleName.StartsWith("Storage Blob Data")
-							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
-					.ToList();
-			}
-
-			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
-			var roleDefinitionIds = roleDefinitions.Select(rd => rd.Id);    // Create an IList<string> of the role definition IDs
-
-			ODataQuery<RoleAssignmentFilter> q = null;
-
-			// Filter the role assignments query by the AAD object ID of the signed in user
-			if (principalId != null)
-			{
-				q = new ODataQuery<RoleAssignmentFilter>();
-				q.Filter = $"assignedTo('{principalId}')";
+					.Where(rd => rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase)
+							  && rd.RoleName.StartsWith("Storage Blob Data")
+					).ToList();
 			}
 
 			/* Query the subscription's role assignments for the specified principal.
@@ -261,29 +229,39 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			 * in the specified subscription, this call will return any role assignment granted on the storage accounts.
 			 * NOTE: Storage-as-a-service does not currently support role assignments at levels higher than storage account.
 			 * I.e., a storage data plane role assignment at the resource group level or higher will not be reflected correctly.
-			 GET https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments?$filter={$filter}&api-version=2015-07-01
+			 GET https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}
+			 			/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments
+						?$filter={$filter}&api-version=2015-07-01
+			     https://management.azure.com/subscriptions/df22ba11-ee48-422f-bbb0-9f71bcab0ab5/resourceGroups/rg-saas-demo-eastus2-01
+				 	/providers/Microsoft.Storage/storageAccounts/stsaasdemoeastus201/blobServices/default/containers/research-lab-14976370
+					/providers/Microsoft.Authorization/roleAssignments?$filter=atScope()&api-version=2020-04-01-preview
 			 */
 			IPage<RoleAssignment> res = null;
-			try {
+			try
+			{
+				// Filter Role Assignments by principal ID if specified (AAD object ID of the signed in user)
+				ODataQuery<RoleAssignmentFilter> q = new();
+				q.Filter = (principalId != null) ? $"assignedTo('{principalId}')" : "";
 				res = amClient.RoleAssignments.ListForScope(scope, q);
 			}
-			catch (Exception ex) {
+			catch (Exception ex)
+			{
 				log.LogError(ex, ex.Message);
 			}
 
-			return res
-				// Filter for storage data plane roles
-				// This cannot be done on the server side
-				.Where(ra => roleDefinitionIds.Contains(ra.RoleDefinitionId))
-				// Transform the result set in a custom object
-				.Select(ra => new StorageDataPlaneRole()
-				{
-					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId)).RoleName,
-					Scope = ra.Scope,
-					PrincipalType = ra.PrincipalType,
-					PrincipalId = ra.PrincipalId
-				})
-			 	.ToList();
+			var grps = res?.Where( r => r.Type == "Group").ToList();
+
+			// Join Role Assignments and Role Definitions
+			var storageDataPlaneRoles = res.Join(roleDefinitions, ra => ra.RoleDefinitionId, rd => rd.Id,
+						(ra, rd) => new StorageDataPlaneRole()
+						{
+							RoleName = rd.RoleName,
+							Scope = ra.Scope,
+							PrincipalType = ra.PrincipalType,
+							PrincipalId = ra.PrincipalId
+						}).ToList();
+
+			return storageDataPlaneRoles;
 		}
 
 		/// <summary>
@@ -348,7 +326,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal void DeleteRoleAssignment(string roleAssignmentId)
 		{
 			VerifyToken();
-			var amClient = new AuthorizationManagementClient(tokenCredentials);			// Get Auth Management Client
+			var amClient = new AuthorizationManagementClient(tokenCredentials);         // Get Auth Management Client
 			amClient.RoleAssignments.DeleteById(roleAssignmentId);
 		}
 
