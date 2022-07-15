@@ -61,9 +61,8 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Setup the Role Operations
 			var roleOperations = new RoleOperations(log);
-			var accountAndContainers = roleOperations.GetAccessibleContainersForPrincipal(principalId);
-			var accessibleContainers = accountAndContainers
-					.First(a => a.StorageAccountName == account).Containers;
+			var accessibleContainers = roleOperations.GetAccessibleContainersForPrincipal(principalId)
+											.First(a => a.StorageAccountName == account).Containers;
 
 			// Initilize the result
 			var containerDetails = new List<ContainerDetail>();
@@ -89,20 +88,15 @@ namespace Microsoft.UsEduCsu.Saas
 
 					metadata["Size"] = size.HasValue ? size.Value.ToString("N") : String.Empty;
 					metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C") : String.Empty;
-
-					//https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments?$filter={$filter}&api-version=2015-07-01*/
-					var xx = roleOperations.GetAccountResourceId(account);
-					var resourceType = "blobServices/default/containers";
-					var resourceName = fs.Name;
-					var containerResourceId = $"{xx}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments";
-					var roles = roleOperations.GetStorageDataPlaneRoles(containerResourceId);
+					
+					var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: fs.Name);
 					var rbacEntries = roles.Select(r => new StorageRbacEntry()
 					{
 						RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
-						PrincipalId = r.PrincipalId
-					})
-								.ToList();
-					rbacEntries.ForEach(role => role.PrincipalName = graphOps.GetDisplayName(role.PrincipalId));
+						PrincipalId = r.PrincipalId,
+						PrincipalName = graphOps.GetDisplayName(r.PrincipalId)
+					}).ToList();
+
 
 					var cd = new ContainerDetail()
 					{

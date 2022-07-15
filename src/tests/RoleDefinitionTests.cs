@@ -19,19 +19,6 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 			ConfigureEnvironmentVariablesFromLocalSettings();
 		}
 
-		[Fact]
-		public void DeleteOrphanedRoleAssignments()
-		{
-			RoleOperations ro = new (log);
-			var x  = ro.GetContainerRoleAssignments("stsaasdemoeastus0202","c2a89c81-38a2-49de-a02b-0e8b90e56745");
-
-			foreach(var y in x)
-				ro.DeleteRoleAssignment(y.Id);
-
-			Assert.True(x.Count > 0);
-
-		}
-
 		static void ConfigureEnvironmentVariablesFromLocalSettings()
 		{
 			var path = Environment.CurrentDirectory;
