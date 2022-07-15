@@ -23,17 +23,16 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("StorageAccountsGET")]
-		public static async Task<IActionResult> Get(
+		public static IActionResult Get(
 			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
 			ILogger log, string account)
 		{
+			// Validate Authorized Principal
 			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
-
 			if (!cpr.IsValid) return new UnauthorizedResult();
-
 			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
 
-			// List of STorage Accounts or List of Containers for a storage account
+			// List of Storage Accounts or List of Containers for a storage account
 			if (string.IsNullOrEmpty(account))
 			{
 				StorageAccountOperations sao = new(log);
@@ -78,6 +77,13 @@ namespace Microsoft.UsEduCsu.Saas
 				// User Operations
 				var graphOps = new GraphOperations(log, ApiCredential);
 
+				// Rbac Principal Types to Display
+				var validTypes = new[] { "Group", "User" };
+				var sortOrderMap = new Dictionary<string, int>() {
+					{ "Storage Blob Data Owner", 1 },
+					{ "Storage Blob Data Contributor", 2 },
+					{ "Storage Blob Data Reader", 3 } };
+
 				// Build additional details
 				foreach (var fs in filesystems)
 				{
@@ -88,15 +94,19 @@ namespace Microsoft.UsEduCsu.Saas
 
 					metadata["Size"] = size.HasValue ? size.Value.ToString("N") : String.Empty;
 					metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C") : String.Empty;
-					
-					var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: fs.Name);
-					var rbacEntries = roles.Select(r => new StorageRbacEntry()
-					{
-						RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
-						PrincipalId = r.PrincipalId,
-						PrincipalName = graphOps.GetDisplayName(r.PrincipalId)
-					}).ToList();
 
+					var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: fs.Name);
+					var rbacEntries = roles
+						.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
+						.Select(r => new StorageRbacEntry()
+						{
+							RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
+							PrincipalId = r.PrincipalId,
+							PrincipalName = graphOps.GetDisplayName(r.PrincipalId),
+							Order = sortOrderMap.GetValueOrDefault(r.RoleName)
+						})
+						.OrderBy(r => r.Order).ThenBy( r => r.PrincipalName
+						).ToList();
 
 					var cd = new ContainerDetail()
 					{

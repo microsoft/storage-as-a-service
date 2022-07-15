@@ -302,11 +302,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			 * NOTE: Storage-as-a-service does not currently support role assignments at levels higher than storage account.
 			 * I.e., a storage data plane role assignment at the resource group level or higher will not be reflected correctly.
 			 GET https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}
-			 			/{parentResourcePath}/{resourceType}/{resourceName}/providers/Microsoft.Authorization/roleAssignments
+			 			/{parentResourcePath}/{resourceType}/{resourceName}
 						?$filter={$filter}&api-version=2015-07-01
-			     https://management.azure.com/subscriptions/df22ba11-ee48-422f-bbb0-9f71bcab0ab5/resourceGroups/rg-saas-demo-eastus2-01
-				 	/providers/Microsoft.Storage/storageAccounts/stsaasdemoeastus201/blobServices/default/containers/research-lab-14976370
-					/providers/Microsoft.Authorization/roleAssignments?$filter=atScope()&api-version=2020-04-01-preview
 			 */
 			IPage<RoleAssignment> res = null;
 			try
@@ -319,12 +316,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			catch (Exception ex)
 			{
 				log.LogError(ex, scope);
-
 				return new List<StorageDataPlaneRole>() {new () { RoleName = "Error reading access" }};		// Return blank list
  			}
 
 			// Join Role Assignments and Role Definitions
-			var storageDataPlaneRoles = res?.Join(roleDefinitions, ra => ra.RoleDefinitionId, rd => rd.Id,
+			var storageDataPlaneRoles = res.Join(roleDefinitions, ra => ra.RoleDefinitionId, rd => rd.Id,
 						(ra, rd) => new StorageDataPlaneRole()
 						{
 							RoleName = rd.RoleName,
