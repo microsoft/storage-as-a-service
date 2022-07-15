@@ -6,18 +6,15 @@ import Alert from '@mui/material/Alert'
 import Container from '@mui/material/Container'
 import Grid from '@mui/material/Grid'
 import Snackbar from '@mui/material/Snackbar'
-import DirectoriesManager from '../DirectoriesManager'
 import Selector from '../Selector'
 
 import Table from 'react-bootstrap/Table'
 import DetailsIcon from '@mui/icons-material/InfoTwoTone'
 import EditIcon from '@mui/icons-material/EditOutlined'
-import DirectoriesTableMembers from '../DirectoriesTable/DirectoriesTableMembers'
 import '../DirectoriesTable/DirectoriesTable.css'
 import StorageExplorerIcon from '../../images/storage-explorer.svg'
 import IconButton from "@mui/material/IconButton"
 import Tooltip from '@mui/material/Tooltip'
-
 
 
 /**
@@ -26,7 +23,7 @@ import Tooltip from '@mui/material/Tooltip'
 const FileSystemsPage = ({ strings }) => {
 
 	// Setup authentication hooks
-	const { account, isAuthenticated } = useAuthentication()
+	const { isAuthenticated } = useAuthentication()
 
 	// Setup state hooks
 	const [selectedStorageAccount, setSelectedStorageAccount] = useState('')
