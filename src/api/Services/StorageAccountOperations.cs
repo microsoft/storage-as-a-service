@@ -3,6 +3,7 @@ using Microsoft.UsEduCsu.Saas.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -17,7 +18,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			_cache = CacheHelper.GetRedisCacheHelper(_log);
 		}
 
-		internal IEnumerable<string> GetAccessibleStorageAccounts(string principalId, bool forceRefresh = false)
+		internal async Task<IEnumerable<string>> GetAccessibleStorageAccounts(string principalId, bool forceRefresh = false)
 		{
 
 			IList<StorageAccountAndContainers> result = null;
@@ -31,7 +32,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// Retrieve the list from the Azure management plane
 				RoleOperations ro = new(_log);
 
-				result = ro.GetAccessibleContainersForPrincipal(principalId);
+				result = await ro.GetAccessibleContainersForPrincipal(principalId);
 
 				// Send the new list to the cache
 				_cache.SetStorageAccountList(principalId, result);

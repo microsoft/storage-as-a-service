@@ -23,30 +23,36 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("StorageAccountsGET")]
-		public static IActionResult Get(
+		public static async Task<IActionResult> Get(
 			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
 			ILogger log, string account)
 		{
-			// Validate Authorized Principal
-			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
-			if (!cpr.IsValid) return new UnauthorizedResult();
-			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
+			try {
+				// Validate Authorized Principal
+				ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
+				if (!cpr.IsValid) return new UnauthorizedResult();
+				var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
 
-			// List of Storage Accounts or List of Containers for a storage account
-			if (string.IsNullOrEmpty(account))
-			{
-				StorageAccountOperations sao = new(log);
-				var result = sao.GetAccessibleStorageAccounts(principalId);             // TODO: Check for refresh parameter
-				return new OkObjectResult(result);
+				// List of Storage Accounts or List of Containers for a storage account
+				if (string.IsNullOrEmpty(account))
+				{
+					StorageAccountOperations sao = new(log);
+					var result = await sao.GetAccessibleStorageAccounts(principalId);             // TODO: Check for refresh parameter
+					return new OkObjectResult(result);
+				}
+				else
+				{
+					var containers = await PopulateContainerDetail(account, principalId, log);
+					return new OkObjectResult(containers);
+				}
 			}
-			else
-			{
-				var containers = PopulateContainerDetail(account, principalId, log);
-				return new OkObjectResult(containers);
+			catch( Exception ex) {
+				log.LogError(ex, $"GET StorageAccounts/{account}");
+				return new BadRequestResult();
 			}
 		}
 
-		internal static List<ContainerDetail> PopulateContainerDetail(string account, string principalId, ILogger log)
+		internal static async Task<List<ContainerDetail>> PopulateContainerDetail(string account, string principalId, ILogger log)
 		{
 			// Get Environmental Info
 			decimal costPerTB = 0.0M;
@@ -60,7 +66,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Setup the Role Operations
 			var roleOperations = new RoleOperations(log);
-			var accessibleContainers = roleOperations.GetAccessibleContainersForPrincipal(principalId)
+			var accessibleContainers = (await roleOperations.GetAccessibleContainersForPrincipal(principalId))
 											.First(a => a.StorageAccountName == account).Containers;
 
 			// Initilize the result
@@ -95,7 +101,7 @@ namespace Microsoft.UsEduCsu.Saas
 					metadata["Size"] = size.HasValue ? size.Value.ToString("N") : String.Empty;
 					metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C") : String.Empty;
 
-					var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: fs.Name);
+					var roles = await roleOperations.GetStorageDataPlaneRoles(account: account, container: fs.Name);
 					var rbacEntries = roles
 						.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
 						.Select(r => new StorageRbacEntry()

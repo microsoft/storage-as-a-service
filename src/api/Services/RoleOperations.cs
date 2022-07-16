@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -97,14 +98,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// </summary>
 		/// <param name="principalId"></param>
 		/// <returns></returns>
-		internal IList<StorageAccountAndContainers> GetAccessibleContainersForPrincipal(string principalId)
+		internal async Task<IList<StorageAccountAndContainers>> GetAccessibleContainersForPrincipal(string principalId)
 		{
 			ArgumentNullException.ThrowIfNull(principalId, nameof(principalId));
 
 			var appCred = new DefaultAzureCredential();
 			var SubscriptionId = SasConfiguration.ManagedSubscriptions;         // TODO: Foreach parallel (?) for subscriptions
 
-			IList<StorageDataPlaneRole> roleAssignments = GetStorageDataPlaneRoles(SubscriptionId, principalId);            // TODO: Getting them out in order of storage account to make processing more efficient?
+			IList<StorageDataPlaneRole> roleAssignments = await GetStorageDataPlaneRoles(SubscriptionId, principalId);            // TODO: Getting them out in order of storage account to make processing more efficient?
 
 			// TODO: Unit test for pattern
 			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
@@ -166,11 +167,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="subscriptionId"></param>
 		/// <param name="principalId"></param>
 		/// <returns>A list of storage accounts and containers where the specified principal has the storage data plane role.</returns>
-		public IList<StorageDataPlaneRole> GetStorageDataPlaneRoles(string subscriptionId, string principalId)
+		public async Task<IList<StorageDataPlaneRole>> GetStorageDataPlaneRoles(string subscriptionId, string principalId)
 		{
 			string Scope = $"/subscriptions/{subscriptionId}/";
 
-			return GetStorageDataPlaneRolesByScope(Scope, principalId);
+			return await GetStorageDataPlaneRolesByScope(Scope, principalId);
 		}
 
 		/// <summary>
@@ -181,7 +182,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="container">Container Name</param>
 		/// <param name="principalId">Optional Principal ID</param>
 		/// <returns></returns>
-		public IList<StorageDataPlaneRole> GetStorageDataPlaneRoles(string account, string container = null, string principalId = null)
+		public async Task<IList<StorageDataPlaneRole>> GetStorageDataPlaneRoles(string account, string container = null, string principalId = null)
 		{
 			// /subscriptions/[subscription id]/resourceGroups/[resource group name]/providers/Microsoft.Storage/storageAccounts/[storage account]/blobServices/default/containers/[container name]
 			var accountResourceId = GetAccountResourceId(account);
@@ -190,7 +191,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (container != null)
 				scope = $"{accountResourceId}/blobServices/default/containers/{container}"; ///providers/Microsoft.Authorization/roleAssignments";
 
-			return GetStorageDataPlaneRolesByScope(scope);
+			return await GetStorageDataPlaneRolesByScope(scope);
 		}
 
 		/// <summary>
@@ -276,7 +277,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return roleAssignment;
 		}
 
-		private IList<StorageDataPlaneRole> GetStorageDataPlaneRolesByScope(string scope, string principalId = null)
+		private async Task<IList<StorageDataPlaneRole>> GetStorageDataPlaneRolesByScope(string scope, string principalId = null)
 		{
 			VerifyToken();
 
@@ -288,7 +289,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// TODO: Abstract into VerifyRoleCredentials() method
 			if (roleDefinitions == null)
 			{
-				roleDefinitions = amClient.RoleDefinitions.List(scope)
+				roleDefinitions = (await amClient.RoleDefinitions.ListAsync(scope))
 					.Where(rd => rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase)
 							  && rd.RoleName.StartsWith("Storage Blob Data")
 					).ToList();
