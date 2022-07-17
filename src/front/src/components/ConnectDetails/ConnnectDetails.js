@@ -44,7 +44,7 @@ TabPanel.propTypes = {
 	value: PropTypes.number.isRequired,
 };
 
-const ConnectDetails = ({ data, strings }) => {
+const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 
 	const [value, setValue] = React.useState(0);
 
@@ -73,7 +73,7 @@ const ConnectDetails = ({ data, strings }) => {
 			{ name: strings.azStep2, image: azcopyEntercode }
 		]
 
-	var source = data.uri
+	var source = uri
 	var target = "https://[destaccount].dfs.core.windows.net/[container]/[path/to/folder]"
 
 	return (
@@ -98,7 +98,10 @@ const ConnectDetails = ({ data, strings }) => {
 							<div className='step-content'>
 								<Button target='_blank' href={strings.storageExplorerUrl} variant='outlined' startIcon={<CloudDownload />}>{strings.download}</Button>
 								|
-								<Button variant="outlined" aria-label={strings.openInStorageExplorerLabel} startIcon={<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />} size='large' onClick={() => { window.open(data.storageExplorerURI); return false }}>
+								<Button variant="outlined" aria-label={strings.openInStorageExplorerLabel}
+										startIcon={<img src={StorageExplorerIcon}
+										title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />}
+										size='large' onClick={() => { window.open(storageExplorerURI); return false }}>
 									Click to open in Storage Explorer
 								</Button>
 							</div>
@@ -190,9 +193,9 @@ const ConnectDetails = ({ data, strings }) => {
 }
 
 
-/*
-TODO: Determine if this is actually needed or just old
 ConnectDetails.propTypes = {
+	uri: PropTypes.string,
+	storageExplorerURI: PropTypes.string,
 	strings: PropTypes.shape({
 		connectTitle: PropTypes.string,
 		download: PropTypes.string,
@@ -210,7 +213,6 @@ ConnectDetails.propTypes = {
 		azStep1: PropTypes.string
 	})
 }
-*/
 
 /*
 TODO: Determine if this is actually needed or just old

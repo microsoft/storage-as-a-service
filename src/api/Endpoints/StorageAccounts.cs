@@ -87,8 +87,9 @@ namespace Microsoft.UsEduCsu.Saas
 				// Build additional details
 				foreach (var fs in filesystems)
 				{
+					var uri = new Uri(storageUri, fs.Name).ToString();
 					var metadata = (Dictionary<string, string>)((fs.Metadata != null) ? fs.Metadata : new Dictionary<string, string>());
-					var seEndpoint = HttpUtility.UrlEncode(new Uri(storageUri, fs.Name).ToString());
+					var seEndpoint = HttpUtility.UrlEncode(uri);
 					long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
 					decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
 
@@ -113,7 +114,8 @@ namespace Microsoft.UsEduCsu.Saas
 						Name = fs.Name,
 						Metadata = metadata,
 						Access = rbacEntries,
-						StorageExplorerDirectLink = new Uri($"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={fs.Name}&serviceEndpoint={seEndpoint}")
+						StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={fs.Name}&serviceEndpoint={seEndpoint}",
+						Uri = uri
 					};
 
 					containerDetails.Add(cd);

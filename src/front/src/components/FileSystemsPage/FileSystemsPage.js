@@ -16,6 +16,14 @@ import StorageExplorerIcon from '../../images/storage-explorer.svg'
 import IconButton from "@mui/material/IconButton"
 import Tooltip from '@mui/material/Tooltip'
 
+import Button from '@mui/material/Button'
+import CancelIcon from '@mui/icons-material/Close'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import DirectoryDetails from '../DirectoryDetails'
+import ConnectDetails from '../ConnectDetails/ConnnectDetails'
 
 /**
  * Renders list of Storage Accounts and FileSystems
@@ -26,6 +34,7 @@ const FileSystemsPage = ({ strings }) => {
 	const { isAuthenticated } = useAuthentication()
 
 	// Setup state hooks
+	const [details, setDetails] = useState({ show: false, data: {} })
 	const [selectedStorageAccount, setSelectedStorageAccount] = useState('')
 	const [storageAccounts, setStorageAccounts] = useState([])
 	const [fileSystems, setFileSystems] = useState([])
@@ -98,21 +107,17 @@ const FileSystemsPage = ({ strings }) => {
 		setSelectedStorageAccount(id)
 	}, [])
 
-	//const storageAccountItems = storageAccounts.map(account => account.name)
-	/*
-	const fileSystemItems = fileSystems ?
-		storageAccounts.find(account => account.name === selectedStorageAccount)
-					   .fileSystems
-		: []
-	*/
-
 	const onEdit = async () => {
 		// test
 	}
-	const onDetails = async () => {
-		// test
+
+	const onDetails = (rowData) => {
+        setDetails({ show: true, data: rowData })
 	}
 
+	const handleCancelDetails = () => {
+        setDetails({ show: false, data: {} })
+    }
 
 	// Emit HTML
 	return (
@@ -190,7 +195,20 @@ const FileSystemsPage = ({ strings }) => {
 					</Grid>
 				</Grid>
 			</Container>
-
+            {details.show &&
+				<Dialog onClose={handleCancelDetails} open={details.show} maxWidth='lg'>
+					<DialogTitle>
+						{strings.directoryDetailsTitle}
+					</DialogTitle>
+					<DialogContent>
+						<DirectoryDetails data={details.data} strings={strings.directoryDetails} />
+						<ConnectDetails uri={details.data.uri} storageExplorerURI={details.data.storageExplorerDirectLink} strings={strings.directoryDetails} />
+					</DialogContent>
+					<DialogActions>
+						<Button variant='outlined' startIcon={<CancelIcon />} onClick={handleCancelDetails}>{strings.close}</Button>
+					</DialogActions>
+				</Dialog>
+            }
 			<Snackbar
 				open={isToastOpen}
 				anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
