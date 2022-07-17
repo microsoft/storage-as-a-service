@@ -2,6 +2,29 @@ import URLS from '../config/urls'
 import HttpException from './HttpException'
 
 /**
+ * Returns any errors on the server
+ */
+ export const getServerStatus = async () => {
+	const { endpoint, method } = URLS.serverStatus
+	const options = getOptions(method)
+
+	return fetch(endpoint, options)
+		.then(response => {
+			if (response.status === 200) {
+				return response.json()
+			} else {
+				throw new HttpException(response.status, response.statusText)
+			}
+		})
+		.catch(error => {
+			console.log(`Call to API (${endpoint}) failed with the following details:`)
+			console.log(error)
+			throw error
+		})
+}
+
+
+/**
  * Returns the list of storage accounts and their file systems (containers)
  */
  export const getStorageAccounts = async () => {

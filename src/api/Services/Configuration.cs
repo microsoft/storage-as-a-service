@@ -3,6 +3,7 @@ using Microsoft.Extensions.Primitives;
 using System;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 [assembly: InternalsVisibleTo("tests")]
 
@@ -91,6 +92,27 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			return ExpectedApiKey.Equals(ReceivedApiKey[0]);
 		}
+
+		internal static ( bool IsValid, Dictionary<string,string> errors) Validate()
+		{
+			var errors = new Dictionary<string,string>();
+			if (string.IsNullOrEmpty(TenantId))
+				errors.Add("AZURE_TENANT_ID", "Is missing");
+			if (string.IsNullOrEmpty(ClientId))
+				errors.Add("AZURE_CLIENT_ID", "Is missing");
+			if (string.IsNullOrEmpty(ClientSecret))
+				errors.Add("AZURE_CLIENT_SECRET", "Is missing");
+			if (string.IsNullOrEmpty(ApiClientId))
+				errors.Add("API_CLIENT_ID", "Is missing");
+			if (string.IsNullOrEmpty(ApiClientSecret))
+				errors.Add("API_CLIENT_SECRET", "Is missing");
+			if (string.IsNullOrEmpty(CacheConnection))
+				errors.Add("CacheConnection", "Is missing");
+			if (!string.IsNullOrEmpty(ManagedSubscriptions))
+				errors.Add("MANAGED_SUBSCRIPTIONS", "Is missing");
+			return (errors.Count == 0, errors);
+		}
+
 
 		internal enum ApiKey
 		{
