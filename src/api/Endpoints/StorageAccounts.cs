@@ -52,11 +52,6 @@ namespace Microsoft.UsEduCsu.Saas
 
 		internal static List<ContainerDetail> PopulateContainerDetail(string account, string principalId, ILogger log)
 		{
-			// Get Environmental Info
-			decimal costPerTB = 0.0M;
-			if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COST_PER_TB")))
-				_ = decimal.TryParse(Environment.GetEnvironmentVariable("COST_PER_TB"), out costPerTB);
-
 			// Get Account Information
 			var storageUri = SasConfiguration.GetStorageUri(account);
 			TokenCredential ApiCredential = new DefaultAzureCredential();
@@ -75,56 +70,15 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				var filesystems = storageAccountClient.GetFileSystems(FileSystemTraits.Metadata)
 						.Where(c => accessibleContainers.Contains(c.Name))  // Filter for the future
-						.Select(l => new { l.Name, l.Properties, l.Properties.LastModified, l.Properties.Metadata })
+						.Select(l => new { Name= l.Name, Properties = l.Properties})
 						.ToList();
 
-				// User Operations
-				var graphOps = new GraphOperations(log, ApiCredential);
-
-				// Rbac Principal Types to Display
-				var validTypes = new[] { "Group", "User" };
-				var sortOrderMap = new Dictionary<string, int>() {
-					{ "Storage Blob Data Owner", 1 },
-					{ "Storage Blob Data Contributor", 2 },
-					{ "Storage Blob Data Reader", 3 } };
-
 				// Build additional details
-				foreach (var fs in filesystems)
+				Parallel.ForEach(filesystems, (fs) =>
 				{
-					var uri = new Uri(storageUri, fs.Name).ToString();
-					var metadata = (Dictionary<string, string>)((fs.Metadata != null) ? fs.Metadata : new Dictionary<string, string>());
-					var seEndpoint = HttpUtility.UrlEncode(uri);
-					long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
-					decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
-
-					metadata["Size"] = size.HasValue ? ConvertFromBytes(size.Value) : String.Empty;
-					metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C") : String.Empty;
-					metadata["LastModified"] = fs.LastModified.ToString("G");
-
-					var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: fs.Name);
-					var rbacEntries = roles
-						.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
-						.Select(r => new StorageRbacEntry()
-						{
-							RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
-							PrincipalId = r.PrincipalId,
-							PrincipalName = graphOps.GetDisplayName(r.PrincipalId),
-							Order = sortOrderMap.GetValueOrDefault(r.RoleName)
-						})
-						.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName
-						).ToList();
-
-					var cd = new ContainerDetail()
-					{
-						Name = fs.Name,
-						Metadata = metadata,
-						Access = rbacEntries,
-						StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={fs.Name}&serviceEndpoint={seEndpoint}",
-						Uri = uri
-					};
-
+					var cd = GetContainerDetail(storageUri, account, fs.Name, fs.Properties, log);
 					containerDetails.Add(cd);
-				}
+				});
 			}
 			catch (Exception ex)
 			{
@@ -133,6 +87,62 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Return result
 			return containerDetails;
+		}
+
+		private static ContainerDetail GetContainerDetail(Uri storageUri, string account, string container, FileSystemProperties properties, ILogger log)
+		{
+			var roleOperations = new RoleOperations(log);
+
+			// User Operations
+			TokenCredential ApiCredential = new DefaultAzureCredential();
+			var graphOps = new GraphOperations(log, ApiCredential);
+
+			// Get Environmental Info
+			decimal costPerTB = 0.0M;
+			if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COST_PER_TB")))
+				_ = decimal.TryParse(Environment.GetEnvironmentVariable("COST_PER_TB"), out costPerTB);
+
+			// Rbac Principal Types to Display
+			var validTypes = new[] { "Group", "User" };
+			var sortOrderMap = new Dictionary<string, int>() {
+				{ "Storage Blob Data Owner", 1 },
+				{ "Storage Blob Data Contributor", 2 },
+				{ "Storage Blob Data Reader", 3 } };
+
+			var uri = new Uri(storageUri, container).ToString();
+			var Metadata = properties.Metadata;
+			var metadata = (Dictionary<string, string>)((Metadata != null) ? Metadata : new Dictionary<string, string>());
+			var seEndpoint = HttpUtility.UrlEncode(uri);
+			long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
+			decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
+
+			metadata["Size"] = size.HasValue ? ConvertFromBytes(size.Value) : String.Empty;
+			metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C") : String.Empty;
+			metadata["LastModified"] = properties.LastModified.ToString("G");
+
+			var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: container);
+			var rbacEntries = roles
+				.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
+				.Select(r => new StorageRbacEntry()
+				{
+					RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
+					PrincipalId = r.PrincipalId,
+					PrincipalName = graphOps.GetDisplayName(r.PrincipalId),
+					Order = sortOrderMap.GetValueOrDefault(r.RoleName)
+				})
+				.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName
+				).ToList();
+
+			var cd = new ContainerDetail()
+			{
+				Name = container,
+				Metadata = metadata,
+				Access = rbacEntries,
+				StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={container}&serviceEndpoint={seEndpoint}",
+				Uri = uri
+			};
+
+			return cd;
 		}
 
 		private static string ConvertFromBytes(long size)
