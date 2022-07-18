@@ -15,7 +15,6 @@ import './ConnectDetails.css'
 import Tab from "@mui/material/Tab"
 import Tabs from "@mui/material/Tabs"
 import Box from "@mui/material/Box"
-import Typography from '@mui/material/Typography';
 import StorageExplorerIcon from '../../images/storage-explorer.svg'
 
 function TabPanel(props) {
