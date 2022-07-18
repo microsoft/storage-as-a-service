@@ -14,6 +14,10 @@ const LandingPage = ({ strings }) => {
 		.then(u => {
 			setServerStatus(u.message);
 		})
+
+		return function cleanup() {
+           //mounted = false
+        }
 	});
 
 	return (

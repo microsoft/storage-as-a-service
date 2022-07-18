@@ -33,37 +33,39 @@ const DirectoryDetails = ({ data, strings }) => {
 		clearInterval(timer)
 	}
 
+	function getMembers() {
+		return data.access.map( ac => {return ac.roleName + ": " + ac.principalName} );
+	}
+
 	return (
 		<Grid container className='directoryDetails'>
 			<Grid item xs={12} className='title'>
 				<div className='label'>{strings.folderLabel}:</div>{data.name}
 			</Grid>
 			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.sizeLabel}:</div>{format(data.size)}
+				<div className='label'>{strings.sizeLabel}:</div>{format(data.metadata.Size)}
 			</Grid>
 			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.costLabel}:</div>{format(data.cost)}
+				<div className='label'>{strings.costLabel}:</div>{format(data.metadata.Cost)}
 			</Grid>
 			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.fundCodeLabel}:</div>{format(data.fundCode)}
+				<div className='label'>{strings.fundCodeLabel}:</div>{format(data.metadata.FundCode)}
 			</Grid>
 			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.accessTierLabel}:</div>{format(data.accessTier)}
+				<div className='label'>{strings.lastModifiedLabel}:</div>{format(data.metadata.LastModified)}
 			</Grid>
 			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.createdLabel}:</div>{format(data.createdOn)}
-			</Grid>
-			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.ownerLabel}:</div>{format(data.owner)}
+				<div className='label'>{strings.ownerLabel}:</div>{format(data.metadata.Owner)}
 			</Grid>
 			<Grid item xs={12} className='detail'>
 				<div className='label'>{strings.userAccessLabel}:</div>
-				<DirectoriesTableMembers members={data.userAccess} strings={strings} />
+				<DirectoriesTableMembers  members={getMembers()}></DirectoriesTableMembers>
 			</Grid>
 			<Grid item xs={12} className='detail'>
 				<div className='label'>{strings.uriLabel}:</div><span>{format(data.uri)}</span>
 				<Tooltip arrow title={strings.copyToClipboardLabel} placement='top'>
-					<IconButton aria-label={strings.copyToClipboardLabel} onClick={() => handleCopyUrl(data.uri)} color={copied ? 'success' : 'secondary'} size='small'>
+					<IconButton aria-label={strings.copyToClipboardLabel} onClick={() => handleCopyUrl(data.uri)}
+					color={copied ? 'success' : 'secondary'} size='small'>
 						{copied ? <FilledCopyIcon /> : <CopyIcon />}
 					</IconButton>
 				</Tooltip>

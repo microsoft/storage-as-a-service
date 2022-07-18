@@ -16,8 +16,9 @@ const DirectoriesTableMembers = ({ members, strings }) => {
         setAnchorEl(event.currentTarget)
     }
 
+	let keyCount = 0;
 
-    if (members.length > 2) {
+    if (members.length > 10) {
         return (
             <>
                 <div onMouseEnter={handlePopoverOpen} onMouseLeave={handlePopoverClose}>
@@ -36,13 +37,13 @@ const DirectoriesTableMembers = ({ members, strings }) => {
                     }}
                 >
                     <div className='members-popover'>
-                        {members.map(item => (<div key={item} className='member-text'>{item}</div>))}
+                        {members.map(item => (<div key={keyCount++} className='member-text'>{item}</div>))}
                     </div>
                 </Popover>
             </>
         )
     } else {
-        return members.map(item => (<Chip key={item} className='member-chip' label={`${item}`} />))
+        return members.map(item => (<Chip key={keyCount++} className='member-chip' label={`${item}`} />))
     }
 }
 

@@ -108,7 +108,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				errors.Add("API_CLIENT_SECRET", "Is missing");
 			if (string.IsNullOrEmpty(CacheConnection))
 				errors.Add("CacheConnection", "Is missing");
-			if (!string.IsNullOrEmpty(ManagedSubscriptions))
+			if (string.IsNullOrEmpty(ManagedSubscriptions))
 				errors.Add("MANAGED_SUBSCRIPTIONS", "Is missing");
 			return (errors.Count == 0, errors);
 		}

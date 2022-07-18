@@ -30,6 +30,7 @@ const strings = {
 		connectTitle: 'How to connect via',
 		costLabel: 'Monthly cost',
 		createdLabel: 'Created on',
+		lastModifiedLabel: 'Last modified',
 		departmentLabel: 'Department',
 		directoryDetailsTitle: 'Directory Details',
 		download: 'Download',

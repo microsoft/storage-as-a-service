@@ -119,6 +119,8 @@ const FileSystemsPage = ({ strings }) => {
         setDetails({ show: false, data: {} })
     }
 
+	let rowCount = 0;
+
 	// Emit HTML
 	return (
 		<>
@@ -171,9 +173,9 @@ const FileSystemsPage = ({ strings }) => {
 												{row.metadata.Cost}
 											</td>
 											<td className='owner'>
-												<table>
-												{row.access.map(ac => {return (<tr><td>{ac.roleName}</td><td>{ac.principalName}</td></tr>) })}
-												</table>
+												<table><tbody>
+												{row.access.map(ac => {return (<tr key={rowCount++}><td>{ac.roleName}</td><td>{ac.principalName}</td></tr>) })}
+												</tbody></table>
 											</td>
 											<td className='fundcode'>
 												{row.metadata.FundCode}

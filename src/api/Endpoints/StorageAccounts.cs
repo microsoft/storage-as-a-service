@@ -13,12 +13,15 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.UsEduCsu.Saas.Services;
 using static Microsoft.UsEduCsu.Saas.FileSystems;
+using Azure.Storage.Files.DataLake.Models;
+using System.Text.Json;
+using System.Globalization;
 
 namespace Microsoft.UsEduCsu.Saas
 {
 	public static class StorageAccounts
 	{
-		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(ContainerDetail), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -41,8 +44,9 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 			else
 			{
-				var containers = PopulateContainerDetail(account, principalId, log);
-				return new OkObjectResult(containers);
+				var containerDetails = PopulateContainerDetail(account, principalId, log);
+				//TODO: camelCasing - string json = JsonSerializer.Serialize<List<ContainerDetail>>(containerDetails, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+				return new OkObjectResult(containerDetails);
 			}
 		}
 
@@ -69,7 +73,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// Need to get the filesytems
 			try
 			{
-				var filesystems = storageAccountClient.GetFileSystems()
+				var filesystems = storageAccountClient.GetFileSystems(FileSystemTraits.Metadata)
 						.Where(c => accessibleContainers.Contains(c.Name))  // Filter for the future
 						.Select(l => new { l.Name, l.Properties, l.Properties.LastModified, l.Properties.Metadata })
 						.ToList();
@@ -93,8 +97,9 @@ namespace Microsoft.UsEduCsu.Saas
 					long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
 					decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
 
-					metadata["Size"] = size.HasValue ? size.Value.ToString("N") : String.Empty;
+					metadata["Size"] = size.HasValue ? ConvertFromBytes(size.Value) : String.Empty;
 					metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C") : String.Empty;
+					metadata["LastModified"] = fs.LastModified.ToString("G");
 
 					var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: fs.Name);
 					var rbacEntries = roles
@@ -106,7 +111,7 @@ namespace Microsoft.UsEduCsu.Saas
 							PrincipalName = graphOps.GetDisplayName(r.PrincipalId),
 							Order = sortOrderMap.GetValueOrDefault(r.RoleName)
 						})
-						.OrderBy(r => r.Order).ThenBy( r => r.PrincipalName
+						.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName
 						).ToList();
 
 					var cd = new ContainerDetail()
@@ -128,6 +133,21 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Return result
 			return containerDetails;
+		}
+
+		private static string ConvertFromBytes(long size)
+		{
+			string postfix = "Bytes";
+			double result = size;
+			if (size >= 1000000000000)
+				(result, postfix) = (size / 1000000000000, "TB");
+			else if (size >= 1000000000)
+				(result, postfix) = (size / 1000000000, "GB");
+			else if (size >= 1000000)
+				(result, postfix) = (size / 1000000, "MB");
+			else if (size >= 1000)
+				(result, postfix) = (size / 1000000, "KB");
+			return result.ToString("N0") + " " + postfix;
 		}
 	}
 }

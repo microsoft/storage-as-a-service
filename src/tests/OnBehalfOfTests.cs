@@ -28,7 +28,7 @@ namespace tests
 		}
 
 		[Fact]
-		public async void ReadContainerPathsAsUser()
+		public void ReadContainerPathsAsUser()
 		{
 			// Service Principal Creds
 			var appCreds = new DefaultAzureCredential();

@@ -31,7 +31,7 @@ function TabPanel(props) {
 		>
 			{value === index && (
 				<Box sx={{ p: 3 }}>
-					<Typography>{children}</Typography>
+					{children}
 				</Box>
 			)}
 		</div>
@@ -73,8 +73,9 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 			{ name: strings.azStep2, image: azcopyEntercode }
 		]
 
-	var source = uri
-	var target = "https://[destaccount].dfs.core.windows.net/[container]/[path/to/folder]"
+	let source = uri
+	let target = "https://[destaccount].dfs.core.windows.net/[container]/[path/to/folder]"
+	let stepCount = 0;
 
 	return (
 		<div className='connectDetails'>
@@ -91,7 +92,7 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 			<TabPanel value={value} index={0}>
 				<div className="storageExplorer">
 					<div className='storageExplorer-steps'>
-						<div className='step'>
+						<div className='step' key={stepCount++} >
 							<div className='step-label'>
 								{strings.step1Label}
 							</div>
@@ -107,7 +108,7 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 							</div>
 						</div>
 						{dlSteps.map(step => (
-							<div className='step'>
+							<div className='step' key={stepCount++}>
 								<div className='step-divider' />
 								<div className='step-label'>{step.name}</div>
 								<div className='step-content'><img src={step.image} alt={step.name} />
@@ -120,7 +121,7 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 			<TabPanel value={value} index={1}>
 				<div className='storageExplorer'>
 					<div className='storageExplorer-steps'>
-						<div className='step'>
+						<div className='step' key={stepCount++}>
 							<div className='step-label'>
 								{strings.step1Label}
 							</div>
@@ -130,7 +131,7 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 						</div>
 						{
 							seSteps.map(step => (
-								<div className='step'>
+								<div className='step' key={stepCount++}>
 									<div className='step-divider' />
 									<div className='step-label'>
 										{step.name}
@@ -147,7 +148,7 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 			<TabPanel value={value} index={2}>
 				<div className="storageExplorer">
 					<div className='storageExplorer-steps'>
-					<div className='step'>
+					<div className='step' key={stepCount++}>
 						<div className='step-label'>Use azcopy command</div>
 						<div className='step-content'>
 							<p align="left">Using the azcopy command makes it easy to move and copy files in
@@ -162,7 +163,7 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 								--log-level=INFO</p>
 						</div>
 					</div>
-						<div className='step'>
+						<div className='step' key={stepCount++}>
 							<div className='step-divider' />
 							<div className='step-label'>1.	Download AzCopy version 10.15 or later</div>
 							<div className='step-content'>
@@ -173,14 +174,14 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 							</div>
 						</div>
 						{azSteps.map(step => (
-							<div className='step'>
+							<div className='step' key={stepCount++}>
 								<div className='step-divider' />
 								<div className='step-label'>{step.name}</div>
 								<div className='step-content'><img src={step.image} alt={step.name} />
 								</div>
 							</div>
 						))}
-						<div className='step'>
+						<div className='step' key={stepCount++}>
 							<div className='step-divider' />
 							<div className='step-label'>4. Use azcopy command</div>
 							<div className='step-content'>azcopy cp "{source}" "{target}" --recursive=true</div>
