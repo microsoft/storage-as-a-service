@@ -8,7 +8,7 @@
     <PackageReference Include="Azure.Identity" Version="1.6.0" />
     <PackageReference Include="Azure.ResourceManager" Version="1.0.0" />
     <PackageReference Include="Azure.ResourceManager.Resources" Version="1.0.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.11.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.13.0" />
     <PackageReference Include="Azure.Storage.Files.DataLake" Version="12.9.0" />
     <PackageReference Include="Microsoft.Azure.Management.Authorization" Version="2.13.0-preview" />
     <PackageReference Include="Microsoft.Azure.Management.ResourceGraph" Version="2.1.0" />
