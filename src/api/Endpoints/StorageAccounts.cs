@@ -54,13 +54,18 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			// Get Account Information
 			var storageUri = SasConfiguration.GetStorageUri(account);
-			TokenCredential ApiCredential = new DefaultAzureCredential();
+
+			// Get Storage Account Client
+			var ApiCredential = new DefaultAzureCredential();
 			var storageAccountClient = new DataLakeServiceClient(storageUri, ApiCredential);
 
 			// Setup the Role Operations
 			var roleOperations = new RoleOperations(log);
 			var accessibleContainers = roleOperations.GetAccessibleContainersForPrincipal(principalId)
 											.First(a => a.StorageAccountName == account).Containers;
+
+			// User Operations
+			var graphOps = new GraphOperations(log, ApiCredential);
 
 			// Initilize the result
 			var containerDetails = new List<ContainerDetail>();
@@ -76,7 +81,7 @@ namespace Microsoft.UsEduCsu.Saas
 				// Build additional details
 				Parallel.ForEach(filesystems, (fs) =>
 				{
-					var cd = GetContainerDetail(storageUri, account, fs.Name, fs.Properties, log);
+					var cd = GetContainerDetail(roleOperations, graphOps, storageUri, account, fs.Name, fs.Properties, log);
 					containerDetails.Add(cd);
 				});
 			}
@@ -89,14 +94,10 @@ namespace Microsoft.UsEduCsu.Saas
 			return containerDetails;
 		}
 
-		private static ContainerDetail GetContainerDetail(Uri storageUri, string account, string container, FileSystemProperties properties, ILogger log)
+		private static ContainerDetail GetContainerDetail(
+			RoleOperations roleOps, GraphOperations graphOps,
+			Uri storageUri, string account, string container, FileSystemProperties properties, ILogger log)
 		{
-			var roleOperations = new RoleOperations(log);
-
-			// User Operations
-			TokenCredential ApiCredential = new DefaultAzureCredential();
-			var graphOps = new GraphOperations(log, ApiCredential);
-
 			// Get Environmental Info
 			decimal costPerTB = 0.0M;
 			if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COST_PER_TB")))
@@ -120,7 +121,7 @@ namespace Microsoft.UsEduCsu.Saas
 			metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C") : String.Empty;
 			metadata["LastModified"] = properties.LastModified.ToString("G");
 
-			var roles = roleOperations.GetStorageDataPlaneRoles(account: account, container: container);
+			var roles = roleOps.GetStorageDataPlaneRoles(account: account, container: container);
 			var rbacEntries = roles
 				.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
 				.Select(r => new StorageRbacEntry()

@@ -5,7 +5,7 @@ using Microsoft.Azure.Management.Authorization.Models;
 using Microsoft.Azure.Management.ResourceGraph;
 using Microsoft.Azure.Management.ResourceGraph.Models;
 using Microsoft.Extensions.Logging;
-using Microsoft.Rest;
+using Microsoft;
 using Microsoft.Rest.Azure;
 using Microsoft.Rest.Azure.OData;
 using Microsoft.UsEduCsu.Saas.Data;
@@ -21,7 +21,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		// https://blogs.aaddevsup.xyz/2020/05/using-azure-management-libraries-for-net-to-manage-azure-ad-users-groups-and-rbac-role-assignments/
 
 		private readonly ILogger log;
-		private TokenCredentials tokenCredentials;
+		private Rest.TokenCredentials _tokenCredentials;
+		private AccessToken _accessToken;
+		private CacheHelper _cache;
 
 		// Caches the list of storage plane data role definitions
 		private static IList<RoleDefinition> roleDefinitions;
@@ -29,6 +31,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		public RoleOperations(ILogger log)
 		{
 			this.log = log;
+			_cache = CacheHelper.GetRedisCacheHelper(log);
 		}
 
 		#region Public and Internal Methods
@@ -68,7 +71,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			try
 			{
 				VerifyToken();
-				var resourceGraphClient = new ResourceGraphClient(tokenCredentials);
+				var resourceGraphClient = new ResourceGraphClient(_tokenCredentials);
 
 				var query = new QueryRequest();
 				query.Query = $"resources | where name == '{account}' and type == 'microsoft.storage/storageaccounts' and kind == 'StorageV2' and properties['isHnsEnabled'] | project id";
@@ -207,7 +210,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var accountResourceId = GetAccountResourceId(account);
 
 			// Get Auth Management Client
-			var amClient = new AuthorizationManagementClient(tokenCredentials);
+			var amClient = new AuthorizationManagementClient(_tokenCredentials);
 
 			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
 			if (roleDefinitions == null)
@@ -244,20 +247,23 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		private void VerifyToken()
 		{
-			if (tokenCredentials == null)
+			if (_tokenCredentials != null)
+				return;
+
+			if (_accessToken.Token == null || _accessToken.ExpiresOn < DateTime.Now)
 			{
 				var tokenRequestContext = new TokenRequestContext(new[] { "https://management.azure.com/.default" });
-				var accessToken = new DefaultAzureCredential().GetToken(tokenRequestContext);
-				tokenCredentials = new TokenCredentials(accessToken.Token);
-				// TODO: Determine when to expire the tokenCredentials object based on accessToken.ExpiresOn
+				_accessToken = new DefaultAzureCredential().GetToken(tokenRequestContext);
 			}
+
+			_tokenCredentials = new Rest.TokenCredentials(_accessToken.Token);
 		}
 
 		private RoleAssignment AddRoleAssignment(string scope, string roleName, string principalId)
 		{
 			VerifyToken();
 
-			var amClient = new AuthorizationManagementClient(tokenCredentials);
+			var amClient = new AuthorizationManagementClient(_tokenCredentials);
 			var roleDefinitions = amClient.RoleDefinitions.List(scope);
 			var roleDefinition = roleDefinitions.First(x => x.RoleName == roleName);
 
@@ -281,7 +287,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			VerifyToken();
 
 			// Get Auth Management Client, initialized with the current subscription ID
-			var amClient = new AuthorizationManagementClient(tokenCredentials);
+			var amClient = new AuthorizationManagementClient(_tokenCredentials);
 
 			// Find all the applicable built-in role definition IDs that would give a
 			// principal access to storage account data plane

@@ -20,22 +20,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal IEnumerable<string> GetAccessibleStorageAccounts(string principalId, bool forceRefresh = false)
 		{
 
-			IList<StorageAccountAndContainers> result = null;
-
-			if (!forceRefresh)
-				result = _cache.GetStorageAccountList(principalId);
-
-			// Result is null in case of a forced refresh, cache timeout, or no cached item
-			if (result == null)
-			{
-				// Retrieve the list from the Azure management plane
+			IList<StorageAccountAndContainers> result = _cache.StorageAccounts(principalId, () => {
 				RoleOperations ro = new(_log);
-
 				result = ro.GetAccessibleContainersForPrincipal(principalId);
-
-				// Send the new list to the cache
-				_cache.SetStorageAccountList(principalId, result);
-			}
+				return result;
+			});
 
 			return result.Select(r => r.StorageAccountName);
 		}

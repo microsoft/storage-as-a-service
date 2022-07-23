@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -26,28 +25,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		public DirectoryObject DirectoryObjects(string objectIdentifier, Func<DirectoryObject> updateMethod)
 		{
-			ArgumentNullException.ThrowIfNull(objectIdentifier, nameof(objectIdentifier));
-
-			byte[] list = _cache.Get($"directoryObject_{objectIdentifier}");
-
-			// The cache will return value if f
-			if (list != null)
-				return JsonSerializer.Deserialize<DirectoryObject>(list);
-
-			// Get User by invoking Function
-			DirectoryObject dirObj = updateMethod.Invoke();
-			if (dirObj == null)
-				return null;
-
-			// Serialize the storageAccountList to a UTF-8 JSON string
-			MemoryStream s = new();
-			JsonSerializer.Serialize(s, dirObj, typeof(DirectoryObject));
-
-			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
-			_cache.Set($"directoryObject_{objectIdentifier}", s.ToArray(), new() { AbsoluteExpiration = DateTimeOffset.UtcNow.AddHours(1) });
-
-			return dirObj;
+			var obj = Items("directoryObject", objectIdentifier, updateMethod);
+			return obj;
 		}
+
+		#region AccessToken
+		public string AccessTokens(string objectIdentifier, Func<string> updateMethod)
+		{
+			var obj = Items("accessToken", objectIdentifier, updateMethod);
+			return obj;
+		}
+
 
 		public string GetAccessToken(string userName)
 		{
@@ -58,45 +46,20 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return result;
 		}
 
-		internal IList<StorageAccountAndContainers> GetStorageAccountList(string principalId)
-		{
-			ArgumentNullException.ThrowIfNull(principalId, nameof(principalId));
-
-			byte[] list = _cache.Get($"storageAccountList_{principalId}");
-
-			// The cache will return null if the item isn't found (including when expired)
-			if (list == null) return null;
-
-			return JsonSerializer.Deserialize<List<StorageAccountAndContainers>>(list);
-		}
-
-		/// <summary>
-		/// Sends the list of storage account and containers for
-		/// the specified user to the cache with an expiration of one hour.
-		/// </summary>
-		/// <param name="principalId"></param>
-		/// <param name="storageAccountList"></param>
-		internal void SetStorageAccountList(string principalId, IList<StorageAccountAndContainers> storageAccountList)
-		{
-			ArgumentNullException.ThrowIfNull(principalId, nameof(principalId));
-			ArgumentNullException.ThrowIfNull(storageAccountList, nameof(storageAccountList));
-
-			// This item will expire one hour from now
-			DistributedCacheEntryOptions dceo = new() { AbsoluteExpiration = DateTimeOffset.UtcNow.AddHours(1) };
-
-			// Serialize the storageAccountList to a UTF-8 JSON string
-			MemoryStream s = new();
-			JsonSerializer.Serialize(s, storageAccountList, typeof(IList<StorageAccountAndContainers>));
-
-			// Add the list of accounts to the cache for the specified user
-			_cache.Set($"storageAccountList_{principalId}", s.ToArray(), dceo);
-		}
-
 		public void SetAccessToken(string userName, string data)
 		{
 			var bytes = Encoding.UTF8.GetBytes(data);
 			_cache.Set("AccessToken" + userName, bytes);
 		}
+		#endregion
+
+		#region StorageAccountList
+		internal  IList<StorageAccountAndContainers> StorageAccounts(string principalId, Func<IList<StorageAccountAndContainers>> updateMethod)
+		{
+			var obj = Items("storageAccountList", principalId, updateMethod);
+			return obj;
+		}
+		#endregion
 
 		public static CacheHelper GetRedisCacheHelper(ILogger log)
 		{
@@ -105,5 +68,40 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var ch = new CacheHelper(log, cache);
 			return ch;
 		}
+
+		#region Private Methods
+		private T Items<T>(string itemName, string key, Func<T> updateMethod, DateTimeOffset? expiration = null)
+		{
+			ArgumentNullException.ThrowIfNull(itemName, nameof(itemName));
+			ArgumentNullException.ThrowIfNull(key, nameof(key));
+
+			if (expiration == null)
+				expiration = DateTimeOffset.UtcNow.AddHours(1);
+
+			string nameKey = $"{itemName}_{key}";
+
+			byte[] byteArray = _cache.Get(nameKey);
+
+			// The cache will return value if f
+			if (byteArray != null)
+				return JsonSerializer.Deserialize<T>(byteArray);
+
+			// Get User by invoking Function
+			T value = updateMethod.Invoke();
+			if (value == null)
+				return default;
+
+			// Serialize the object to a UTF-8 JSON string
+			MemoryStream s = new();
+			JsonSerializer.Serialize(s, value, typeof(T));
+			s.Flush();
+			var data = s.ToArray();
+
+			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
+			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
+
+			return value;
+		}
+		#endregion
 	}
 }
