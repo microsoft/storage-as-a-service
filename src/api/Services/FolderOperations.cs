@@ -375,6 +375,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// Uri.ToString() always appends a trailing /, remove it (#82)
 				URI = uri.ToString().TrimEnd('/'),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
+				// TODO: Centralize the creation of the direct link
 				StorageExplorerURI = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystemPath&container={dlfsClient.Name}&serviceEndpoint={seEndpoint}&path={seFolderName}"
 			};
 
@@ -388,7 +389,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="userAccess">The list of access control entries.</param>
 		private void TranslateGroups(IList<string> userAccess)
 		{
-			var groupOperations = new GroupOperations(log, new DefaultAzureCredential());
+			var graphOperations = new GraphOperations(log, new DefaultAzureCredential());
 
 			for (int i = 0; i < userAccess.Count(); i++)
 			{
@@ -398,7 +399,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				if (Guid.TryParse(groupObjectId, out Guid guid))
 				{
 					// Assume it's an AAD group object ID and retrieve the group name
-					var groupName = groupOperations.GetGroupNameFromObjectId(groupObjectId).Result;
+					var groupName = graphOperations.GetGroupNameFromObjectId(groupObjectId);
 
 					// Replace the current list item, if it is a group name, otherwise, leave the GUID in place
 					userAccess[i] = !string.IsNullOrEmpty(groupName) ? groupName : userAccess[i];

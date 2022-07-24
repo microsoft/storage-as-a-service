@@ -15,7 +15,6 @@ import './ConnectDetails.css'
 import Tab from "@mui/material/Tab"
 import Tabs from "@mui/material/Tabs"
 import Box from "@mui/material/Box"
-import Typography from '@mui/material/Typography';
 import StorageExplorerIcon from '../../images/storage-explorer.svg'
 
 function TabPanel(props) {
@@ -31,7 +30,7 @@ function TabPanel(props) {
 		>
 			{value === index && (
 				<Box sx={{ p: 3 }}>
-					<Typography>{children}</Typography>
+					{children}
 				</Box>
 			)}
 		</div>
@@ -44,7 +43,7 @@ TabPanel.propTypes = {
 	value: PropTypes.number.isRequired,
 };
 
-const ConnectDetails = ({ data, strings }) => {
+const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 
 	const [value, setValue] = React.useState(0);
 
@@ -73,8 +72,9 @@ const ConnectDetails = ({ data, strings }) => {
 			{ name: strings.azStep2, image: azcopyEntercode }
 		]
 
-	var source = data.uri
-	var target = "https://[destaccount].dfs.core.windows.net/[container]/[path/to/folder]"
+	let source = uri
+	let target = "https://[destaccount].dfs.core.windows.net/[container]/[path/to/folder]"
+	let stepCount = 0;
 
 	return (
 		<div className='connectDetails'>
@@ -91,20 +91,23 @@ const ConnectDetails = ({ data, strings }) => {
 			<TabPanel value={value} index={0}>
 				<div className="storageExplorer">
 					<div className='storageExplorer-steps'>
-						<div className='step'>
+						<div className='step' key={stepCount++} >
 							<div className='step-label'>
 								{strings.step1Label}
 							</div>
 							<div className='step-content'>
 								<Button target='_blank' href={strings.storageExplorerUrl} variant='outlined' startIcon={<CloudDownload />}>{strings.download}</Button>
 								|
-								<Button variant="outlined" aria-label={strings.openInStorageExplorerLabel} startIcon={<img src={StorageExplorerIcon} title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />} size='large' onClick={() => { window.open(data.storageExplorerURI); return false }}>
+								<Button variant="outlined" aria-label={strings.openInStorageExplorerLabel}
+										startIcon={<img src={StorageExplorerIcon}
+										title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />}
+										size='large' onClick={() => { window.open(storageExplorerURI); return false }}>
 									Click to open in Storage Explorer
 								</Button>
 							</div>
 						</div>
 						{dlSteps.map(step => (
-							<div className='step'>
+							<div className='step' key={stepCount++}>
 								<div className='step-divider' />
 								<div className='step-label'>{step.name}</div>
 								<div className='step-content'><img src={step.image} alt={step.name} />
@@ -117,7 +120,7 @@ const ConnectDetails = ({ data, strings }) => {
 			<TabPanel value={value} index={1}>
 				<div className='storageExplorer'>
 					<div className='storageExplorer-steps'>
-						<div className='step'>
+						<div className='step' key={stepCount++}>
 							<div className='step-label'>
 								{strings.step1Label}
 							</div>
@@ -127,7 +130,7 @@ const ConnectDetails = ({ data, strings }) => {
 						</div>
 						{
 							seSteps.map(step => (
-								<div className='step'>
+								<div className='step' key={stepCount++}>
 									<div className='step-divider' />
 									<div className='step-label'>
 										{step.name}
@@ -144,7 +147,7 @@ const ConnectDetails = ({ data, strings }) => {
 			<TabPanel value={value} index={2}>
 				<div className="storageExplorer">
 					<div className='storageExplorer-steps'>
-					<div className='step'>
+					<div className='step' key={stepCount++}>
 						<div className='step-label'>Use azcopy command</div>
 						<div className='step-content'>
 							<p align="left">Using the azcopy command makes it easy to move and copy files in
@@ -159,7 +162,7 @@ const ConnectDetails = ({ data, strings }) => {
 								--log-level=INFO</p>
 						</div>
 					</div>
-						<div className='step'>
+						<div className='step' key={stepCount++}>
 							<div className='step-divider' />
 							<div className='step-label'>1.	Download AzCopy version 10.15 or later</div>
 							<div className='step-content'>
@@ -170,14 +173,14 @@ const ConnectDetails = ({ data, strings }) => {
 							</div>
 						</div>
 						{azSteps.map(step => (
-							<div className='step'>
+							<div className='step' key={stepCount++}>
 								<div className='step-divider' />
 								<div className='step-label'>{step.name}</div>
 								<div className='step-content'><img src={step.image} alt={step.name} />
 								</div>
 							</div>
 						))}
-						<div className='step'>
+						<div className='step' key={stepCount++}>
 							<div className='step-divider' />
 							<div className='step-label'>4. Use azcopy command</div>
 							<div className='step-content'>azcopy cp "{source}" "{target}" --recursive=true</div>
@@ -190,9 +193,9 @@ const ConnectDetails = ({ data, strings }) => {
 }
 
 
-/*
-TODO: Determine if this is actually needed or just old
 ConnectDetails.propTypes = {
+	uri: PropTypes.string,
+	storageExplorerURI: PropTypes.string,
 	strings: PropTypes.shape({
 		connectTitle: PropTypes.string,
 		download: PropTypes.string,
@@ -210,7 +213,6 @@ ConnectDetails.propTypes = {
 		azStep1: PropTypes.string
 	})
 }
-*/
 
 /*
 TODO: Determine if this is actually needed or just old

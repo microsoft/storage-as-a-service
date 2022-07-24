@@ -4,7 +4,7 @@ import useAuthentication from '../../hooks/useAuthentication'
 
 import PageLayout from '../PageLayout'
 import LandingPage from '../LandingPage'
-import StorageAccountsPage from '../StorageAccountsPage'
+import FileSystemsPage from '../FileSystemsPage'
 import strings from '../../config/strings.en-us.js'
 
 function App() {
@@ -13,7 +13,7 @@ function App() {
   const content = isAuthenticated ? (
     <BrowserRouter>
       <Routes>
-        <Route path='/' element={<StorageAccountsPage strings={strings} />} />
+        <Route path='/' element={<FileSystemsPage strings={strings} />} />
       </Routes>
     </BrowserRouter>
   ) : (

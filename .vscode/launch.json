@@ -8,7 +8,7 @@
 			"url": "http://localhost:4280",
 			"preLaunchTask": "Start SWA and Launch Edge",
 			"presentation": {
-				"hidden": false,
+				"hidden": true,
 				"group": "",
 				"order": 1
 			},

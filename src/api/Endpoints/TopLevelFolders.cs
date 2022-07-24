@@ -69,7 +69,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// Retrieve the container's data plane RBAC role assignments for the calling user
 			// TODO: Possible improvement: if the calling user is the owner per RBAC (or any RBAC data plane role?),
 			// simply retrieve all folders instead of checking each folder (done in the the call above)?
-			var roleOperations = new RoleOperations(log, appCred);
+			var roleOperations = new RoleOperations(log);
 			var roles = roleOperations.GetContainerRoleAssignments(account, principalId)
 									.Where(ra => ra.Container == filesystem);
 
@@ -137,7 +137,7 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			// Authorize the calling user as owner of the container
-			var roleOperations = new RoleOperations(log, new DefaultAzureCredential());
+			var roleOperations = new RoleOperations(log);
 			// TODO: Enhance the GetContainerRoleAssignments method to allow passing in a container name
 			var roles = roleOperations.GetContainerRoleAssignments(account, UserOperations.GetUserPrincipalId(claimsPrincipal))
 							.Where(ra => ra.Container == tlfp.FileSystem)
@@ -231,7 +231,7 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			var tokenCredential = new DefaultAzureCredential();
 			var userOperations = new UserOperations(log, tokenCredential);
-			var groupOperations = new GroupOperations(log, tokenCredential);
+			var graphOperations = new GraphOperations(log, tokenCredential);
 
 			var objectList = new Dictionary<string, AccessControlType>();
 
@@ -249,14 +249,14 @@ namespace Microsoft.UsEduCsu.Saas
 				if (IsUpn(item))
 				{
 					// Translate the UPN into a principal ID
-					var uid = await userOperations.GetObjectIdFromUPN(item);
+					var uid = graphOperations.GetObjectIdFromUPN(item);
 					if (uid != null)
 						objectList.Add(uid, AccessControlType.User);
 				}
 				else
 				{
 					// Assume it's a group name; translate inot a group Object ID
-					var gid = await groupOperations.GetObjectIdFromGroupName(item);
+					var gid = graphOperations.GetObjectIdFromGroupName(item);
 					if (gid != null)
 						objectList.Add(gid, AccessControlType.Group);
 				}

@@ -30,6 +30,7 @@ const strings = {
 		connectTitle: 'How to connect via',
 		costLabel: 'Monthly cost',
 		createdLabel: 'Created on',
+		lastModifiedLabel: 'Last modified',
 		departmentLabel: 'Department',
 		directoryDetailsTitle: 'Directory Details',
 		download: 'Download',
@@ -67,6 +68,17 @@ const strings = {
 		save: 'Save',
 		title: 'Creating a new folder',
 	},
+	fileSystemsPage: {
+		actionsLabel: 'Actions',
+		containerLabel: 'File System (container)',
+		fundCodeLabel: 'Fund Code',
+		members: count => `${count} members`,
+		monthlyCostLabel: 'Monthly Cost',
+		spaceUsedLabel: 'Space Used',
+		whoHasAccessLabel: 'Who Has Access?',
+		openInStorageExplorerLabel: 'Open in Storage Explorer',
+	}
+
 }
 
 export default strings

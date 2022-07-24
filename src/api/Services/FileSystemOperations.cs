@@ -50,7 +50,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 		}
 
-		public IEnumerable<FileSystemItem> GetFilesystems()
+		internal IEnumerable<FileSystemItem> GetContainers()
 		{
 			List<FileSystemItem> fileSystems;
 
@@ -65,6 +65,12 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 
 			return fileSystems;
+		}
+
+		[Obsolete("Use GetContainers instead.")]
+		public IEnumerable<FileSystemItem> GetFilesystems()
+		{
+			return GetContainers();
 		}
 
 		public async Task<Result> CreateFileSystem(string fileSystemName, string owner, string fundCode)

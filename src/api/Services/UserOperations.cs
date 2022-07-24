@@ -18,51 +18,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 	public class UserOperations
 	{
 		private ILogger log;
-		private TokenCredential tokenCredential;
 
 		public UserOperations(ILogger log, TokenCredential tokenCredential)
 		{
 			this.log = log;
-			this.tokenCredential = tokenCredential;
 		}
 
-		public async Task<string> GetObjectIdFromUPN(string upn)
-		{
-			// TODO: Consider moving this method to GroupOperations and renaming GroupOperations to GraphClientOperations
-			try
-			{
-				var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });
-				var cancellationToken = new CancellationToken();
-				var accessToken = await tokenCredential.GetTokenAsync(tokenRequestContext, cancellationToken);
-				var authProvider = new DelegateAuthenticationProvider((requestMessage) =>
-				{
-					requestMessage
-						.Headers
-						.Authorization = new AuthenticationHeaderValue("Bearer", accessToken.Token);
-					requestMessage
-						.Headers
-						.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-					return Task.FromResult(0);
-				});
-
-				var graphClient = new GraphServiceClient(authProvider);
-
-				// Retrieve a user by userPrincipalName
-				var user = await graphClient
-					.Users[upn]
-					.Request()
-					.GetAsync(cancellationToken);
-
-				return user?.Id;    // TODO: Opportunity for caching
-			}
-			catch (Exception ex)
-			{
-				log.LogError(ex, ex.Message);
-				return null;
-			}
-		}
-
+		#region  Public and Internal Methods
 		public static ClaimsPrincipal GetClaimsPrincipal(HttpRequest req)
 		{
 			var principal = new ClientPrincipal();
@@ -117,6 +79,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			return claimsPrincipal.Claims.FirstOrDefault(fa => fa.Type == ClaimTypes.NameIdentifier)?.Value;
 		}
+
+		#endregion
 
 		private class ClientPrincipal
 		{
