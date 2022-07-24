@@ -29,35 +29,43 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return obj;
 		}
 
-		#region AccessToken
+		public IList<string> AccessibleContainers(string objectIdentifier, Func<IList<string>> updateMethod)
+		{
+			var obj = Items("accessibleContainers", objectIdentifier, updateMethod, DateTimeOffset.Now.AddMinutes(5));
+			return obj;
+		}
+
+		internal  IList<StorageAccountAndContainers> StorageAccounts(string principalId, Func<IList<StorageAccountAndContainers>> updateMethod)
+		{
+			var obj = Items("storageAccountList", principalId, updateMethod);
+			return obj;
+		}
+
 		public string AccessTokens(string objectIdentifier, Func<string> updateMethod)
 		{
 			var obj = Items("accessToken", objectIdentifier, updateMethod);
 			return obj;
 		}
 
-
-		public string GetAccessToken(string userName)
+		#region AccessToken
+		public string GetAccessToken(string principalId)
 		{
-			var data = _cache.Get("AccessToken" + userName);
+			string nameKey = $"accessToken_{principalId}";
+			var data = _cache.Get(nameKey);
 			if (data == null)
 				return string.Empty;
-			var result = Encoding.UTF8.GetString(data);
-			return result;
+			return JsonSerializer.Deserialize<string>(data);
 		}
 
-		public void SetAccessToken(string userName, string data)
+		public void SetAccessToken(string principalId, string value)
 		{
-			var bytes = Encoding.UTF8.GetBytes(data);
-			_cache.Set("AccessToken" + userName, bytes);
-		}
-		#endregion
-
-		#region StorageAccountList
-		internal  IList<StorageAccountAndContainers> StorageAccounts(string principalId, Func<IList<StorageAccountAndContainers>> updateMethod)
-		{
-			var obj = Items("storageAccountList", principalId, updateMethod);
-			return obj;
+			MemoryStream s = new();
+			JsonSerializer.Serialize(s, value, typeof(string));
+			s.Flush();
+			var expiration = DateTimeOffset.UtcNow.AddHours(1);
+			string nameKey = $"accessToken_{principalId}";
+			var data = s.ToArray();
+			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
 		}
 		#endregion
 

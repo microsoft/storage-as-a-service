@@ -61,8 +61,10 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Setup the Role Operations
 			var roleOperations = new RoleOperations(log);
-			var accessibleContainers = roleOperations.GetAccessibleContainersForPrincipal(principalId)
-											.First(a => a.StorageAccountName == account).Containers;
+			var cache = CacheHelper.GetRedisCacheHelper(log);
+			var accessibleContainers = cache.AccessibleContainers($"{account}_{principalId}", () => {
+				return roleOperations.GetAccessibleContainersForPrincipal(principalId).First(a => a.StorageAccountName == account).Containers;
+			});
 
 			// User Operations
 			var graphOps = new GraphOperations(log, ApiCredential);
