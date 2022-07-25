@@ -7,6 +7,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.UsEduCsu.Saas.Services;
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -55,7 +56,7 @@ namespace Microsoft.UsEduCsu.Saas
 
 					// Store Container Level Info
 					var metadata = fileSystemClient.GetProperties().Value.Metadata;
-					metadata["Size"] = size.ToString();
+					metadata["Size"] = size.ToString(CultureInfo.CurrentCulture);
 					metadata.Remove("hdi_isfolder");                    // Strip off a readonly item
 					fileSystemClient.SetMetadata(metadata);
 

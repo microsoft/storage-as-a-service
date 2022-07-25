@@ -17,11 +17,12 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private readonly GraphServiceClient graphClient;
 		private readonly CancellationToken graphClientCancellationToken;
+		private readonly CacheHelper _cache;
 
 		public GraphOperations(ILogger log, TokenCredential tokenCredential)
 		{
 			this.log = log;
-
+			this._cache = CacheHelper.GetRedisCacheHelper(log);
 			this.graphClientCancellationToken = new CancellationToken();
 			this.graphClient = CreateGraphClient(tokenCredential, graphClientCancellationToken).Result;
 		}
@@ -95,14 +96,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return dirObj.AdditionalData["displayName"]?.ToString();
 		}
 
-		private DirectoryObject GetDirectoryObject(string userIdentifier)
+		private DirectoryObject GetDirectoryObject(string principalId)
 		{
 			Func<DirectoryObject> GetDirectoryObjectMethod = () => {
 				try
 				{
 					// Retrieve a user by userPrincipalName
 					var myTask = graphClient
-						.DirectoryObjects[userIdentifier]
+						.DirectoryObjects[principalId]
 						.Request()
 						.GetAsync(graphClientCancellationToken);
 
@@ -111,17 +112,16 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				}
 				catch (Exception ex)
 				{
-					log.LogInformation(ex, "User {0} not found", userIdentifier);
+					log.LogInformation(ex, "User {0} not found", principalId);
 				return null;
 				}
 			};
 
-			var cacheHelper = CacheHelper.GetRedisCacheHelper(log);
-			var dirObj = cacheHelper.DirectoryObjects(userIdentifier, GetDirectoryObjectMethod);
+			var dirObj = _cache.DirectoryObjects(principalId, GetDirectoryObjectMethod);
 			return dirObj;
 		}
 
-		private async Task<GraphServiceClient> CreateGraphClient(TokenCredential tokenCredential,
+		private static async Task<GraphServiceClient> CreateGraphClient(TokenCredential tokenCredential,
 			CancellationToken cancellationToken)
 		{
 			var tokenRequestContext = new TokenRequestContext(new[] { "https://graph.microsoft.com/.default" });

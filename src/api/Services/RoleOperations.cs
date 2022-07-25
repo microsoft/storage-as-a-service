@@ -107,7 +107,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var appCred = new DefaultAzureCredential();
 			var SubscriptionId = SasConfiguration.ManagedSubscriptions;         // TODO: Foreach parallel (?) for subscriptions
 
-			IList<StorageDataPlaneRole> roleAssignments = GetStorageDataPlaneRoles(SubscriptionId, principalId);            // TODO: Getting them out in order of storage account to make processing more efficient?
+			IList<StorageDataPlaneRole> roleAssignments = GetStorageDataPlaneRoles(SubscriptionId, principalId);  // TODO: Getting them out in order of storage account to make processing more efficient?
 
 			// TODO: Unit test for pattern
 			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
@@ -191,10 +191,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			// /subscriptions/[subscription id]/resourceGroups/[resource group name]/providers/Microsoft.Storage/storageAccounts/[storage account]/blobServices/default/containers/[container name]
 			var accountResourceId = GetAccountResourceId(account);
-			var scope = accountResourceId;
-
-			if (container != null)
-				scope = $"{accountResourceId}/blobServices/default/containers/{container}";
+			var scope = (container == null)
+							? accountResourceId
+							: $"{accountResourceId}/blobServices/default/containers/{container}";
 
 			return GetStorageDataPlaneRolesByScope(scope);
 		}
@@ -219,7 +218,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (roleDefinitions == null)
 			{
 				roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
-					.Where(rd => rd.RoleName.StartsWith("Storage Blob Data")
+					.Where(rd => rd.RoleName.StartsWith("Storage Blob Data", StringComparison.Ordinal)
 							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
 					.ToList();
 			}
@@ -234,7 +233,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// Transform matching role assignments into the method's return value
 				.Select(ra => new ContainerRole()
 				{
-					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId)).RoleName,
+					RoleName = roleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId, StringComparison.Ordinal)).RoleName,
 					Container = ra.Scope.Split('/').Last(),
 					PrincipalId = ra.PrincipalId,
 					Id = ra.Id
@@ -299,7 +298,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				roleDefinitions = amClient.RoleDefinitions.List(scope)
 					.Where(rd => rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase)
-							  && rd.RoleName.StartsWith("Storage Blob Data")
+							  && rd.RoleName.StartsWith("Storage Blob Data", StringComparison.Ordinal)
 					).ToList();
 			}
 
@@ -308,8 +307,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			 * Microsoft.Authorization/roleAssignments/read authorization.
 			 * For example, by granting the app registration User Access Administrator on storage accounts
 			 * in the specified subscription, this call will return any role assignment granted on the storage accounts.
-			 * NOTE: Storage-as-a-service does not currently support role assignments at levels higher than storage account.
-			 * I.e., a storage data plane role assignment at the resource group level or higher will not be reflected correctly.
 			 GET https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}
 			 			/{parentResourcePath}/{resourceType}/{resourceName}
 						?$filter={$filter}&api-version=2015-07-01

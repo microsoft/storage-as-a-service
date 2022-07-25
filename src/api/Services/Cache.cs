@@ -23,31 +23,45 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			_logger = log;
 		}
 
+		#region Public Accessors
+		/// <summary>
+		/// Returns a cached directory objects
+		/// </summary>
+		/// <param name="objectIdentifier">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
 		public DirectoryObject DirectoryObjects(string objectIdentifier, Func<DirectoryObject> updateMethod)
 		{
 			var obj = Items("directoryObject", objectIdentifier, updateMethod);
 			return obj;
 		}
 
-		public IList<string> AccessibleContainers(string objectIdentifier, Func<IList<string>> updateMethod)
-		{
-			var obj = Items("accessibleContainers", objectIdentifier, updateMethod, DateTimeOffset.Now.AddMinutes(5));
-			return obj;
-		}
-
-		internal  IList<StorageAccountAndContainers> StorageAccounts(string principalId, Func<IList<StorageAccountAndContainers>> updateMethod)
+		/// <summary>
+		/// Returns a cached directory objects
+		/// </summary>
+		/// <param name="objectIdentifier">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
+		internal IList<StorageAccountAndContainers> StorageAccounts(string principalId, Func<IList<StorageAccountAndContainers>> updateMethod)
 		{
 			var obj = Items("storageAccountList", principalId, updateMethod);
 			return obj;
 		}
 
-		public string AccessTokens(string objectIdentifier, Func<string> updateMethod)
+		/// <summary>
+		/// Returns a cached directory objects
+		/// </summary>
+		/// <param name="principalId">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
+		public string AccessTokens(string principalId, Func<string> updateMethod)
 		{
-			var obj = Items("accessToken", objectIdentifier, updateMethod);
+			var obj = Items("accessToken", principalId, updateMethod);
 			return obj;
 		}
+		#endregion
 
-		#region AccessToken
+		#region AccessToken Accessors
 		public string GetAccessToken(string principalId)
 		{
 			string nameKey = $"accessToken_{principalId}";
@@ -78,21 +92,36 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		#region Private Methods
+		/// <summary>
+		///		Generic method to store items in the cache and repopulate based on a a function method provided
+		/// </summary>
+		/// <typeparam name="T">Any json serializable object</typeparam>
+		/// <param name="itemName">item name or category to separate items</param>
+		/// <param name="key">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
+		/// <param name="expiration">Optional DateTimeOffset to expire cache</param>
+		/// <returns></returns>
 		private T Items<T>(string itemName, string key, Func<T> updateMethod, DateTimeOffset? expiration = null)
 		{
+			// Verify Arguments
 			ArgumentNullException.ThrowIfNull(itemName, nameof(itemName));
 			ArgumentNullException.ThrowIfNull(key, nameof(key));
-
 			if (expiration == null)
 				expiration = DateTimeOffset.UtcNow.AddHours(1);
 
+			// Build the Key for the cache
 			string nameKey = $"{itemName}_{key}";
 
+			// Get Value from cache if found
 			byte[] byteArray = _cache.Get(nameKey);
 
-			// The cache will return value if f
-			if (byteArray != null)
-				return JsonSerializer.Deserialize<T>(byteArray);
+			// The cache will return value if found
+			if (byteArray != null) {
+				var obj = JsonSerializer.Deserialize<T>(byteArray);
+				_logger.LogInformation($"{nameKey} pulled from cache");
+				return obj;
+			}
 
 			// Get User by invoking Function
 			T value = updateMethod.Invoke();
@@ -107,9 +136,31 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
 			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
+			_logger.LogInformation($"{nameKey} written to cache");
+
+#if DEBUG
+			// Serialization DoubleCheck
+			var cacheValue = GetCacheValue<T>(nameKey);
+			if (value is IEquatable<T> && !value.Equals(cacheValue))
+				throw new Exception("Unable to serialize object.");
+#endif
 
 			return value;
 		}
+
+		private T GetCacheValue<T>(string nameKey)
+		{
+			// Get Value from cache if found
+			byte[] byteArray = _cache.Get(nameKey);
+
+			// The cache will return value if found
+			if (byteArray != null) {
+				var obj = JsonSerializer.Deserialize<T>(byteArray);
+				return obj;
+			}
+			return default;
+		}
+
 		#endregion
 	}
 }

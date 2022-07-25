@@ -90,7 +90,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			if (ExpectedApiKey == null) throw new MissingConfigurationException(ApiKeySettingName);
 
-			return ExpectedApiKey.Equals(ReceivedApiKey[0]);
+			return ExpectedApiKey.Equals(ReceivedApiKey[0], StringComparison.Ordinal);
 		}
 
 		internal static ( bool IsValid, Dictionary<string,string> errors) Validate()

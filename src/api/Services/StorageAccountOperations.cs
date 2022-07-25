@@ -19,25 +19,27 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		internal IEnumerable<string> GetAccessibleStorageAccounts(string principalId, bool forceRefresh = false)
 		{
+			var result = GetFromCache(principalId);
+			return result.Select(r => r.StorageAccountName);
+		}
 
+		internal IEnumerable<string> GetAccessibleContainerDetails(string principalId,
+			string storageAccountName, bool forceRefresh = false)
+		{
+			var result = GetFromCache(principalId);
+			var strAcct = result.FirstOrDefault(r => r.StorageAccountName == storageAccountName);
+			return strAcct?.Containers;
+		}
+
+		private IList<StorageAccountAndContainers> GetFromCache(string principalId)
+		{
 			IList<StorageAccountAndContainers> result = _cache.StorageAccounts(principalId, () => {
 				RoleOperations ro = new(_log);
 				result = ro.GetAccessibleContainersForPrincipal(principalId);
 				return result;
 			});
 
-			return result.Select(r => r.StorageAccountName);
-		}
-
-		internal IList<StorageAccountAndContainers> GetAccessibleContainerDetails(string principalId,
-			string storageAccountName, bool forceRefresh = false)
-		{
-			throw new NotImplementedException();
-
-			// Pull data from cache
-			// Refresh if needed GetAccessibleStorageAccounts
-			// Filter on storage accounts, pull the containers
-
+			return result;
 		}
 	}
 }

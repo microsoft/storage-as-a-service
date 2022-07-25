@@ -30,7 +30,7 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 		}
 
 		//  [Fact] TODO: Should I remove this?
-		public async void CreateManyFileSystems()
+		private async void CreateManyFileSystems()
 		{
 			var owner = "john@contosou.com";
 			var userOperations = new UserOperations(log, new DefaultAzureCredential());
@@ -57,7 +57,7 @@ namespace Microsoft.UsEduCsu.Saas.Tests
 		}
 
 		//	[Fact] TODO: Should I remove this?
-		public void DeleteAllFileSystems()
+		private void DeleteAllFileSystems()
 		{
 			var account = "stsaasdemoeastus0202";
 			var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
