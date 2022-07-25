@@ -129,7 +129,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 				// Find an existing entry for this storage account in the result set
 				StorageAccountAndContainers fsr = results
-					.SingleOrDefault(fsr => fsr.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
+					.SingleOrDefault(x => x.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
 
 				// If this is the first time we've encountered this storage account, Set the storage account name property and add to result set
 				if (fsr == null)
@@ -142,18 +142,21 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				if (!fsr.AllContainers)
 				{
 					var containerGroup = m.Groups["containerName"];
-					// Determine if this is a container-level assignment that hasn't been added to the list of containers yet
-					if (containerGroup.Success && !fsr.Containers.Contains(containerGroup.Value))
+					// If the container Regex group was successfully parsed
+					// but the container hasn't been added to the list yet
+					if (containerGroup.Success &&
+						!fsr.Containers.Contains(containerGroup.Value))
 					{
 						fsr.Containers.Add(containerGroup.Value);       // Assume access is only to this container
 					}
-					else
+					// If this is not a container-level assignment
+					else if (!containerGroup.Success)
 					{
-						// The role assignment applies to the entire storage account
+						// The role assignment applies to the entire storage account (at least)
 						var serviceUri = SasConfiguration.GetStorageUri(fsr.StorageAccountName);
 						var adls = new FileSystemOperations(log, appCred, serviceUri);
 						var containers = adls.GetContainers();                      // Access is to entire storage account; retrieve all containers
-						fsr.Containers = containers.Select(fs => fs.Name).ToList();                     // Replace any previously included containers
+						fsr.Containers = containers.Select(fs => fs.Name).ToList();     // Replace any previously included containers
 						fsr.AllContainers = true;                       // There can't be any more containers in this storage account
 					}
 				}
@@ -191,7 +194,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var scope = accountResourceId;
 
 			if (container != null)
-				scope = $"{accountResourceId}/blobServices/default/containers/{container}"; ///providers/Microsoft.Authorization/roleAssignments";
+				scope = $"{accountResourceId}/blobServices/default/containers/{container}";
 
 			return GetStorageDataPlaneRolesByScope(scope);
 		}
@@ -286,7 +289,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			VerifyToken();
 
-			// Get Auth Management Client, initialized with the current subscription ID
+			// Get Auth Management Client
 			var amClient = new AuthorizationManagementClient(_tokenCredentials);
 
 			// Find all the applicable built-in role definition IDs that would give a
@@ -300,7 +303,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					).ToList();
 			}
 
-			/* Query the subscription's role assignments for the specified principal.
+			/* Query the scope's role assignments.
 			 * This will only return role assignments where the provided token has
 			 * Microsoft.Authorization/roleAssignments/read authorization.
 			 * For example, by granting the app registration User Access Administrator on storage accounts
@@ -322,8 +325,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			catch (Exception ex)
 			{
 				log.LogError(ex, scope);
-				return new List<StorageDataPlaneRole>() {new () { RoleName = "Error reading access" }};		// Return blank list
- 			}
+				return new List<StorageDataPlaneRole>() { new() { RoleName = "Error reading access" } };        // Return blank list
+			}
 
 			// Join Role Assignments and Role Definitions
 			var storageDataPlaneRoles = res.Join(roleDefinitions, ra => ra.RoleDefinitionId, rd => rd.Id,
