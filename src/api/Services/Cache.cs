@@ -1,45 +1,166 @@
-﻿using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
+using Microsoft.UsEduCsu.Saas.Data;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text;
-using Microsoft.Extensions.Options;
+using System.Text.Json;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
 	public class CacheHelper
-    {
-        private readonly IDistributedCache _cache;
-        private readonly ILogger _logger;
+	{
+		private readonly IDistributedCache _cache;
+		private readonly ILogger _logger;
 
-        public CacheHelper(ILogger log, IDistributedCache cache)
-        {
-            _cache = cache;
-            _logger = log;
-        }
-
-        public string GetAccessToken(string userName)
-        {
-            var data = _cache.Get("AccessToken" + userName);
-            if (data == null)
-                return string.Empty;
-            var result = Encoding.UTF8.GetString(data);
-            return result;
-        }
-
-        public void SetAccessToken(string userName, string data)
-        {
-            var bytes = Encoding.UTF8.GetBytes(data);
-            _cache.Set("AccessToken" + userName, bytes);
-        }
-
-        public static CacheHelper GetRedisCacheHelper(ILogger log)
+		public CacheHelper(ILogger log, IDistributedCache cache)
 		{
-            var cacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
-            IDistributedCache cache = new RedisCache(new RedisCacheOptions() { Configuration = cacheConnection });
-            var ch = new CacheHelper(log, cache);
-            return ch;
-        }
-    }
+			_cache = cache;
+			_logger = log;
+		}
+
+		#region Public Accessors
+		/// <summary>
+		/// Returns a cached directory objects
+		/// </summary>
+		/// <param name="objectIdentifier">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
+		public DirectoryObject DirectoryObjects(string objectIdentifier, Func<DirectoryObject> updateMethod)
+		{
+			var obj = Items("directoryObject", objectIdentifier, updateMethod);
+			return obj;
+		}
+
+		/// <summary>
+		/// Returns a cached directory objects
+		/// </summary>
+		/// <param name="objectIdentifier">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
+		internal IList<StorageAccountAndContainers> StorageAccounts(string principalId, Func<IList<StorageAccountAndContainers>> updateMethod)
+		{
+			var obj = Items("storageAccountList", principalId, updateMethod);
+			return obj;
+		}
+
+		/// <summary>
+		/// Returns a cached directory objects
+		/// </summary>
+		/// <param name="principalId">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
+		public string AccessTokens(string principalId, Func<string> updateMethod)
+		{
+			var obj = Items("accessToken", principalId, updateMethod);
+			return obj;
+		}
+		#endregion
+
+		#region AccessToken Accessors
+		public string GetAccessToken(string principalId)
+		{
+			string nameKey = $"accessToken_{principalId}";
+			var data = _cache.Get(nameKey);
+			if (data == null)
+				return string.Empty;
+			return JsonSerializer.Deserialize<string>(data);
+		}
+
+		public void SetAccessToken(string principalId, string value)
+		{
+			MemoryStream s = new();
+			JsonSerializer.Serialize(s, value, typeof(string));
+			s.Flush();
+			var expiration = DateTimeOffset.UtcNow.AddHours(1);
+			string nameKey = $"accessToken_{principalId}";
+			var data = s.ToArray();
+			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
+		}
+		#endregion
+
+		public static CacheHelper GetRedisCacheHelper(ILogger log)
+		{
+			var cacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
+			IDistributedCache cache = new RedisCache(new RedisCacheOptions() { Configuration = cacheConnection });
+			var ch = new CacheHelper(log, cache);
+			return ch;
+		}
+
+		#region Private Methods
+		/// <summary>
+		///		Generic method to store items in the cache and repopulate based on a a function method provided
+		/// </summary>
+		/// <typeparam name="T">Any json serializable object</typeparam>
+		/// <param name="itemName">item name or category to separate items</param>
+		/// <param name="key">A unique identifier to lookup in the cache</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+		/// <returns>Cached value or new value if not cached</returns>
+		/// <param name="expiration">Optional DateTimeOffset to expire cache</param>
+		/// <returns></returns>
+		private T Items<T>(string itemName, string key, Func<T> updateMethod, DateTimeOffset? expiration = null)
+		{
+			// Verify Arguments
+			ArgumentNullException.ThrowIfNull(itemName, nameof(itemName));
+			ArgumentNullException.ThrowIfNull(key, nameof(key));
+			if (expiration == null)
+				expiration = DateTimeOffset.UtcNow.AddHours(1);
+
+			// Build the Key for the cache
+			string nameKey = $"{itemName}_{key}";
+
+			// Get Value from cache if found
+			byte[] byteArray = _cache.Get(nameKey);
+
+			// The cache will return value if found
+			if (byteArray != null) {
+				var obj = JsonSerializer.Deserialize<T>(byteArray);
+				_logger.LogInformation($"{nameKey} pulled from cache");
+				return obj;
+			}
+
+			// Get User by invoking Function
+			T value = updateMethod.Invoke();
+			if (value == null)
+				return default;
+
+			// Serialize the object to a UTF-8 JSON string
+			MemoryStream s = new();
+			JsonSerializer.Serialize(s, value, typeof(T));
+			s.Flush();
+			var data = s.ToArray();
+
+			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
+			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
+			_logger.LogInformation($"{nameKey} written to cache");
+
+#if DEBUG
+			// Serialization DoubleCheck
+			var cacheValue = GetCacheValue<T>(nameKey);
+			if (value is IEquatable<T> && !value.Equals(cacheValue))
+				throw new Exception("Unable to serialize object.");
+#endif
+
+			return value;
+		}
+
+		private T GetCacheValue<T>(string nameKey)
+		{
+			// Get Value from cache if found
+			byte[] byteArray = _cache.Get(nameKey);
+
+			// The cache will return value if found
+			if (byteArray != null) {
+				var obj = JsonSerializer.Deserialize<T>(byteArray);
+				return obj;
+			}
+			return default;
+		}
+
+		#endregion
+	}
 }

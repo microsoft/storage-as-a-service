@@ -1,5 +1,6 @@
 using Azure.Core;
 using Azure.Identity;
+using Azure.Storage.Files.DataLake;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -13,7 +14,9 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.Http;
 
 namespace Microsoft.UsEduCsu.Saas
@@ -64,6 +67,7 @@ namespace Microsoft.UsEduCsu.Saas
 			HttpRequest req,
 			ILogger log, string account)
 		{
+			// TODO: Is the account param ever used?
 
 			if (req.Method == HttpMethods.Post)
 				return await FileSystemsPOST(req, log, account);
@@ -109,8 +113,9 @@ namespace Microsoft.UsEduCsu.Saas
 			// Define the return value
 			var result = new List<FileSystemResult>();
 
+			RoleOperations roleOperations = new(log);
+
 			var appCred = new DefaultAzureCredential();
-			RoleOperations roleOperations = new(log, appCred);
 
 			Parallel.ForEach(accounts, acct =>
 			{
@@ -150,6 +155,52 @@ namespace Microsoft.UsEduCsu.Saas
 			return new OkObjectResult(result);
 		}
 
+		internal static IList<FileSystemDetail> GetFileSystemDetailsForAccount(string account)
+		{
+			// Get Environmental Info
+			decimal costPerTB = 0.0M;
+			if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("COST_PER_TB")))
+				_ = decimal.TryParse(Environment.GetEnvironmentVariable("COST_PER_TB"), out costPerTB);
+
+			// Get Account Information
+			var storageUri = SasConfiguration.GetStorageUri(account);
+			TokenCredential ApiCredential = new DefaultAzureCredential();
+			var storageAccountClient = new DataLakeServiceClient(storageUri, ApiCredential);
+
+			// Need to get the filesytems
+			var filesystems = storageAccountClient.GetFileSystems()
+					.Where(c => c != null)  // Filter for the future
+					.Select(l => new { l.Name, l.Properties, l.Properties.LastModified, l.Properties.Metadata })
+					.ToList();
+
+			// Build additional details
+			var fileSystemDetails = new List<FileSystemDetail>();
+			foreach (var fs in filesystems)
+			{
+				var seEndpoint = HttpUtility.UrlEncode(new Uri(storageUri, fs.Name).ToString());
+				var metadata = fs.Metadata ?? new Dictionary<string, string>();
+				long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
+				decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
+
+				var fsd = new FileSystemDetail()
+				{
+					Name = fs.Name,
+					LastModified = fs.LastModified.ToString("u"),
+					FundCode = metadata.ContainsKey("FundCode") ? metadata["FundCode"] : null,
+					Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
+					Size = size.HasValue ? size.Value.ToString("N") : String.Empty,
+					Cost = cost.HasValue ? cost.Value.ToString("C") : String.Empty,
+					URI = HttpUtility.UrlEncode(fs.Name.Length > 0 ? fs.Name + "/" : string.Empty),
+					StorageExplorerURI = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={fs.Name}&serviceEndpoint={seEndpoint}",
+					UserAccess = new List<string>() { "Not implemented yet" }
+				};
+				fileSystemDetails.Add(fsd);
+			}
+
+			// Return result
+			return fileSystemDetails;
+		}
+
 		/// <summary>
 		/// Retrieves the containers in the specified storage account to which the specified account has access.
 		/// Access can be either via RBAC data plane roles or via ACLs on folders.
@@ -174,7 +225,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var adls = new FileSystemOperations(log, appCred, serviceUri);
 
 			// Retrieve all the containers in the specified storage account
-			var fileSystems = adls.GetFilesystems();
+			var fileSystems = adls.GetContainers();
 
 			// Check for RBAC data plane access to any container in the account
 			IList<RoleOperations.ContainerRole> containerDataPlaneRoleAssignments = null;
@@ -252,7 +303,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var tokenCredential = new DefaultAzureCredential();
 
 			// Get the new container's Owner
-			var userOperations = new UserOperations(log, tokenCredential);
+			var graphOperations = new GraphOperations(log, tokenCredential);
 
 			string ownerObjectId;
 
@@ -261,7 +312,7 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				// Assume it's a UPN and translate it to the AAD object ID
 				// TODO: Why could it not be a group? (Might even recommend it to be a group?)
-				ownerObjectId = await userOperations.GetObjectIdFromUPN(tlfp.Owner);
+				ownerObjectId = graphOperations.GetObjectIdFromUPN(tlfp.Owner);
 
 				if (string.IsNullOrEmpty(ownerObjectId))
 					return new BadRequestErrorMessageResult($"Owner identity not found in AAD. Please verify that '{tlfp.Owner}' is a valid member UPN or object ID and that the application has 'User.Read.All' permission in the directory.");
@@ -287,7 +338,7 @@ namespace Microsoft.UsEduCsu.Saas
 				return new BadRequestErrorMessageResult($"Error setting root ACL: {result.Message}");
 
 			// Add Blob Owner
-			var roleOperations = new RoleOperations(log, tokenCredential);
+			var roleOperations = new RoleOperations(log);
 			result = roleOperations.AssignRoles(tlfp.StorageAcount, tlfp.FileSystem, ownerObjectId);
 			if (!result.Success)
 				return new BadRequestErrorMessageResult($"Error assigning RBAC role: {result.Message}");
@@ -331,7 +382,9 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			public string Name { get; set; }
 
-			public List<string> FileSystems { get; set; }
+			public List<string> FileSystems { get; internal set; } = new List<string>();
+
+			public bool AllFileSystems { get; set; }
 		}
 
 		internal class FileSystemParameters
@@ -343,6 +396,50 @@ namespace Microsoft.UsEduCsu.Saas
 			public string FundCode { get; set; }
 
 			public string Owner { get; set; }
+		}
+
+		internal class ClaimsPrincipalResult
+		{
+			// TODO: Refactor UserOperations to return this instead of a ClaimsPrincipal
+			// Move some of this logic into UserOperations.GetClaimsPrincipal
+
+			/// <summary>
+			/// Constructs a potentially valid ClaimsPrincipalResult using the specified ClaimsPrincipal.
+			/// </summary>
+			/// <param name="cp"></param>
+			/// <exception cref="ArgumentNullException"></exception>
+			public ClaimsPrincipalResult(ClaimsPrincipal cp)
+			{
+				if (!Services.Extensions.AnyNull(cp, cp.Identity))
+				{
+					ClaimsPrincipal = cp;
+					// IsValid is false by default, only need to set if it's a valid principal
+					IsValid = true;
+				}
+				else
+				{
+					ClaimsPrincipal = null;
+					Message = "Call requires an authenticated user.";
+				}
+			}
+
+			/// <summary>
+			/// Constructs an invalid ClaimsPrincipalResult using the specified error message.
+			/// </summary>
+			/// <param name="errorMessage"></param>
+			/// <exception cref="ArgumentNullException"></exception>
+			public ClaimsPrincipalResult(string errorMessage)
+			{
+				if (string.IsNullOrWhiteSpace(errorMessage)) throw new ArgumentNullException(nameof(errorMessage));
+
+				ClaimsPrincipal = null;
+				Message = errorMessage;
+			}
+
+			public bool IsValid { get; set; }
+			public string Message { get; set; }
+			public ClaimsPrincipal ClaimsPrincipal { get; private set; }
+			// TODO: Add UserPrincipalId property as a shortcut
 		}
 	}
 }

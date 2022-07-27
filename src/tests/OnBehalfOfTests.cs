@@ -28,15 +28,15 @@ namespace tests
 		}
 
 		[Fact]
-		public async void ReadContainerPathsAsUser()
+		public void ReadContainerPathsAsUser()
 		{
 			// Service Principal Creds
 			var appCreds = new DefaultAzureCredential();
 
 			// Get PRincipal Id as App Service Principal
-			var owner = "StorageUser@contosou.com";
-			var userOperations = new UserOperations(log, appCreds);
-			var ownerId = await userOperations.GetObjectIdFromUPN(owner);
+			//var owner = "StorageUser@contosou.com";
+			//var userOperations = new UserOperations(log, appCreds);
+			var ownerId = ""; //await userOperations.GetObjectIdFromUPN(owner);
 
 			// Get FileSystem as App Service Principal
 			var account = "stsaasdemoeastus02";

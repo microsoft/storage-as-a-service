@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -180,7 +181,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// Check the Last Calculated Date from the Metadata
 			var meta = (await directoryClient.GetPropertiesAsync()).Value.Metadata;
 			var sizeCalcDate = meta.ContainsKey(sizeCalcDateKey)
-				? DateTime.Parse(meta[sizeCalcDateKey])
+				? DateTime.Parse(meta[sizeCalcDateKey], CultureInfo.CurrentCulture)
 				: DateTime.MinValue;
 
 			// If old calculate size again
@@ -192,8 +193,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				{
 					size += (path.ContentLength.HasValue) ? (int)path.ContentLength : 0;
 				}
-				meta[sizeCalcDateKey] = DateTime.UtcNow.ToString();
-				meta[sizeKey] = size.ToString();
+				meta[sizeCalcDateKey] = DateTime.UtcNow.ToString(CultureInfo.CurrentCulture);
+				meta[sizeKey] = size.ToString(CultureInfo.CurrentCulture);
 
 				// Strip off a readonly item
 				meta.Remove("hdi_isfolder");
@@ -202,7 +203,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				directoryClient.SetMetadata(meta);
 			}
 
-			return long.Parse(meta[sizeKey]);
+			return long.Parse(meta[sizeKey], CultureInfo.CurrentCulture);
 		}
 
 		/// <summary>
@@ -311,7 +312,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				{
 					var prop = rootClient.GetProperties().Value;
 					metadata = prop.Metadata;
-					createdOn = prop.CreatedOn.ToLocalTime().ToString(); // TODO: LocalTime probably doesn't mean anything when run in an Azure Fx
+					createdOn = prop.CreatedOn.ToLocalTime().ToString(CultureInfo.CurrentCulture); // TODO: LocalTime probably doesn't mean anything when run in an Azure Fx
 					accessTier = prop.AccessTier;
 				}
 
@@ -368,13 +369,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var fd = new FolderDetail()
 			{
 				Name = folder,
-				Size = size.HasValue ? size.Value.ToString() : "NA",
-				Cost = cost.HasValue ? cost.Value.ToString() : "NA",
+				Size = size.HasValue ? size.Value.ToString(CultureInfo.CurrentCulture) : "NA",
+				Cost = cost.HasValue ? cost.Value.ToString(CultureInfo.CurrentCulture) : "NA",
 				FundCode = metadata.ContainsKey("FundCode") ? metadata["FundCode"] : null,
 				UserAccess = userAccess,
 				// Uri.ToString() always appends a trailing /, remove it (#82)
 				URI = uri.ToString().TrimEnd('/'),
 				Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
+				// TODO: Centralize the creation of the direct link
 				StorageExplorerURI = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystemPath&container={dlfsClient.Name}&serviceEndpoint={seEndpoint}&path={seFolderName}"
 			};
 
@@ -388,9 +390,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="userAccess">The list of access control entries.</param>
 		private void TranslateGroups(IList<string> userAccess)
 		{
-			var groupOperations = new GroupOperations(log, new DefaultAzureCredential());
+			var graphOperations = new GraphOperations(log, new DefaultAzureCredential());
 
-			for (int i = 0; i < userAccess.Count(); i++)
+			for (int i = 0; i < userAccess.Count; i++)
 			{
 				var groupObjectId = userAccess[i];
 
@@ -398,7 +400,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				if (Guid.TryParse(groupObjectId, out Guid guid))
 				{
 					// Assume it's an AAD group object ID and retrieve the group name
-					var groupName = groupOperations.GetGroupNameFromObjectId(groupObjectId).Result;
+					var groupName = graphOperations.GetGroupNameFromObjectId(groupObjectId);
 
 					// Replace the current list item, if it is a group name, otherwise, leave the GUID in place
 					userAccess[i] = !string.IsNullOrEmpty(groupName) ? groupName : userAccess[i];

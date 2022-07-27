@@ -29,7 +29,7 @@ BODY:
     "FileSystem": "fs1",
     "FundCode": "1234",
     "Owner": "eduuser@edudemodomain.onmicrosoft.com",
-    "StorageAccount": "{overwritten by account URL segment if used, otherwie required.}"   
+    "StorageAccount": "{overwritten by account URL segment if used, otherwise required.}"
 }
 ```
 
