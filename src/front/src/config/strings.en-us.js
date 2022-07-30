@@ -1,7 +1,7 @@
 const strings = {
 	error: 'An error occured, see the console for details.',
 	appTitle: 'Storage as a Service',
-	companyName: 'Contoso University',
+	companyName: 'DHTS',
 	directoryCreated: name => `Folder '${name}' Created!`,
 	accountsLoaded: 'Storage accounts and file systems loaded',
 	noAccountsLoaded: 'No storage accounts or file systems available',
@@ -9,7 +9,7 @@ const strings = {
 	logIn: 'Log In',
 	logOut: 'Log out',
 	logoImage: '',
-	logoText: 'Contoso University',
+	logoText: 'DHTS',
 	members: 'members',
 	newFolder: 'New Folder',
 	storageAccountLabel: 'Storage Account',
