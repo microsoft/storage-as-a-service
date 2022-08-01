@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
@@ -24,6 +25,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private Rest.TokenCredentials _tokenCredentials;
 		private AccessToken _accessToken;
 		private CacheHelper _cache;
+		private AuthorizationManagementClient amClient;
 
 		// Caches the list of storage plane data role definitions
 		private static IList<RoleDefinition> roleDefinitions;
@@ -104,10 +106,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			ArgumentNullException.ThrowIfNull(principalId, nameof(principalId));
 
+			// Get Application level Credentials
 			var appCred = new DefaultAzureCredential();
-			var SubscriptionId = SasConfiguration.ManagedSubscriptions;         // TODO: Foreach parallel (?) for subscriptions
 
-			IList<StorageDataPlaneRole> roleAssignments = GetStorageDataPlaneRoles(SubscriptionId, principalId);  // TODO: Getting them out in order of storage account to make processing more efficient?
+			// Get All Stroage Roles for a user across subscriptions
+			IList<StorageDataPlaneRole> roleAssignments = GetAllStorageDataPlaneRoles(principalId);
 
 			// TODO: Unit test for pattern
 			const string ScopePattern = @"^/subscriptions/[0-9a-f-]{36}/resourceGroups/[\w_\.-]{1,90}/providers/Microsoft.Storage/storageAccounts/(?<accountName>\w{3,24})(/blobServices/default/containers/(?<containerName>[\w-]{3,63}))?$";
@@ -165,6 +168,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return results;
 		}
 
+		private IList<StorageDataPlaneRole> GetAllStorageDataPlaneRoles(string principalId)
+		{
+			var subscriptions = SasConfiguration.GetSubscriptions();
+			var roleAssignments = new List<StorageDataPlaneRole>();
+			Parallel.ForEach(subscriptions, subscription =>
+			{
+				var fa = GetStorageDataPlaneRoles(subscription, principalId);  // TODO: Getting them out in order of storage account to make processing more efficient?
+				roleAssignments.AddRange(fa);
+			});
+			return roleAssignments;
+		}
+
 		/// <summary>
 		/// Retrieves any Azure Storage data plane roles (Storage Blob Data *) for the specified
 		/// principal ID on the specified subscription.
@@ -208,28 +223,17 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			VerifyToken();
 
-			// Get Storage Account Resource ID
+			// Verify Role Definitions
 			var accountResourceId = GetAccountResourceId(account);
-
-			// Get Auth Management Client
-			var amClient = new AuthorizationManagementClient(_tokenCredentials);
-
-			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
-			if (roleDefinitions == null)
-			{
-				roleDefinitions = amClient.RoleDefinitions.List(accountResourceId)
-					.Where(rd => rd.RoleName.StartsWith("Storage Blob Data", StringComparison.Ordinal)
-							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
-					.ToList();
-			}
+			VerifyRoleDefinitions(accountResourceId);
 
 			// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
 			var roleDefinitionIds = roleDefinitions.Select(rd => rd.Id);    // Create an IList<string> of the role definition IDs
-																			// TODO: Add ODataQuery to filter for principal ID
-			var roleAssignments = amClient.RoleAssignments.ListForScope(accountResourceId)
+
+			// Project Role Assignments into Container Roles
+			var roleAssignments = GetRoleAssignments(account, principalId)
 				.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
-					&& roleDefinitionIds.Contains(ra.RoleDefinitionId)
-					&& ra.PrincipalId == principalId)
+					&& roleDefinitionIds.Contains(ra.RoleDefinitionId))
 				// Transform matching role assignments into the method's return value
 				.Select(ra => new ContainerRole()
 				{
@@ -259,18 +263,39 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			}
 
 			_tokenCredentials = new Rest.TokenCredentials(_accessToken.Token);
+
+			// Verify the Authorization Management Client is created
+			if (amClient == null)
+			{
+				amClient = new AuthorizationManagementClient(_tokenCredentials);
+			}
+		}
+
+		private void VerifyRoleDefinitions(string scope)
+		{
+			// TODO: Make sure that this works for ALL scopes
+			// Find all the applicable built-in role definition IDs that would give a principal access to storage account data plane
+			if (roleDefinitions == null)
+			{
+				roleDefinitions = amClient.RoleDefinitions.List(scope)
+					.Where(rd => rd.RoleName.StartsWith("Storage Blob Data", StringComparison.Ordinal)
+							&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
+					.ToList();
+			}
 		}
 
 		private RoleAssignment AddRoleAssignment(string scope, string roleName, string principalId)
 		{
 			VerifyToken();
+			VerifyRoleDefinitions(scope);
 
-			var amClient = new AuthorizationManagementClient(_tokenCredentials);
-			var roleDefinitions = amClient.RoleDefinitions.List(scope);
+			// Get specific role definition
 			var roleDefinition = roleDefinitions.First(x => x.RoleName == roleName);
 
-			// TODO: Add OData Filter
-			var roleAssignments = amClient.RoleAssignments.ListForScope(scope);
+			// Get Current Role Assignments
+			var roleAssignments = GetRoleAssignments(scope, principalId);
+
+			// Filter down to the specific role definition
 			var roleAssignment = roleAssignments.FirstOrDefault(ra => ra.PrincipalId == principalId && ra.RoleDefinitionId == roleDefinition.Id);
 
 			// Create New Role Assignment
@@ -287,43 +312,12 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private IList<StorageDataPlaneRole> GetStorageDataPlaneRolesByScope(string scope, string principalId = null)
 		{
 			VerifyToken();
+			VerifyRoleDefinitions(scope);
 
-			// Get Auth Management Client
-			var amClient = new AuthorizationManagementClient(_tokenCredentials);
-
-			// Find all the applicable built-in role definition IDs that would give a
-			// principal access to storage account data plane
-			// TODO: Abstract into VerifyRoleCredentials() method
-			if (roleDefinitions == null)
-			{
-				roleDefinitions = amClient.RoleDefinitions.List(scope)
-					.Where(rd => rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase)
-							  && rd.RoleName.StartsWith("Storage Blob Data", StringComparison.Ordinal)
-					).ToList();
-			}
-
-			/* Query the scope's role assignments.
-			 * This will only return role assignments where the provided token has
-			 * Microsoft.Authorization/roleAssignments/read authorization.
-			 * For example, by granting the app registration User Access Administrator on storage accounts
-			 * in the specified subscription, this call will return any role assignment granted on the storage accounts.
-			 GET https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}
-			 			/{parentResourcePath}/{resourceType}/{resourceName}
-						?$filter={$filter}&api-version=2015-07-01
-			 */
-			IPage<RoleAssignment> res = null;
-			try
-			{
-				// Filter Role Assignments by principal ID if specified (AAD object ID of the signed in user)
-				ODataQuery<RoleAssignmentFilter> q = new();
-				q.Filter = (principalId != null) ? $"assignedTo('{principalId}')" : "atScope()";
-				res = amClient.RoleAssignments.ListForScope(scope, q);
-			}
-			catch (Exception ex)
-			{
-				log.LogError(ex, scope);
+			// Get the Role Assignments for the scope
+			IList<RoleAssignment> res = GetRoleAssignments(scope, principalId);
+			if (res == null)
 				return new List<StorageDataPlaneRole>() { new() { RoleName = "Error reading access" } };        // Return blank list
-			}
 
 			// Join Role Assignments and Role Definitions
 			var storageDataPlaneRoles = res.Join(roleDefinitions, ra => ra.RoleDefinitionId, rd => rd.Id,
@@ -336,6 +330,37 @@ namespace Microsoft.UsEduCsu.Saas.Services
 						}).ToList();
 
 			return storageDataPlaneRoles;
+		}
+
+		private IList<RoleAssignment> GetRoleAssignments(string scope, string principalId = null)
+		{
+			VerifyToken();
+			VerifyRoleDefinitions(scope);
+
+			/* Query the scope's role assignments.
+			 * This will only return role assignments where the provided token has Microsoft.Authorization/roleAssignments/read authorization.
+			 * For example, by granting the app registration User Access Administrator on storage accounts
+			 * in the specified subscription, this call will return any role assignment granted on the storage accounts.
+			 GET https://management.azure.com/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}/providers/{resourceProviderNamespace}
+			 			/{parentResourcePath}/{resourceType}/{resourceName}
+						?$filter={$filter}&api-version=2015-07-01
+			 */
+			IList<RoleAssignment> res = null;
+			try
+			{
+				// Filter Role Assignments by principal ID if specified (AAD object ID of the signed in user)
+				var q = new ODataQuery<RoleAssignmentFilter>()
+				{
+					Filter = (principalId != null) ? $"assignedTo('{principalId}')" : "atScope()",
+				};
+				res = amClient.RoleAssignments.ListForScope(scope, q).ToList();
+				return res;
+			}
+			catch (Exception ex)
+			{
+				log.LogError(ex, scope);
+				return null;
+			}
 		}
 
 		#endregion
