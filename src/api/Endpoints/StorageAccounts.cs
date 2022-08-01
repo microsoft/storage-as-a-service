@@ -158,7 +158,6 @@ namespace Microsoft.UsEduCsu.Saas
 				>= 1000 => (size / 1000000, "KB"),
 				_ => (size, "Bytes")
 			};
-
 			return $"{result.ToString("N0", CultureInfo.CurrentCulture)} {postfix}";
 		}
 	}
