@@ -24,6 +24,9 @@
     "optionalDependencies": {
         "fsevents": "^2.3.2"
     },
+	"engines": {
+		"npm":	">=8.0.0"
+	},
     "scripts": {
         "start": "react-scripts start",
         "build": "react-scripts build",
