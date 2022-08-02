@@ -119,7 +119,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// The cache will return value if found
 			if (byteArray != null) {
 				var obj = JsonSerializer.Deserialize<T>(byteArray);
-				_logger.LogInformation($"{nameKey} pulled from cache");
+				_logger.LogDebug($"{nameKey} pulled from cache");
 				return obj;
 			}
 
@@ -136,7 +136,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
 			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
-			_logger.LogInformation($"{nameKey} written to cache");
+			_logger.LogDebug($"{nameKey} written to cache");
 
 #if DEBUG
 			// Serialization DoubleCheck
