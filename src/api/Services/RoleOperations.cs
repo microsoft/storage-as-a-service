@@ -107,7 +107,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			ArgumentNullException.ThrowIfNull(principalId, nameof(principalId));
 
 			// Get Application level Credentials
-			var appCred = new DefaultAzureCredential();
+			DefaultAzureCredentialOptions options = new DefaultAzureCredentialOptions();
+			// options.ExcludeAzureCliCredential = true;
+			// options.ExcludeAzurePowerShellCredential = true;
+			// options.ExcludeInteractiveBrowserCredential = true;
+			// options.ExcludeVisualStudioCodeCredential = true;
+
+			var appCred = new DefaultAzureCredential(options);
 
 			// Get All Stroage Roles for a user across subscriptions
 			IList<StorageDataPlaneRole> roleAssignments = GetAllStorageDataPlaneRoles(principalId);
@@ -172,11 +178,14 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			var subscriptions = SasConfiguration.GetSubscriptions();
 			var roleAssignments = new List<StorageDataPlaneRole>();
-			Parallel.ForEach(subscriptions, subscription =>
+			//Parallel.ForEach(subscriptions, subscription =>
+			foreach (var subscription in subscriptions)
 			{
 				var fa = GetStorageDataPlaneRoles(subscription, principalId);  // TODO: Getting them out in order of storage account to make processing more efficient?
+				log.LogTrace("RoleOperations.GetStoragePlaneDataRoles({0}, {1}) returned {2} role assignments.",
+					subscription, principalId, fa.Count);
 				roleAssignments.AddRange(fa);
-			});
+			};
 			return roleAssignments;
 		}
 
