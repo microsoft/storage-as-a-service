@@ -25,20 +25,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private Rest.TokenCredentials _tokenCredentials;
 		private AccessToken _accessToken;
-		private CacheHelper _cache;
 		private AuthorizationManagementClient amClient;
 
 		// Caches the list of storage plane data role definitions
-		private static ConcurrentDictionary<string, IList<RoleDefinition>> roleDefinitions =
-			new ConcurrentDictionary<string, IList<RoleDefinition>>();
+		private static readonly ConcurrentDictionary<string, IList<RoleDefinition>> roleDefinitions =
+			new();
 
 		// Lock objects for thread-safety
-		private object tokenCredentialsLock = new object();
+		private readonly object tokenCredentialsLock = new();
 
 		public RoleOperations(ILogger log)
 		{
 			this.log = log;
-			_cache = CacheHelper.GetRedisCacheHelper(log);
 		}
 
 		#region Public and Internal Methods
