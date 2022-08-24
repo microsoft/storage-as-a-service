@@ -115,13 +115,15 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			string nameKey = $"{itemName}_{key}";
 
 			// Get Value from cache if found
+			// TODO: Handle RedisTimeoutException (retry)
 			byte[] byteArray = _cache.Get(nameKey);
 
 			// The cache will return value if found
+			// TODO: Consider ignoring cached value if 2 bytes only (empty JSON object)
 			if (byteArray != null)
 			{
 				var obj = JsonSerializer.Deserialize<T>(byteArray);
-				_logger.LogDebug($"{nameKey} pulled from cache");
+				_logger.LogDebug($"{nameKey} (bytes: {byteArray.Length}) pulled from cache.");
 				return obj;
 			}
 
@@ -138,7 +140,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
 			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
-			_logger.LogDebug($"{nameKey} written to cache");
+			_logger.LogDebug($"{nameKey} (bytes: {data.Length}) written to cache.");
 
 #if DEBUG
 			// Serialization DoubleCheck
