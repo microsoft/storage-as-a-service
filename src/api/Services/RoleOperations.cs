@@ -16,19 +16,18 @@ using System.Threading.Tasks;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
-	public class RoleOperations
+	public class RoleOperations : IDisposable
 	{
 		// https://blogs.aaddevsup.xyz/2020/05/using-azure-management-libraries-for-net-to-manage-azure-ad-users-groups-and-rbac-role-assignments/
-
-		// TODO: Implement IDisposable (AuthorizationManagementClient : IDisposable)
 
 		private readonly ILogger log;
 		private Rest.TokenCredentials _tokenCredentials;
 		private AccessToken _accessToken;
 		private AuthorizationManagementClient amClient;
+		private bool disposedValue;
 
 		// Caches the list of storage plane data role definitions
-		private static readonly ConcurrentDictionary<string, IList<RoleDefinition>> roleDefinitions =
+		private static ConcurrentDictionary<string, IList<RoleDefinition>> roleDefinitions =
 			new();
 
 		// Lock objects for thread-safety
@@ -476,5 +475,32 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string PrincipalType { get; set; }
 			public string Id { get; set; }
 		}
+
+		#region Disposable Pattern
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!disposedValue)
+			{
+				if (disposing)
+				{
+					amClient.Dispose();
+				}
+
+				amClient = null;
+				roleDefinitions = null;
+
+				disposedValue = true;
+			}
+		}
+
+		public void Dispose()
+		{
+			// Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+			Dispose(disposing: true);
+			GC.SuppressFinalize(this);
+		}
+
+		#endregion
 	}
 }
