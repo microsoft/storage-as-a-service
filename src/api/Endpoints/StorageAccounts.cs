@@ -77,8 +77,10 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				var filesystems = storageAccountClient.GetFileSystems(FileSystemTraits.Metadata)
 						.Where(c => accessibleContainers.Contains(c.Name))  // Filter for the future
-						.Select(l => new { Name= l.Name, Properties = l.Properties})
+						.Select(l => new { Name = l.Name, Properties = l.Properties })
 						.ToList();
+
+				// TODO: Optimize: retrieve storage account resource ID here
 
 				// Build additional details
 				Parallel.ForEach(filesystems, (fs) =>
