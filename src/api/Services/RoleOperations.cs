@@ -23,8 +23,21 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private readonly ILogger log;
 		private Rest.TokenCredentials _tokenCredentials;
 		private AccessToken _accessToken;
-		private AuthorizationManagementClient amClient;
+		private AuthorizationManagementClient _amClient;
 		private bool disposedValue;
+
+		private AuthorizationManagementClient AuthMgtClient
+		{
+			get
+			{
+				if (_amClient is null)
+				{
+					_amClient = new AuthorizationManagementClient(TokenCredentials);
+				}
+
+				return _amClient;
+			}
+		}
 
 		// Caches the list of storage plane data role definitions
 		private static ConcurrentDictionary<string, IList<RoleDefinition>> roleDefinitions =
@@ -83,13 +96,12 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			try
 			{
-				VerifyToken();
 				QueryResponse queryResponse;
 				string queryText = $@"resources
 					| where name == '{account}' and type == 'microsoft.storage/storageaccounts' and kind == 'StorageV2' and properties['isHnsEnabled']
 					| project id";
 
-				using (var resourceGraphClient = new ResourceGraphClient(_tokenCredentials))
+				using (var resourceGraphClient = new ResourceGraphClient(TokenCredentials))
 				{
 					var query = new QueryRequest(queryText);
 					queryResponse = resourceGraphClient.Resources(query);
@@ -268,7 +280,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Project Role Assignments into Container Roles
 			var roleAssignments = GetRoleAssignments(account, principalId)
-				.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
+				?.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
 					&& roleDefinitionIds.Contains(ra.RoleDefinitionId))
 				// Transform matching role assignments into the method's return value
 				.Select(ra => new ContainerRole()
@@ -287,30 +299,28 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		#region Private Methods
 
-		private void VerifyToken()
+		private Rest.TokenCredentials TokenCredentials
 		{
-			// TODO: Why is this not done in the constructor?
-
-			lock (tokenCredentialsLock)
+			get
 			{
-				if (_tokenCredentials != null)
-					// TODO: Consider this implementation: if tokenCredentials is not null, it could still have been based on expired access token
-					return;
+				// TODO: Why is this not done in the constructor?
 
-				if (_accessToken.Token == null
-					|| _accessToken.ExpiresOn < DateTime.Now)
+				if (_tokenCredentials is null)
 				{
-					var tokenRequestContext = new TokenRequestContext(new[] { "https://management.azure.com/.default" });
-					_accessToken = new DefaultAzureCredential().GetToken(tokenRequestContext);
+					lock (tokenCredentialsLock)
+					{
+						if (_accessToken.Token is null
+							|| _accessToken.ExpiresOn < DateTime.Now)
+						{
+							var tokenRequestContext = new TokenRequestContext(new[] { "https://management.azure.com/.default" });
+							_accessToken = new DefaultAzureCredential().GetToken(tokenRequestContext);
+						}
+
+						_tokenCredentials = new Rest.TokenCredentials(_accessToken.Token);
+					}
 				}
 
-				_tokenCredentials = new Rest.TokenCredentials(_accessToken.Token);
-
-				// Verify the Authorization Management Client is created
-				if (amClient == null)
-				{
-					amClient = new AuthorizationManagementClient(_tokenCredentials);
-				}
+				return _tokenCredentials;
 			}
 		}
 
@@ -347,9 +357,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				// If the role definitions for this subscription haven't been retrieved yet
 				if (!roleDefinitions.ContainsKey(subscriptionId))
 				{
-					VerifyToken();
-
-					ScopedRoleDefinitions = amClient.RoleDefinitions.List(resourceId)
+					ScopedRoleDefinitions = AuthMgtClient.RoleDefinitions.List(resourceId)
 						.Where(rd => rd.RoleName.StartsWith("Storage Blob Data", StringComparison.Ordinal)
 								&& rd.RoleType.Equals("BuiltInRole", StringComparison.OrdinalIgnoreCase))
 						.ToList();
@@ -382,7 +390,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				// Get Current Role Assignments
 				var roleAssignments = GetRoleAssignments(scope, principalId);
-
+				// TODO: roleAssignments could be null
 				// Filter down to the specific role definition
 				var roleAssignment = roleAssignments.FirstOrDefault(ra => ra.PrincipalId == principalId
 															&& ra.RoleDefinitionId == roleDefinition.Id);
@@ -392,7 +400,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				{
 					var racp = new RoleAssignmentCreateParameters(roleDefinition.Id, principalId);
 					var roleAssignmentId = Guid.NewGuid().ToString();
-					roleAssignment = amClient.RoleAssignments.Create(scope, roleAssignmentId, racp);
+					roleAssignment = AuthMgtClient.RoleAssignments.Create(scope, roleAssignmentId, racp);
 				}
 
 				return roleAssignment;
@@ -448,7 +456,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					Filter = (principalId != null) ? $"assignedTo('{principalId}')" : "atScope()",
 				};
 
-				IList<RoleAssignment> res = amClient.RoleAssignments.ListForScope(scope, q).ToList();
+				IList<RoleAssignment> res = AuthMgtClient.RoleAssignments
+					.ListForScope(scope, q)
+					.ToList();
 
 				return res;
 			}
@@ -484,10 +494,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			{
 				if (disposing)
 				{
-					amClient.Dispose();
+					_amClient.Dispose();
 				}
 
-				amClient = null;
+				_amClient = null;
 				roleDefinitions = null;
 
 				disposedValue = true;
