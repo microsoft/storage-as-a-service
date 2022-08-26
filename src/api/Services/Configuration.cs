@@ -9,6 +9,7 @@ using System.Collections.Generic;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
+	// TODO: Rename class
 	public static class SasConfiguration
 	{
 		const string FileSystemApiKeySettingName = "FILESYSTEMS_API_KEY";
@@ -48,12 +49,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <returns>The array of strings with one element for value.</returns>
 		private static string[] ParseMultiValuedConfigurationValue(string value)
 		{
-			// TODO: Unit test this method
+			// TODO: Unit test this method (set access modifier to internal)
 
 			string[] items = value
-				// Consistency: use only ; as the separator
-				.Replace(',', ';')
-				// Split the string into an array
+				.Replace(',', ';')  // Consistency: use only ; as the separator
 				.Split(';');
 
 			// Remove leading and trailing spaces from each item
