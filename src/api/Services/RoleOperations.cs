@@ -210,7 +210,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			Parallel.ForEach(subscriptions, subscription =>
 			{
 				// GetStorageDataPlaneRoles will not return null
-				var assignments = GetStorageDataPlaneRoles(subscription, principalId);  // TODO: Getting them out in order of storage account to make processing more efficient?
+				var scope = $"/subscriptions/{subscription}/";
+				var assignments = GetStorageDataPlaneRolesByScope(scope, principalId);  // TODO: Getting them out in order of storage account to make processing more efficient?
 				log.LogTrace("RoleOperations.GetStoragePlaneDataRoles({0}, {1}) returned {2} role assignments.",
 					subscription, principalId, assignments.Count);
 
@@ -226,38 +227,16 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
-		/// Retrieves any Azure Storage data plane roles (Storage Blob Data *) for the specified
-		/// principal ID on the specified subscription.
-		/// </summary>
-		/// <param name="subscriptionId"></param>
-		/// <param name="principalId"></param>
-		/// <returns>A list of storage accounts and containers where the specified principal has the storage data plane role.</returns>
-		public IList<StorageDataPlaneRole> GetStorageDataPlaneRoles(string subscriptionId, string principalId)
-		{
-			string Scope = $"/subscriptions/{subscriptionId}/";
-
-			return GetStorageDataPlaneRolesByScope(Scope, principalId);
-		}
-
-		/// <summary>
 		/// Retrieves all Azure Storage data plane roles (Storage Blob Data *) assignments
-		/// for the specified storage account and, optionally, container.
+		/// for the specified blob container.
 		/// </summary>
-		/// <param name="account">The name of the storage account.</param>
-		/// <param name="container">(optional) A container name in the storage account.</param>
+		/// <param name="accountResourceId">The Azure resource ID of the storage account.</param>
+		/// <param name="container">A container name in the storage account.</param>
 		/// <returns>The list of role assignments.</returns>
-		public IList<StorageDataPlaneRole> GetStorageDataPlaneRoles(string account, string container = null,
-			string _ = null)
+		public IList<StorageDataPlaneRole> GetStorageDataPlaneRoles(string accountResourceId, string container)
 		{
-			/*
-			 * // TODO: This method doesn't use the principalId parameter (now _) but removing principalId causes a signature conflict
-			 * This could be resolved by allowing GetAccountResourceId to return the container resource ID (if specified)
-			 * and then calling GetStorageDataPlaneRolesByScope from this method's single caller
-			 */
-
 			// /subscriptions/[subscription id]/resourceGroups/[resource group name]/providers/Microsoft.Storage/storageAccounts/[storage account]/blobServices/default/containers/[container name]
-			var accountResourceId = GetAccountResourceId(account);
-			var scope = (container == null)
+			var scope = (container is null)
 							? accountResourceId
 							: $"{accountResourceId}/blobServices/default/containers/{container}";
 
@@ -409,7 +388,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return null;
 		}
 
-		private IList<StorageDataPlaneRole> GetStorageDataPlaneRolesByScope(string scope, string principalId = null)
+		/// <summary>
+		/// Retrieves storage data plane role assignments for the specified scope and optional principal.
+		/// </summary>
+		/// <param name="scope">The Azure resource ID for which to retrieve role assignments.</param>
+		/// <param name="principalId">(optional) The AAD object ID of the principal to retrieve assignments for.</param>
+		/// <returns>The list of storage data plane role assignments.</returns>
+		public IList<StorageDataPlaneRole> GetStorageDataPlaneRolesByScope(string scope, string principalId = null)
 		{
 			var ScopedRoleDefinitions = GetRoleDefinitions(scope);
 
