@@ -390,7 +390,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="userAccess">The list of access control entries.</param>
 		private void TranslateGroups(IList<string> userAccess)
 		{
-			var graphOperations = new GraphOperations(log, new DefaultAzureCredential());
+			var graphOperations = new MicrosoftGraphOperations(log, new DefaultAzureCredential());
 
 			for (int i = 0; i < userAccess.Count; i++)
 			{
