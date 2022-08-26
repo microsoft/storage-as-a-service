@@ -77,6 +77,13 @@ const FileSystemsPage = ({ strings }) => {
 			try {
 				const _fileSystems = await getFileSystems(storageAccount)
 				setFileSystems(_fileSystems)
+
+				if (_fileSystems.length > 0) {
+					displayToast(strings.containersLoaded)
+				}
+				else {
+					displayErrorToast(strings.noContainersLoaded)
+				}
 			}
 			catch (error) {
 				console.error(error)
@@ -88,7 +95,7 @@ const FileSystemsPage = ({ strings }) => {
 		// Only retrieve directories if there is a file system (container) selected
 		selectedStorageAccount
 			&& populateFileSystems(selectedStorageAccount)
-	}, [selectedStorageAccount]) // eslint-disable-line react-hooks/exhaustive-deps
+	}, [selectedStorageAccount, strings.containersLoaded, strings.noContainersLoaded]) // eslint-disable-line react-hooks/exhaustive-deps
 
 	// Setup Toast messages
 	const displayToast = message => {
@@ -112,12 +119,12 @@ const FileSystemsPage = ({ strings }) => {
 	}
 
 	const onDetails = (rowData) => {
-        setDetails({ show: true, data: rowData })
+		setDetails({ show: true, data: rowData })
 	}
 
 	const handleCancelDetails = () => {
-        setDetails({ show: false, data: {} })
-    }
+		setDetails({ show: false, data: {} })
+	}
 
 	let rowCount = 0;
 
@@ -174,7 +181,7 @@ const FileSystemsPage = ({ strings }) => {
 											</td>
 											<td className='owner'>
 												<table><tbody>
-												{row.access.map(ac => {return (<tr key={rowCount++}><td>{ac.roleName}</td><td>{ac.principalName}</td></tr>) })}
+													{row.access.map(ac => { return (<tr key={rowCount++}><td>{ac.roleName}</td><td>{ac.principalName}</td></tr>) })}
 												</tbody></table>
 											</td>
 											<td className='fundcode'>
@@ -197,7 +204,7 @@ const FileSystemsPage = ({ strings }) => {
 					</Grid>
 				</Grid>
 			</Container>
-            {details.show &&
+			{details.show &&
 				<Dialog onClose={handleCancelDetails} open={details.show} maxWidth='lg'>
 					<DialogTitle>
 						{strings.directoryDetailsTitle}
@@ -210,7 +217,7 @@ const FileSystemsPage = ({ strings }) => {
 						<Button variant='outlined' startIcon={<CancelIcon />} onClick={handleCancelDetails}>{strings.close}</Button>
 					</DialogActions>
 				</Dialog>
-            }
+			}
 			<Snackbar
 				open={isToastOpen}
 				anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
@@ -245,12 +252,12 @@ export default FileSystemsPage
   "storageExplorerDirectLink": "storageexplorer://?v=2&...",
   "metaData": [
    {
-    "key": "metadata key 1",
-    "value": "metadata value 1"
+	"key": "metadata key 1",
+	"value": "metadata value 1"
    },
    {
-    "key": "metadata key 1",
-    "value": "metadata value 1"
+	"key": "metadata key 1",
+	"value": "metadata value 1"
    }
   ],
   "access": [
