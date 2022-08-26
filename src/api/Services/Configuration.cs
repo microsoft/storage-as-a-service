@@ -26,10 +26,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		internal static ConfigurationResult GetConfiguration()
 		{
-			var dlsa = Environment.GetEnvironmentVariable("DATALAKE_STORAGE_ACCOUNTS");
-			var accounts = dlsa.Replace(',', ';').Split(';');
-			Array.ForEach(accounts, x => x = x.Trim());
-			accounts = accounts.Where(x => x.Length > 0).ToArray();
+			var accounts = ParseMultiValuedConfigurationValue(Environment.GetEnvironmentVariable("DATALAKE_STORAGE_ACCOUNTS"));
 
 			// Config
 			var result = new ConfigurationResult()
@@ -38,16 +35,38 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				ClientId = ClientId,
 				StorageAccounts = accounts
 			};
+
 			return result;
+		}
+
+		/// <summary>
+		/// Parses a configuration item that contains multiple values
+		/// separated by commas or semicolons and returns them as an
+		/// array of strings.
+		/// </summary>
+		/// <param name="value">The raw configuration item.</param>
+		/// <returns>The array of strings with one element for value.</returns>
+		private static string[] ParseMultiValuedConfigurationValue(string value)
+		{
+			// TODO: Unit test this method
+
+			string[] items = value
+				// Consistency: use only ; as the separator
+				.Replace(',', ';')
+				// Split the string into an array
+				.Split(';');
+
+			// Remove leading and trailing spaces from each item
+			Array.ForEach(items, s => s = s.Trim());
+
+			// Remove any empty values
+			return items.Where(s => s.Length > 0)
+				.ToArray();
 		}
 
 		internal static string[] GetSubscriptions()
 		{
-			var subscriptionList = Environment.GetEnvironmentVariable("MANAGED_SUBSCRIPTIONS");
-			var subs = subscriptionList.Replace(',', ';').Split(';');
-			Array.ForEach(subs, x => x = x.Trim());
-			subs = subs.Where(x => x.Length > 0).ToArray();
-			return subs;
+			return ParseMultiValuedConfigurationValue(ManagedSubscriptions);
 		}
 
 		internal static Uri GetStorageUri(string account, string fileSystem = null)
@@ -102,9 +121,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return ExpectedApiKey.Equals(ReceivedApiKey[0], StringComparison.Ordinal);
 		}
 
-		internal static ( bool IsValid, Dictionary<string,string> errors) Validate()
+		internal static (bool IsValid, Dictionary<string, string> errors) Validate()
 		{
-			var errors = new Dictionary<string,string>();
+			var errors = new Dictionary<string, string>();
 			if (string.IsNullOrEmpty(TenantId))
 				errors.Add("AZURE_TENANT_ID", "Is missing");
 			if (string.IsNullOrEmpty(ClientId))
@@ -131,6 +150,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 		internal class ConfigurationResult
 		{
+			// TODO: Remove StorageAccounts property
 			public string[] StorageAccounts { get; set; }
 			public string TenantId { get; set; }
 			public string ClientId { get; set; }
