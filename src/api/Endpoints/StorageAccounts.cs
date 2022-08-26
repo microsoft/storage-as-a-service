@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -70,7 +71,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var graphOps = new GraphOperations(log, ApiCredential);
 
 			// Initilize the result
-			var containerDetails = new List<ContainerDetail>();
+			ConcurrentBag<ContainerDetail> containerDetails = new();
 
 			// Need to get the filesytems
 			try
@@ -95,7 +96,10 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			// Return result
-			return containerDetails.OrderBy(s => s.Name).ThenBy(c => c.Name).ToList();
+			return containerDetails
+				.OrderBy(s => s.Name) // using Extension method, but outside of concurrent thread
+				.ThenBy(c => c.Name)
+				.ToList();
 		}
 
 		private static ContainerDetail GetContainerDetail(
