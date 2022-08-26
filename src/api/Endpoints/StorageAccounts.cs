@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -70,7 +71,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var graphOps = new GraphOperations(log, ApiCredential);
 
 			// Initilize the result
-			var containerDetails = new List<ContainerDetail>();
+			ConcurrentBag<ContainerDetail> containerDetails = new();
 
 			// Need to get the filesytems
 			try
@@ -80,12 +81,13 @@ namespace Microsoft.UsEduCsu.Saas
 						.Select(l => new { Name = l.Name, Properties = l.Properties })
 						.ToList();
 
-				// TODO: Optimize: retrieve storage account resource ID here
+				string accountResourceId = roleOperations.GetAccountResourceId(account);
 
 				// Build additional details
 				Parallel.ForEach(filesystems, (fs) =>
 				{
-					var cd = GetContainerDetail(roleOperations, graphOps, account, fs.Name, fs.Properties, log);
+					var cd = GetContainerDetail(roleOperations, graphOps, account, accountResourceId,
+						fs.Name, fs.Properties, log);
 					containerDetails.Add(cd);
 				});
 			}
@@ -95,12 +97,15 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 
 			// Return result
-			return containerDetails.OrderBy(s => s.Name).ThenBy(c => c.Name).ToList();
+			return containerDetails
+				.OrderBy(s => s.Name) // using Extension method, but outside of concurrent thread
+				.ThenBy(c => c.Name)
+				.ToList();
 		}
 
-		private static ContainerDetail GetContainerDetail(
-			RoleOperations roleOps, GraphOperations graphOps,
-			string account, string container, FileSystemProperties properties, ILogger log)
+		private static ContainerDetail GetContainerDetail(RoleOperations roleOps, GraphOperations graphOps,
+			string account, string accountResourceId, string container, FileSystemProperties properties,
+			ILogger log)
 		{
 			// Calculate Cost Per TB
 			decimal costPerTB = 0.0M;
@@ -123,7 +128,7 @@ namespace Microsoft.UsEduCsu.Saas
 				{ "Storage Blob Data Reader", 3 } };
 
 			// Determine Access Roles
-			var roles = roleOps.GetStorageDataPlaneRoles(account: account, container: container);
+			var roles = roleOps.GetStorageDataPlaneRoles(accountResourceId, container);
 			var rbacEntries = roles
 				.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
 				.Select(r => new StorageRbacEntry()
