@@ -157,16 +157,14 @@ namespace Microsoft.UsEduCsu.Saas
 
 		private static string ConvertFromBytes(long size)
 		{
-			string postfix = "Bytes";
-			double result = size;
-			if (size >= 1000000000000)
-				(result, postfix) = (size / 1000000000000, "TB");
-			else if (size >= 1000000000)
-				(result, postfix) = (size / 1000000000, "GB");
-			else if (size >= 1000000)
-				(result, postfix) = (size / 1000000, "MB");
-			else if (size >= 1000)
-				(result, postfix) = (size / 1000000, "KB");
+			(double result, string postfix) = size switch
+			{
+				>= 1000000000000 => (size / 1000000000000, "TB"),
+				>= 1000000000 => (size / 1000000000, "GB"),
+				>= 1000000 => (size / 1000000, "MB"),
+				>= 1000 => (size / 1000000, "KB"),
+				_ => (size, "Bytes")
+			};
 			return $"{result.ToString("N0", CultureInfo.CurrentCulture)} {postfix}";
 		}
 	}
