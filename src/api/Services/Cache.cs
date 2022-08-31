@@ -37,11 +37,12 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
-		/// Returns a cached directory objects
+		/// Returns the cached list of storage accounts and containers the
+		/// specified principal has access to.
 		/// </summary>
-		/// <param name="objectIdentifier">A unique identifier to lookup in the cache</param>
-		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
-		/// <returns>Cached value or new value if not cached</returns>
+		/// <param name="objectIdentifier">A user principal ID to lookup in the cache.</param>
+		/// <param name="updateMethod">Parameterless Func method that returns a IList<StorageAccountAndContainers> object.</param>
+		/// <returns>Cached value or new value if not cached.</returns>
 		internal IList<StorageAccountAndContainers> StorageAccounts(string principalId, Func<IList<StorageAccountAndContainers>> updateMethod)
 		{
 			var obj = Items("storageAccountList", principalId, updateMethod);
@@ -95,18 +96,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <summary>
 		///		Generic method to store items in the cache and repopulate based on a a function method provided
 		/// </summary>
-		/// <typeparam name="T">Any json serializable object</typeparam>
+		/// <typeparam name="T">Any JSON serializable object.</typeparam>
 		/// <param name="itemName">item name or category to separate items</param>
 		/// <param name="key">A unique identifier to lookup in the cache</param>
-		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
-		/// <returns>Cached value or new value if not cached</returns>
-		/// <param name="expiration">Optional DateTimeOffset to expire cache</param>
-		/// <returns></returns>
+		/// <param name="updateMethod">Parameterless Func method that returns the object to add to the cache.</param>
+		/// <param name="expiration">Optional DateTimeOffset to expire cache. If not specified, the default is 1 hour.</param>
+		/// <returns>Cached value or new value if not cached.</returns>
 		private T Items<T>(string itemName, string key, Func<T> updateMethod, DateTimeOffset? expiration = null)
 		{
 			// Verify Arguments
 			ArgumentNullException.ThrowIfNull(itemName, nameof(itemName));
 			ArgumentNullException.ThrowIfNull(key, nameof(key));
+
 			if (expiration == null)
 				expiration = DateTimeOffset.UtcNow.AddHours(1);
 
@@ -114,12 +115,15 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			string nameKey = $"{itemName}_{key}";
 
 			// Get Value from cache if found
+			// TODO: Handle RedisTimeoutException (retry)
 			byte[] byteArray = _cache.Get(nameKey);
 
 			// The cache will return value if found
-			if (byteArray != null) {
+			// TODO: Consider ignoring cached value if 2 bytes only (empty JSON object)
+			if (byteArray != null)
+			{
 				var obj = JsonSerializer.Deserialize<T>(byteArray);
-				_logger.LogDebug($"{nameKey} pulled from cache");
+				_logger.LogDebug($"{nameKey} (bytes: {byteArray.Length}) pulled from cache.");
 				return obj;
 			}
 
@@ -136,7 +140,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
 			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
-			_logger.LogDebug($"{nameKey} written to cache");
+			_logger.LogDebug($"{nameKey} (bytes: {data.Length}) written to cache.");
 
 #if DEBUG
 			// Serialization DoubleCheck
@@ -154,7 +158,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			byte[] byteArray = _cache.Get(nameKey);
 
 			// The cache will return value if found
-			if (byteArray != null) {
+			if (byteArray != null)
+			{
 				var obj = JsonSerializer.Deserialize<T>(byteArray);
 				return obj;
 			}
