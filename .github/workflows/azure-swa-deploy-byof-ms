@@ -59,7 +59,7 @@ jobs:
               with:
                   filename: ${{env.swaconfig}}
               env:
-                  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+                  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID_MS }}
 
             - name: Display contents of updated staticwebapp.config.json file
               run: cat ${{env.swaconfig}}
