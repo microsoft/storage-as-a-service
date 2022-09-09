@@ -28,7 +28,7 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("StorageAccountsGET")]
 		public static IActionResult Get(
-			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
+			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
 			ILogger log, string account)
 		{
 			// Validate Authorized Principal
