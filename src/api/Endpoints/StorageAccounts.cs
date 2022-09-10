@@ -27,7 +27,7 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
-		[FunctionName("StorageAccountsGET")]
+		[FunctionName("StorageAccounts")]
 		public static IActionResult Get(
 			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "StorageAccounts")] HttpRequest req,
 			ILogger log)
