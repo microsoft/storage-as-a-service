@@ -11,7 +11,7 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class ServerStatus
 	{
-		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(ServerStatus.Status), StatusCodes.Status200OK)]
 		[FunctionName("ServerStatus")]
 		public static IActionResult Get(
 			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "ServerStatus")] HttpRequest req,
@@ -21,8 +21,9 @@ namespace Microsoft.UsEduCsu.Saas
 			var (isConfigValid, errors) = SasConfiguration.Validate();
 
 			errors.Select(d => $"{d.Key}: {d.Value}");
-			var status = new Status() {
-				Message = string.Join(", ", errors.Select( d => $"{d.Key}: {d.Value}")),
+			var status = new Status()
+			{
+				Message = string.Join(", ", errors.Select(d => $"{d.Key}: {d.Value}")),
 				Errors = errors
 			};
 
@@ -30,9 +31,10 @@ namespace Microsoft.UsEduCsu.Saas
 			return new OkObjectResult(status);
 		}
 
-		public class Status {
-			public string Message {get; set;}
-			public Dictionary<string,string> Errors {get; set;}
+		public class Status
+		{
+			public string Message { get; set; }
+			public Dictionary<string, string> Errors { get; set; }
 		}
 	}
 }
