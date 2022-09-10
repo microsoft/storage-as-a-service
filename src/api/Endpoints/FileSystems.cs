@@ -29,17 +29,19 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("FileSystemsContainer")]
 		public static IActionResult GetContainer(
-			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "FileSystems/{account}/{container}")]
+			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "FileSystems/{account}/{container}")]
 			HttpRequest req,
 			ILogger log, string account, string container)
 		{
 			if (!SasConfiguration.ValidateSharedKey(req, SasConfiguration.ApiKey.FileSystems))
 			{
+				// TODO: Log
 				return new UnauthorizedResult();
 			}
 
 			if (Services.Extensions.AnyNullOrEmpty(account, container))
 			{
+				// TODO: log
 				return new BadRequestResult();
 			}
 
