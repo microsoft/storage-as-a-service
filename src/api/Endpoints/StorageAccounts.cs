@@ -29,8 +29,8 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("StorageAccountsGET")]
 		public static IActionResult Get(
-			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
-			ILogger log, string account)
+			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "StorageAccounts")] HttpRequest req,
+			ILogger log)
 		{
 			// Validate Authorized Principal
 			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
@@ -44,18 +44,18 @@ namespace Microsoft.UsEduCsu.Saas
 			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
 
 			// List of Storage Accounts or List of Containers for a storage account
-			if (string.IsNullOrEmpty(account))
-			{
-				StorageAccountOperations sao = new(log);
-				var result = sao.GetAccessibleStorageAccounts(principalId);             // TODO: Check for refresh parameter
-				return new OkObjectResult(result);
-			}
-			else
-			{
-				var containerDetails = PopulateContainerDetail(account, principalId, log);
-				//TODO: camelCasing - string json = JsonSerializer.Serialize<List<ContainerDetail>>(containerDetails, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-				return new OkObjectResult(containerDetails);
-			}
+			// if (string.IsNullOrEmpty(account))
+			// {
+			StorageAccountOperations sao = new(log);
+			var result = sao.GetAccessibleStorageAccounts(principalId);             // TODO: Check for refresh parameter
+			return new OkObjectResult(result);
+			// }
+			// else
+			// {
+			// 	var containerDetails = PopulateContainerDetail(account, principalId, log);
+			// 	//TODO: camelCasing - string json = JsonSerializer.Serialize<List<ContainerDetail>>(containerDetails, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+			// 	return new OkObjectResult(containerDetails);
+			// }
 		}
 
 		internal static List<ContainerDetail> PopulateContainerDetail(string account, string principalId, ILogger log)
