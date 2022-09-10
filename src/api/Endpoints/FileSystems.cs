@@ -65,7 +65,7 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[FunctionName("FileSystems")]
 		public static async Task<IActionResult> Run(
-			[HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
+			[HttpTrigger(AuthorizationLevel.Anonymous, "POST", "GET", Route = "FileSystems/{account?}")]
 			HttpRequest req,
 			ILogger log, string account)
 		{
