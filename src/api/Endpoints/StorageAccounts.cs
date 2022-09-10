@@ -23,6 +23,7 @@ namespace Microsoft.UsEduCsu.Saas
 	public static class StorageAccounts
 	{
 		[ProducesResponseType(typeof(ContainerDetail), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -33,7 +34,13 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			// Validate Authorized Principal
 			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
-			if (!cpr.IsValid) return new UnauthorizedResult();
+
+			if (!cpr.IsValid)
+			{
+				log.LogWarning("No valid ClaimsPrincipal found in the request: '{0}'", cpr.Message);
+				return new UnauthorizedResult();
+			}
+
 			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
 
 			// List of Storage Accounts or List of Containers for a storage account
