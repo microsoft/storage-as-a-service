@@ -231,8 +231,9 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			var tokenCredential = new DefaultAzureCredential();
 			var userOperations = new UserOperations(log, tokenCredential);
-			var graphOperations = new GraphOperations(log, tokenCredential);
+			var graphOperations = new MicrosoftGraphOperations(log, tokenCredential);
 
+			// TODO: Use ConcurrentDictionary for thread-safety
 			var objectList = new Dictionary<string, AccessControlType>();
 
 			ParallelOptions pOptions = new();

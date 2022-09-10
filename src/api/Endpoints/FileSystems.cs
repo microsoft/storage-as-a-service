@@ -228,7 +228,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var fileSystems = adls.GetContainers();
 
 			// Check for RBAC data plane access to any container in the account
-			IList<RoleOperations.ContainerRole> containerDataPlaneRoleAssignments = null;
+			IList<RoleOperations.ContainerRoleAssignment> containerDataPlaneRoleAssignments = null;
 
 			try
 			{
@@ -268,6 +268,7 @@ namespace Microsoft.UsEduCsu.Saas
 				var folders = folderOpsAsUser.GetAccessibleFolders(folderList, checkForAny: true);
 
 				if (folders.Count > 0)
+					// TODO: Use ConcurrentBag for thread-safety
 					accessibleContainers.Add(filesystem.Name);
 			});
 
@@ -303,7 +304,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var tokenCredential = new DefaultAzureCredential();
 
 			// Get the new container's Owner
-			var graphOperations = new GraphOperations(log, tokenCredential);
+			var graphOperations = new MicrosoftGraphOperations(log, tokenCredential);
 
 			string ownerObjectId;
 
