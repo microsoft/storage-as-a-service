@@ -23,7 +23,7 @@ namespace Microsoft.UsEduCsu.Saas
 	{
 		[FunctionName("TopLevelFoldersGET")]
 		public static IActionResult TopLevelFoldersGET(
-			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "TopLevelFolders/{account}/{filesystem}/{user?}")]
+			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "TopLevelFolders/{account}/{filesystem}/{user?}")]
 			HttpRequest req, string account, string filesystem, string user, ILogger log)
 		{
 			// Check for logged in user
@@ -102,7 +102,7 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status403Forbidden)]
 		[FunctionName("TopLevelFoldersPOST")]
 		public static async Task<IActionResult> TopLevelFoldersPOST(
-				[HttpTrigger(AuthorizationLevel.Function, "POST", Route = "TopLevelFolders/{account}/{filesystem}")]
+				[HttpTrigger(AuthorizationLevel.Anonymous, "POST", Route = "TopLevelFolders/{account}/{filesystem}")]
 				HttpRequest req, string account, string filesystem, ILogger log)
 		{
 			// Check for logged in user
@@ -231,8 +231,9 @@ namespace Microsoft.UsEduCsu.Saas
 		{
 			var tokenCredential = new DefaultAzureCredential();
 			var userOperations = new UserOperations(log, tokenCredential);
-			var graphOperations = new GraphOperations(log, tokenCredential);
+			var graphOperations = new MicrosoftGraphOperations(log, tokenCredential);
 
+			// TODO: Use ConcurrentDictionary for thread-safety
 			var objectList = new Dictionary<string, AccessControlType>();
 
 			ParallelOptions pOptions = new();

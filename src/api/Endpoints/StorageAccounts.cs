@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
-using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Files.DataLake;
 using Microsoft.AspNetCore.Http;
@@ -15,7 +14,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.UsEduCsu.Saas.Services;
 using static Microsoft.UsEduCsu.Saas.FileSystems;
 using Azure.Storage.Files.DataLake.Models;
-using System.Text.Json;
 using System.Globalization;
 
 namespace Microsoft.UsEduCsu.Saas
@@ -23,17 +21,24 @@ namespace Microsoft.UsEduCsu.Saas
 	public static class StorageAccounts
 	{
 		[ProducesResponseType(typeof(ContainerDetail), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
-		[FunctionName("StorageAccountsGET")]
+		[FunctionName("StorageAccounts")]
 		public static IActionResult Get(
-			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
+			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "StorageAccounts/{account?}")] HttpRequest req,
 			ILogger log, string account)
 		{
 			// Validate Authorized Principal
 			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
-			if (!cpr.IsValid) return new UnauthorizedResult();
+
+			if (!cpr.IsValid)
+			{
+				log.LogWarning("No valid ClaimsPrincipal found in the request: '{0}'", cpr.Message);
+				return new UnauthorizedResult();
+			}
+
 			var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
 
 			// List of Storage Accounts or List of Containers for a storage account
@@ -51,7 +56,7 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 		}
 
-		internal static List<ContainerDetail> PopulateContainerDetail(string account, string principalId, ILogger log)
+		private static List<ContainerDetail> PopulateContainerDetail(string account, string principalId, ILogger log)
 		{
 			// Get Storage Account Uri
 			var storageUri = SasConfiguration.GetStorageUri(account);
@@ -68,7 +73,7 @@ namespace Microsoft.UsEduCsu.Saas
 				.GetAccessibleContainerDetails(principalId, account);
 
 			// User Operations
-			var graphOps = new GraphOperations(log, ApiCredential);
+			var graphOps = new MicrosoftGraphOperations(log, ApiCredential);
 
 			// Initilize the result
 			ConcurrentBag<ContainerDetail> containerDetails = new();
@@ -81,7 +86,8 @@ namespace Microsoft.UsEduCsu.Saas
 						.Select(l => new { Name = l.Name, Properties = l.Properties })
 						.ToList();
 
-				string accountResourceId = roleOperations.GetAccountResourceId(account);
+				ResourceGraphOperations rgo = new(log, ApiCredential);
+				string accountResourceId = rgo.GetAccountResourceId(account);
 
 				// Build additional details
 				Parallel.ForEach(filesystems, (fs) =>
@@ -103,7 +109,7 @@ namespace Microsoft.UsEduCsu.Saas
 				.ToList();
 		}
 
-		private static ContainerDetail GetContainerDetail(RoleOperations roleOps, GraphOperations graphOps,
+		private static ContainerDetail GetContainerDetail(RoleOperations roleOps, MicrosoftGraphOperations graphOps,
 			string account, string accountResourceId, string container, FileSystemProperties properties,
 			ILogger log)
 		{
@@ -128,7 +134,8 @@ namespace Microsoft.UsEduCsu.Saas
 				{ "Storage Blob Data Reader", 3 } };
 
 			// Determine Access Roles
-			var roles = roleOps.GetStorageDataPlaneRoles(accountResourceId, container);
+			// TODO: Optimization opportunity: Retrieve the role assignments for the account once, and then only the assignments at the container scope
+			var roles = roleOps.GetStorageDataPlaneRoleAssignments(accountResourceId, container);
 			var rbacEntries = roles
 				.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
 				.Select(r => new StorageRbacEntry()

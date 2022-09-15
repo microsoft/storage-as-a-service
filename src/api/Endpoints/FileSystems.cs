@@ -29,17 +29,19 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
 		[FunctionName("FileSystemsContainer")]
 		public static IActionResult GetContainer(
-			[HttpTrigger(AuthorizationLevel.Function, "GET", Route = "FileSystems/{account}/{container}")]
+			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "FileSystems/{account}/{container}")]
 			HttpRequest req,
 			ILogger log, string account, string container)
 		{
 			if (!SasConfiguration.ValidateSharedKey(req, SasConfiguration.ApiKey.FileSystems))
 			{
+				// TODO: Log
 				return new UnauthorizedResult();
 			}
 
 			if (Services.Extensions.AnyNullOrEmpty(account, container))
 			{
+				// TODO: log
 				return new BadRequestResult();
 			}
 
@@ -63,7 +65,7 @@ namespace Microsoft.UsEduCsu.Saas
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[FunctionName("FileSystems")]
 		public static async Task<IActionResult> Run(
-			[HttpTrigger(AuthorizationLevel.Function, "POST", "GET", Route = "FileSystems/{account?}")]
+			[HttpTrigger(AuthorizationLevel.Anonymous, "POST", "GET", Route = "FileSystems/{account?}")]
 			HttpRequest req,
 			ILogger log, string account)
 		{
@@ -228,7 +230,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var fileSystems = adls.GetContainers();
 
 			// Check for RBAC data plane access to any container in the account
-			IList<RoleOperations.ContainerRole> containerDataPlaneRoleAssignments = null;
+			IList<RoleOperations.ContainerRoleAssignment> containerDataPlaneRoleAssignments = null;
 
 			try
 			{
@@ -268,6 +270,7 @@ namespace Microsoft.UsEduCsu.Saas
 				var folders = folderOpsAsUser.GetAccessibleFolders(folderList, checkForAny: true);
 
 				if (folders.Count > 0)
+					// TODO: Use ConcurrentBag for thread-safety
 					accessibleContainers.Add(filesystem.Name);
 			});
 
@@ -303,7 +306,7 @@ namespace Microsoft.UsEduCsu.Saas
 			var tokenCredential = new DefaultAzureCredential();
 
 			// Get the new container's Owner
-			var graphOperations = new GraphOperations(log, tokenCredential);
+			var graphOperations = new MicrosoftGraphOperations(log, tokenCredential);
 
 			string ownerObjectId;
 

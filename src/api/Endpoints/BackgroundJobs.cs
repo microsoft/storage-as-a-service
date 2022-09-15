@@ -15,10 +15,9 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class BackgroundJobs
 	{
-		// TODO: Why is this a POST?
-		[FunctionName("CalculateAllFolderSizes")]
+		[FunctionName("CalculateFolderSizes")]
 		public static async Task<IActionResult> CalculateAllFolderSizes(
-			[HttpTrigger(AuthorizationLevel.Function, "POST", Route = "Configuration/CalculateFolderSizes")]
+			[HttpTrigger(AuthorizationLevel.Anonymous, "POST", Route = "Configuration/CalculateFolderSizes")]
 			HttpRequest req, ILogger log)
 		{
 			if (!SasConfiguration.ValidateSharedKey(req, SasConfiguration.ApiKey.Configuration))
