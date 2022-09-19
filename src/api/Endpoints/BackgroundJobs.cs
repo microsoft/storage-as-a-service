@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using Azure.Identity;
 using Azure.Storage.Files.DataLake;
 using Microsoft.AspNetCore.Http;

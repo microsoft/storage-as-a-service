@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import React from 'react'
 import PropTypes from 'prop-types'
 import useAuthentication from '../../hooks/useAuthentication'
@@ -8,13 +11,13 @@ import './Header.css'
 const Header = ({ strings }) => {
     const { account, isAuthenticated } = useAuthentication()
 
-    const logo = strings.logoImage ? 
+    const logo = strings.logoImage ?
         (<img
             alt={strings.logoText}
             src={strings.logoImage}
             width='100'
             height='45'
-        />) : 
+        />) :
         (<div className='logo-text'>{strings.logoText}</div>)
 
     return (

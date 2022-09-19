@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import React, { useState } from 'react'
 import PropTypes from 'prop-types'
 import Grid from '@mui/material/Grid'

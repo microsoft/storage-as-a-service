@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 // Add the endpoints here for Microsoft Graph API services you'd like to use.
 const URLS = {
 	serverStatus: {

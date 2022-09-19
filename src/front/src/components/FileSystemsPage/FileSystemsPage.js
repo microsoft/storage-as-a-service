@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import React, { useCallback, useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
 import useAuthentication from '../../hooks/useAuthentication'

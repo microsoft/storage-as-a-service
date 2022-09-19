@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import React from "react"
 import PropTypes from 'prop-types'
 import InputLabel from "@mui/material/InputLabel"
@@ -5,7 +8,7 @@ import FormControl from "@mui/material/FormControl"
 import MenuItem from "@mui/material/MenuItem"
 import Select from "@mui/material/Select"
 
-/**  
+/**
  * Renders list of items in a drop down selector
  */
 const Selector = ({ items, id, label, onChange, selectedItem, autoSelectFirst }) => {

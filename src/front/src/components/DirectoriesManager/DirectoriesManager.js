@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import React, { useState } from 'react'
 import PropTypes from 'prop-types'
 import Button from '@mui/material/Button'
@@ -25,7 +28,7 @@ const DirectoriesManager = ({ data, onCreateDirectory, strings }) => {
 
     const handleCreateDirectory = (data) => {
         onCreateDirectory && onCreateDirectory(data)
-        
+
         // Hide the editor modal
         setEditor({ show: false, data: {} })
     }

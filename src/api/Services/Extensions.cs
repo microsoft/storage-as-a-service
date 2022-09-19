@@ -1,4 +1,6 @@
-﻿using System.Linq;
+﻿// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+using System.Linq;
 
 namespace Microsoft.UsEduCsu.Saas.Services
 {
