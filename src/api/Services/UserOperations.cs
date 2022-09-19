@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using Azure.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
