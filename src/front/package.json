@@ -21,6 +21,10 @@
 	"devDependencies": {
 		"react-scripts": "^5.0.0"
 	},
+	"engines": {
+		"node": "^16.14.2",
+		"npm": ">=8"
+	},
 	"optionalDependencies": {
 		"fsevents": "^2.3.2"
 	},

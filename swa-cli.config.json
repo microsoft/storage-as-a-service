@@ -1,13 +1,13 @@
 {
-  "configurations": {
-    "app": {
-      "appLocation": "src\\front",
-      "apiLocation": "http://localhost:7071",
-      "outputLocation": "build",
-      "appBuildCommand": "npm run build",
-      "apiBuildCommand": "dotnet publish -c Release",
-      "run": "npm start",
-      "appDevserverUrl": "http://localhost:3000"
-    }
-  }
+	"configurations": {
+		"app": {
+			"appLocation": "src\\front",
+			"apiLocation": "http://localhost:7071",
+			"outputLocation": "build",
+			"appBuildCommand": "npm run build",
+			"apiBuildCommand": "dotnet publish -c Release",
+			"run": "npm start",
+			"appDevserverUrl": "http://localhost:3000"
+		}
+	}
 }
