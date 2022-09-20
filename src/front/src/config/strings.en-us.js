@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 const strings = {
 	error: 'An error occured, see the console for details.',
 	appTitle: 'Storage as a Service',

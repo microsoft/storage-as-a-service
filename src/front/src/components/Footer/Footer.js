@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 import React from 'react'
 import PropTypes from 'prop-types'
 import CopyrightIcon from '@mui/icons-material/Copyright'

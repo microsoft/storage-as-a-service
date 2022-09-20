@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 import URLS from '../config/urls'
 import HttpException from './HttpException'
 

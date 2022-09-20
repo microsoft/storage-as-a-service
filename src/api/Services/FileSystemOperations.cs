@@ -1,3 +1,5 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
 using Azure.Core;
 using Azure.Storage.Files.DataLake;
 using Azure.Storage.Files.DataLake.Models;
