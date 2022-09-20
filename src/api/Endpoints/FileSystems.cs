@@ -16,7 +16,6 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.Http;
@@ -49,7 +48,9 @@ namespace Microsoft.UsEduCsu.Saas
 
 			var ServiceUri = SasConfiguration.GetStorageUri(account);
 
-			FolderOperations fo = new(ServiceUri, container, log);
+			DataLakeClientOptions opts = new();
+			opts.Retry.MaxRetries = 1;
+			FolderOperations fo = new(ServiceUri, container, log, opts);
 
 			if (fo.FileSystemExists())
 			{

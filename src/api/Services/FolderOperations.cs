@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+using Azure;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Files.DataLake;
@@ -35,7 +36,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// is for a user, or a string to identify the application if <paramref name="tokenCredential"/>
 		/// is the API's identity.</param>
 		public FolderOperations(Uri storageUri, string fileSystem, ILogger log,
-			TokenCredential tokenCredential, string principalId)
+			TokenCredential tokenCredential, string principalId,
+			DataLakeClientOptions opts = null)
 		{
 			ArgumentNullException.ThrowIfNull(tokenCredential, nameof(tokenCredential));
 
@@ -46,11 +48,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (!string.IsNullOrWhiteSpace(costPerTB))
 				_ = decimal.TryParse(costPerTB, out this.costPerTB);
 
-			// TODO: Avoid creating a new DataLakeServiceClient every time
-			// (FolderOperations objects are created in loops)
-			// Possible solution: store tokenCredential and associated client in a static dictionary?
-			dlfsClient = new DataLakeServiceClient(storageUri, tokenCredential)
-				.GetFileSystemClient(fileSystem);
+			dlfsClient = new DataLakeFileSystemClient(storageUri, tokenCredential, opts);
 		}
 
 		/// <summary>
@@ -60,8 +58,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="storageUri">The storage account URI.</param>
 		/// <param name="fileSystem">The name of the container.</param>
 		/// <param name="log">An ILogger implementation.</param>
-		public FolderOperations(Uri storageUri, string fileSystem, ILogger log)
-			: this(storageUri, fileSystem, log, new DefaultAzureCredential())
+		/// <param name="maxRetries">The maximum number of retries for the underlying DataLakeServiceClient.</param>
+		public FolderOperations(Uri storageUri, string fileSystem, ILogger log,
+			DataLakeClientOptions opts = null)
+			: this(storageUri, fileSystem, log, new DefaultAzureCredential(), opts: opts)
 		{ }
 
 		/// <summary>
@@ -72,8 +72,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <param name="fileSystem">The name of the container.</param>
 		/// <param name="log">An ILogger implementation.</param>
 		/// <param name="appCred">The API's OAuth token credential.</param>
-		public FolderOperations(Uri storageUri, string fileSystem, ILogger log, TokenCredential appCred)
-			: this(storageUri, fileSystem, log, appCred, "AppIdentity")
+		public FolderOperations(Uri storageUri, string fileSystem, ILogger log, TokenCredential appCred,
+			DataLakeClientOptions opts = null)
+			: this(storageUri, fileSystem, log, appCred, "AppIdentity", opts: opts)
 		{ }
 
 		/// <summary>
@@ -82,7 +83,24 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		/// <returns>True if the file system exists; otherwise, false.</returns>
 		internal bool FileSystemExists()
 		{
-			return dlfsClient.Exists();
+			const string ExMsg = "NO SUCH HOST IS KNOWN";
+
+			try
+			{
+				return dlfsClient.Exists();
+			}
+			catch (AggregateException ex) when (ex.InnerExceptions[0].Message.ToUpperInvariant().Contains(ExMsg))
+			{
+				// The storage account doesn't exist, so the file system doesn't exist
+				return false;
+			}
+			catch (RequestFailedException ex) when (ex.Message.ToUpperInvariant().Contains(ExMsg))
+			{
+				// The storage account doesn't exist, so the file system doesn't exist
+				return false;
+			}
+
+			// For other exceptions, return the exception to the caller
 		}
 
 		internal async Task<Result> CreateNewFolder(string folder)
