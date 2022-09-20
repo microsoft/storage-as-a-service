@@ -5,7 +5,6 @@
 ```
 StorageAccounts [GET]
 FileSystems [POST]
-CalculateAllFolderSizes [POST]
 ```
 
 ### StorageAccounts

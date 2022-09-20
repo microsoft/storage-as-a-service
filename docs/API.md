@@ -6,7 +6,6 @@
 FileSystems: [POST,GET] http://localhost:7071/api/FileSystems/{account?}
 TopLevelFoldersGET: [GET] http://localhost:7071/api/TopLevelFolders/{account}/{filesystem}/{user?}
 TopLevelFoldersPOST: [POST] http://localhost:7071/api/TopLevelFolders/{account}/{filesystem}
-CalculateAllFolderSizes: [POST] http://localhost:7071/api/Configuration/CalculateFolderSizes
 ```
 
 ### FileSystems
@@ -46,11 +45,3 @@ The security for the folder will use Access Control Lists.
 The user must be in AzureAD.
 The user will be granted full RWX POSIX style rights in the Top Level Folder.
 They will also be given the X rights in the root folder.
-
-### CalculateAllFolderSizes
-
-POST api/Configuration/CalculateFolderSizes
-
-This endpoint requires a shared key that is stored in a KeyVault to access it. Provide the shared key in a custom header `Saas-Configuration-Api-Key`.
-
-This background job will calculate the folder sizes based on the files present and store the data in the MetaData of the Top Level Folder.

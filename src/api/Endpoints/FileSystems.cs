@@ -183,8 +183,6 @@ namespace Microsoft.UsEduCsu.Saas
 			{
 				var seEndpoint = HttpUtility.UrlEncode(new Uri(storageUri, fs.Name).ToString());
 				var metadata = fs.Metadata ?? new Dictionary<string, string>();
-				long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"]) : null;
-				decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
 
 				var fsd = new FileSystemDetail()
 				{
@@ -192,8 +190,6 @@ namespace Microsoft.UsEduCsu.Saas
 					LastModified = fs.LastModified.ToString("u"),
 					FundCode = metadata.ContainsKey("FundCode") ? metadata["FundCode"] : null,
 					Owner = metadata.ContainsKey("Owner") ? metadata["Owner"] : null,
-					Size = size.HasValue ? size.Value.ToString("N") : String.Empty,
-					Cost = cost.HasValue ? cost.Value.ToString("C") : String.Empty,
 					URI = HttpUtility.UrlEncode(fs.Name.Length > 0 ? fs.Name + "/" : string.Empty),
 					StorageExplorerURI = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={fs.Name}&serviceEndpoint={seEndpoint}",
 					UserAccess = new List<string>() { "Not implemented yet" }
