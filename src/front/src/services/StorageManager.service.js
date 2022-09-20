@@ -34,7 +34,8 @@ import HttpException from './HttpException'
 	return fetch(endpoint, options)
 		.then(response => {
 			if (response.status === 200) {
-				return response.json()
+				var json = response.json();
+				return json;
 			} else {
 				throw new HttpException(response.status, response.statusText)
 			}

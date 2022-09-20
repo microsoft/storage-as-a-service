@@ -112,7 +112,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				expiration = DateTimeOffset.UtcNow.AddHours(1);
 
 			// Build the Key for the cache
-			string nameKey = $"{itemName}_{key}";
+			// If no key is provided, use a default key
+			string nameKey = String.IsNullOrWhiteSpace(key) ? $"{itemName}_default" : $"{itemName}_{key}";
 
 			// Get Value from cache if found
 			// TODO: Handle RedisTimeoutException (retry)
@@ -132,15 +133,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (value == null)
 				return default;
 
-			// Serialize the object to a UTF-8 JSON string
-			MemoryStream s = new();
-			JsonSerializer.Serialize(s, value, typeof(T));
-			s.Flush();
-			var data = s.ToArray();
 
-			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
-			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
-			_logger.LogDebug($"{nameKey} (bytes: {data.Length}) written to cache.");
+			SetCacheValue(nameKey, value, expiration);
 
 #if DEBUG
 			// Serialization DoubleCheck
@@ -152,7 +146,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return value;
 		}
 
-		private T GetCacheValue<T>(string nameKey)
+		public T GetCacheValue<T>(string nameKey)
 		{
 			// Get Value from cache if found
 			byte[] byteArray = _cache.Get(nameKey);
@@ -164,6 +158,18 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				return obj;
 			}
 			return default;
+		}
+
+		public void SetCacheValue<T>(string nameKey, T value, DateTimeOffset? expiration = null)
+		{
+			MemoryStream s = new();
+			JsonSerializer.Serialize(s, value, typeof(T));
+			s.Flush();
+			var data = s.ToArray();
+
+			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
+			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
+			_logger.LogDebug($"{nameKey} (bytes: {data.Length}) written to cache.");
 		}
 
 		#endregion

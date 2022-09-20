@@ -46,12 +46,13 @@ const FileSystemsPage = ({ strings }) => {
 	useEffect(() => {
 		const retrieveAccountsAndFileSystems = async () => {
 			try {
-				const _storageAccounts = await getStorageAccounts()
+				let _storageAccounts = await getStorageAccounts()
+				_storageAccounts = _storageAccounts.map((a) => ({...a, concatenatedName : `${a.friendlyName} (${a.storageAccountName})`}));
 				setStorageAccounts(_storageAccounts)
 
 				if (_storageAccounts.length > 0) {
 					// Set the first storage account retrieved from the API as the selected one
-					setSelectedStorageAccount(_storageAccounts[0])
+					setSelectedStorageAccount(_storageAccounts[0].storageAccountName)
 					displayToast(strings.accountsLoaded)
 				}
 				else {
@@ -136,10 +137,12 @@ const FileSystemsPage = ({ strings }) => {
 					<Grid item md={6}>
 						<Selector
 							id='storageAccountSelector'
-							items={storageAccounts}
+							items={storageAccounts}         //{storageAccounts.map((a) => `${a.friendlyName} (${a.storageAccountName})`)}
 							label={strings.storageAccountLabel}
 							onChange={handleStorageAccountChange}
 							selectedItem={selectedStorageAccount}
+							textProperty={'concatenatedName'}
+							valueProperty={'storageAccountName'}
 						/>
 					</Grid>
 					<Grid item>

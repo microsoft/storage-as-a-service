@@ -22,7 +22,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private Rest.TokenCredentials _tokenCredentials;
 		private AccessToken _accessToken;
 		private AuthorizationManagementClient _amClient;
+		private CacheHelper _cache;
 		private bool disposedValue;
+
+		private static string StorageAccountFriendlyTagNameKey { get { return System.Environment.GetEnvironmentVariable("STORAGE_FRIENDLY_TAG_NAME"); } }
+		private static string StorageAccountPropertiesCacheKey { get { return System.Environment.GetEnvironmentVariable("STORAGE_ACCOUNT_PROPERTIES_CACHEKEY"); } }
 
 		private AuthorizationManagementClient AuthMgtClient
 		{
@@ -47,6 +51,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		public RoleOperations(ILogger log)
 		{
 			this.log = log;
+			_cache = CacheHelper.GetRedisCacheHelper(log);
 		}
 
 		#region Public and Internal Methods
@@ -101,6 +106,13 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 			List<StorageAccountAndContainers> results = new();
 
+			// Create RGO object to get Azure tag information
+			var rgo = new ResourceGraphOperations(log, TokenCredentials);
+
+			// Get the existing storage account properties from the cache. If there is no cached entry, create a new one.
+			var storageAccountProperties = _cache.GetCacheValue<StorageAccountPropertyCollection>(StorageAccountPropertiesCacheKey);
+			if (storageAccountProperties is null) { storageAccountProperties = new StorageAccountPropertyCollection(); }
+
 			// Process the role assignments into storage account and container names
 			foreach (var sdpr in roleAssignments)
 			{
@@ -115,12 +127,32 @@ namespace Microsoft.UsEduCsu.Saas.Services
 
 				// Find an existing entry for this storage account in the result set
 				StorageAccountAndContainers fsr = results
-					.SingleOrDefault(x => x.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
+					.SingleOrDefault(x => x.Account.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
 
 				// If this is the first time we've encountered this storage account, Set the storage account name property and add to result set
 				if (fsr == null)
 				{
-					fsr = new StorageAccountAndContainers() { StorageAccountName = storageAccountName };
+					// Check for cached storage account properties for the storage account name
+					var val = storageAccountProperties.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
+
+					// Check for the friendly name in the cache. If it doesn't exist, get it from Azure and add it to the cache.
+					var fname = (val is null) ? String.Empty : val.StorageAccountFriendlyName;
+					if (val is null || fname is null)
+					{
+							fname = rgo.GetAccountResourceTagValue(storageAccountName, StorageAccountFriendlyTagNameKey);
+							// Save back into cache
+							storageAccountProperties.Value.Add(new StorageAccountProperty
+							{
+								StorageAccountName = storageAccountName,
+								StorageAccountFriendlyName = fname
+							});
+							_cache.SetCacheValue(StorageAccountPropertiesCacheKey, storageAccountProperties);
+					}
+
+					// If there is no friendly name in the cache or in Azure, use the storage account name as the friendly name
+					fsr = new StorageAccountAndContainers();
+					fsr.Account.StorageAccountName = storageAccountName;
+					fsr.Account.FriendlyName = String.IsNullOrWhiteSpace(fname) ? storageAccountName : fname;
 					results.Add(fsr);
 				}
 
@@ -139,7 +171,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					else if (!containerGroup.Success)
 					{
 						// The role assignment applies to the entire storage account (at least)
-						var serviceUri = SasConfiguration.GetStorageUri(fsr.StorageAccountName);
+						var serviceUri = SasConfiguration.GetStorageUri(fsr.Account.StorageAccountName);
 						var adls = new FileSystemOperations(log, appCred, serviceUri);
 						var containers = adls.GetContainers();                      // Access is to entire storage account; retrieve all containers
 						fsr.Containers = containers.Select(fs => fs.Name).ToList();     // Replace any previously included containers
