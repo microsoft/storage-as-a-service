@@ -153,7 +153,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			if (byteArray != null)
 			{
 				// convert byte array to string
-				string json = Encoding.UTF8.GetString(byteArray);
 				var obj = JsonSerializer.Deserialize<T>(byteArray);
 				_logger.LogDebug($"{nameKey} (bytes: {byteArray.Length}) pulled from cache.");
 				return obj;
