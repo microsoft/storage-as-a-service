@@ -60,7 +60,7 @@ public class ResourceGraphOperations
 	/// Uses the Azure Resource Graph to retrieve the Azure resource ID
 	/// of the specified ADLS Gen 2 storage account.
 	/// </summary>
-	/// <param name="storageAccountName">The name of the storage account.</param>
+	/// <param name="storageAccountName">The name of the storage account</param>
 	/// <returns>The Azure resource ID.</returns>
 	public string GetAccountResourceId(string storageAccountName)
 	{
@@ -77,7 +77,7 @@ public class ResourceGraphOperations
 	/// <summary>
 	/// Uses the Azure Resource Graph to retrieve a Tag value for the specified Tag name
 	/// </summary>
-	/// <param name="storageAccountName">The name of the storage account.</param>
+	/// <param name="storageAccountName">The name of the storage account</param>
 	/// <param name="tagName">The name of the Tag</param>
 	/// <returns>Tag value</returns>
 	public string GetAccountResourceTagValue(string storageAccountName, string tagName)
@@ -94,14 +94,14 @@ public class ResourceGraphOperations
 	/// <summary>
 	/// Queries the Azure Resource Graph for the specified storage account
 	/// </summary>
-	/// <param name="storageAccountName">The name of the storage account.</param>
+	/// <param name="storageAccountName">The name of the storage account</param>
 	/// <param name="selectToken">The specific token property to be returned</param>
 	/// <returns>Token property value</returns>
 	private JToken GetGraphStorageAccountQueryResponse(string storageAccountName, string selectToken)
 	{
 			string queryText = $@"resources
 					| where name == '{storageAccountName}' and type == 'microsoft.storage/storageaccounts' and kind == 'StorageV2' and properties['isHnsEnabled']
-					| project tags";
+					| project {selectToken}" ;
 			QueryResponse queryResponse;
 
 			try
@@ -124,12 +124,11 @@ public class ResourceGraphOperations
 				else
 				{
 					return null;
-					// TODO: Throw custom exception?
 				}
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
-				// TODO: Log
+				log.LogError($"Exception in GetGraphStorageAccountQueryResponse: {ex} ", ex);
 				return null;
 			}
 	}
