@@ -30,11 +30,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		{
 			get
 			{
-				if (_amClient is null)
-				{
-					_amClient = new AuthorizationManagementClient(TokenCredentials);
-				}
-
+				_amClient ??= new AuthorizationManagementClient(TokenCredentials);
 				return _amClient;
 			}
 		}
@@ -300,7 +296,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var roleDefinition = ScopedRoleDefinitions
 				.FirstOrDefault(x => x.RoleName == roleName);
 
-			if (!(roleDefinition is null))
+			if (roleDefinition is not null)
 			{
 				// Get Current Role Assignments
 				var roleAssignments = GetRoleAssignments(scope, principalId);
@@ -332,7 +328,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// Get the Role Assignments for the scope
 			IList<Azure.Management.Authorization.Models.RoleAssignment> assignments = GetRoleAssignments(scope, principalId);
 
-			if (!(assignments is null))
+			if (assignments is not null)
 			{
 				// Join Role Assignments and Role Definitions
 				var storageDataPlaneRoles = assignments.Join(ScopedRoleDefinitions, ra => ra.RoleDefinitionId, rd => rd.Id,
@@ -342,10 +338,10 @@ namespace Microsoft.UsEduCsu.Saas.Services
 								Scope = ra.Scope,
 								PrincipalType = ra.PrincipalType,
 								PrincipalId = ra.PrincipalId,
-								IsInherited = !ra.Scope.Equals(scope),
+								IsInherited = !ra.Scope.Equals(scope, StringComparison.OrdinalIgnoreCase),
 								// Return only the GUID part of the assignment ID (not the full resource ID,
 								// because it would leak subscription IDs, etc. to the client)
-								RoleAssignmentId = ra.Id.Substring(ra.Id.LastIndexOf('/') + 1)
+								RoleAssignmentId = ra.Id[(ra.Id.LastIndexOf('/') + 1)..]
 							}).ToList();
 
 				return storageDataPlaneRoles;

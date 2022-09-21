@@ -24,7 +24,7 @@ namespace Microsoft.UsEduCsu.Saas
 {
 	public static class FileSystems
 	{
-		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(FileSystemDetail), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 		[ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -62,7 +62,7 @@ namespace Microsoft.UsEduCsu.Saas
 			}
 		}
 
-		[ProducesResponseType(typeof(FolderOperations.FolderDetail), StatusCodes.Status201Created)]
+		[ProducesResponseType(typeof(FileSystemDetail), StatusCodes.Status201Created)]
 		[ProducesResponseType(typeof(List<FileSystemResult>), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -76,89 +76,89 @@ namespace Microsoft.UsEduCsu.Saas
 
 			if (req.Method == HttpMethods.Post)
 				return await FileSystemsPOST(req, log, account);
-			else if (req.Method == HttpMethods.Get)
-				return FileSystemsGET(req, log, account);
+			//else if (req.Method == HttpMethods.Get)
+			//	return FileSystemsGET(req, log, account);
 
 			// TODO: If this is even possible (accepted methods are defined above?),
 			// return HTTP error code 405, response must include an Allow header with allowed methods
 			return null;
 		}
 
-		private static IActionResult FileSystemsGET(HttpRequest req, ILogger log, string account)
-		{
-			// Check for logged in user
-			ClaimsPrincipal claimsPrincipal;
+		//private static IActionResult FileSystemsGET(HttpRequest req, ILogger log, string account)
+		//{
+		//	// Check for logged in user
+		//	ClaimsPrincipal claimsPrincipal;
 
-			try
-			{
-				claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
+		//	try
+		//	{
+		//		claimsPrincipal = UserOperations.GetClaimsPrincipal(req);
 
-				if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
-				{
-					// TODO: Consider return HTTP 401 instead of HTTP 500
-					// TODO: This is also a .NET Core 2.2 construct
-					return new BadRequestErrorMessageResult("Call requires an authenticated user.");
-				}
-			}
-			catch (Exception ex)
-			{
-				log.LogError(ex.Message);
-				return new BadRequestErrorMessageResult("Unable to authenticate user.");
-			}
+		//		if (Services.Extensions.AnyNull(claimsPrincipal, claimsPrincipal.Identity))
+		//		{
+		//			// TODO: Consider return HTTP 401 instead of HTTP 500
+		//			// TODO: This is also a .NET Core 2.2 construct
+		//			return new BadRequestErrorMessageResult("Call requires an authenticated user.");
+		//		}
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		log.LogError(ex.Message);
+		//		return new BadRequestErrorMessageResult("Unable to authenticate user.");
+		//	}
 
-			// TODO: principalId could be null
-			var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
-			var userCred = CredentialHelper.GetUserCredentials(log, principalId);
+		//	// TODO: principalId could be null
+		//	var principalId = UserOperations.GetUserPrincipalId(claimsPrincipal);
+		//	var userCred = CredentialHelper.GetUserCredentials(log, principalId);
 
-			// Get the Containers for a upn from each storage account
-			var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
-			if (account != null)
-				accounts = accounts.Where(a => a.ToLowerInvariant() == account).ToArray();
+		//	// Get the Containers for a upn from each storage account
+		//	var accounts = SasConfiguration.GetConfiguration().StorageAccounts;
+		//	if (account != null)
+		//		accounts = accounts.Where(a => a.ToLowerInvariant() == account).ToArray();
 
-			// Define the return value
-			var result = new List<FileSystemResult>();
+		//	// Define the return value
+		//	var result = new List<FileSystemResult>();
 
-			RoleOperations roleOperations = new(log);
+		//	RoleOperations roleOperations = new(log);
 
-			var appCred = new DefaultAzureCredential();
+		//	var appCred = new DefaultAzureCredential();
 
-			Parallel.ForEach(accounts, acct =>
-			{
-				IList<string> containers = null;
+		//	Parallel.ForEach(accounts, acct =>
+		//	{
+		//		IList<string> containers = null;
 
-				try
-				{
-					// TODO: Consider renaming to GetPermissionedContainers
-					containers = GetContainers(log, acct, principalId, appCred: appCred,
-						userCred: userCred, roleOperations);
-				}
-				catch (Exception ex)
-				{
-					log.LogError(ex, "Error while retrieving containers for storage account '{acct}': '{Message}'.", acct, ex.Message);
-					// Eat the exception here because otherwise a failure to read one account's
-					// RBAC permissions wil cause the entire operation to fail
-				}
+		//		try
+		//		{
+		//			// TODO: Consider renaming to GetPermissionedContainers
+		//			containers = GetContainers(log, acct, principalId, appCred: appCred,
+		//				userCred: userCred, roleOperations);
+		//		}
+		//		catch (Exception ex)
+		//		{
+		//			log.LogError(ex, "Error while retrieving containers for storage account '{acct}': '{Message}'.", acct, ex.Message);
+		//			// Eat the exception here because otherwise a failure to read one account's
+		//			// RBAC permissions wil cause the entire operation to fail
+		//		}
 
-				// If the current user has access to at least 1 container in the current storage account
-				if (containers?.Count > 0)
-				{
-					// Create a result object for the current storage account
-					var fs = new FileSystemResult()
-					{
-						Name = acct,
-						FileSystems = containers.Distinct().OrderBy(c => c).ToList()
-					};
+		//		// If the current user has access to at least 1 container in the current storage account
+		//		if (containers?.Count > 0)
+		//		{
+		//			// Create a result object for the current storage account
+		//			var fs = new FileSystemResult()
+		//			{
+		//				Name = acct,
+		//				FileSystems = containers.Distinct().OrderBy(c => c).ToList()
+		//			};
 
-					// Add the current account and the permissioned containers to the result set
-					result.Add(fs);
-				}
-			});
+		//			// Add the current account and the permissioned containers to the result set
+		//			result.Add(fs);
+		//		}
+		//	});
 
-			log.LogTrace(JsonSerializer.Serialize(result));
+		//	log.LogTrace(JsonSerializer.Serialize(result));
 
-			// Send back the Accounts and FileSystems
-			return new OkObjectResult(result);
-		}
+		//	// Send back the Accounts and FileSystems
+		//	return new OkObjectResult(result);
+		//}
 
 		internal static IList<FileSystemDetail> GetFileSystemDetailsForAccount(string account)
 		{
@@ -202,79 +202,79 @@ namespace Microsoft.UsEduCsu.Saas
 			return fileSystemDetails;
 		}
 
-		/// <summary>
-		/// Retrieves the containers in the specified storage account to which the specified account has access.
-		/// Access can be either via RBAC data plane roles or via ACLs on folders.
-		/// The userCred and the principal ID must refer to the same account.
-		/// </summary>
-		/// <param name="log"></param>
-		/// <param name="account">The storage account for which to retrieve accessible containers.</param>
-		/// <param name="principalId">The principal ID for which to retrieve accessible containers.</param>
-		/// <param name="appCred">An access token for the app's identity.</param>
-		/// <param name="userCred">An access token to impersonate the calling user (same as principalId) when calling the Storage API.</param>
-		/// <returns>The list of containers to which the specified principal has access.</returns>
-		private static IList<string> GetContainers(ILogger log, string account, string principalId,
-			TokenCredential appCred, TokenCredential userCred,
-			RoleOperations roleOps)
-		{
-			// TODO: validate that userCred and principalId match?
+		///// <summary>
+		///// Retrieves the containers in the specified storage account to which the specified account has access.
+		///// Access can be either via RBAC data plane roles or via ACLs on folders.
+		///// The userCred and the principal ID must refer to the same account.
+		///// </summary>
+		///// <param name="log"></param>
+		///// <param name="account">The storage account for which to retrieve accessible containers.</param>
+		///// <param name="principalId">The principal ID for which to retrieve accessible containers.</param>
+		///// <param name="appCred">An access token for the app's identity.</param>
+		///// <param name="userCred">An access token to impersonate the calling user (same as principalId) when calling the Storage API.</param>
+		///// <returns>The list of containers to which the specified principal has access.</returns>
+		//private static IList<string> GetContainers(ILogger log, string account, string principalId,
+		//	TokenCredential appCred, TokenCredential userCred,
+		//	RoleOperations roleOps)
+		//{
+		//	// TODO: validate that userCred and principalId match?
 
-			// Define the return value (never return null)
-			var accessibleContainers = new List<string>();
+		//	// Define the return value (never return null)
+		//	var accessibleContainers = new List<string>();
 
-			var serviceUri = SasConfiguration.GetStorageUri(account);
-			var adls = new FileSystemOperations(log, appCred, serviceUri);
+		//	var serviceUri = SasConfiguration.GetStorageUri(account);
+		//	var adls = new FileSystemOperations(log, appCred, serviceUri);
 
-			// Retrieve all the containers in the specified storage account
-			var fileSystems = adls.GetContainers();
+		//	// Retrieve all the containers in the specified storage account
+		//	var fileSystems = adls.GetContainers();
 
-			// Check for RBAC data plane access to any container in the account
-			IList<RoleOperations.ContainerRoleAssignment> containerDataPlaneRoleAssignments = null;
+		//	// Check for RBAC data plane access to any container in the account
+		//	IList<RoleOperations.ContainerRoleAssignment> containerDataPlaneRoleAssignments = null;
 
-			try
-			{
-				containerDataPlaneRoleAssignments = roleOps
-								.GetContainerRoleAssignments(account, principalId);
-			}
-			catch (Exception ex)
-			{
-				log.LogError(ex, "Unable to retrieve container RBAC assignments for '{account}'", account);
-				throw;
-			}
+		//	try
+		//	{
+		//		containerDataPlaneRoleAssignments = roleOps
+		//						.GetContainerRoleAssignments(account, principalId);
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		log.LogError(ex, "Unable to retrieve container RBAC assignments for '{account}'", account);
+		//		throw;
+		//	}
 
-			// Join fileSystems and roleAssignments due to orphaned role assignments
-			var fileSystemRoleAssignments = fileSystems.Join(containerDataPlaneRoleAssignments,
-					fs => fs.Name,
-					ra => ra.Container,
-					(_, ra) => ra)
-					.ToList();
+		//	// Join fileSystems and roleAssignments due to orphaned role assignments
+		//	var fileSystemRoleAssignments = fileSystems.Join(containerDataPlaneRoleAssignments,
+		//			fs => fs.Name,
+		//			ra => ra.Container,
+		//			(_, ra) => ra)
+		//			.ToList();
 
-			// If the specified principal has any data plane RBAC assignment on any container
-			if (fileSystemRoleAssignments.Count > 0)
-			{
-				// They have access to these containers
-				fileSystemRoleAssignments.ForEach(r => accessibleContainers.Add(r.Container));
-			}
+		//	// If the specified principal has any data plane RBAC assignment on any container
+		//	if (fileSystemRoleAssignments.Count > 0)
+		//	{
+		//		// They have access to these containers
+		//		fileSystemRoleAssignments.ForEach(r => accessibleContainers.Add(r.Container));
+		//	}
 
-			// For any containers where the principal doesn't have a data plane RBAC role
-			Parallel.ForEach(fileSystems.Where(fs => !accessibleContainers.Any(c => c == fs.Name)), filesystem =>
-			{
-				// Evaluate top-level folder ACLs, check if user can read folders
-				var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
-				// Retrieve all folders in the container
-				var folderList = folderOps.GetFolderList();
+		//	// For any containers where the principal doesn't have a data plane RBAC role
+		//	Parallel.ForEach(fileSystems.Where(fs => !accessibleContainers.Any(c => c == fs.Name)), filesystem =>
+		//	{
+		//		// Evaluate top-level folder ACLs, check if user can read folders
+		//		var folderOps = new FolderOperations(serviceUri, filesystem.Name, log, appCred);
+		//		// Retrieve all folders in the container
+		//		var folderList = folderOps.GetFolderList();
 
-				// Check for any folder using calling user's credentials
-				var folderOpsAsUser = new FolderOperations(serviceUri, filesystem.Name, log, userCred, principalId);
-				var folders = folderOpsAsUser.GetAccessibleFolders(folderList, checkForAny: true);
+		//		// Check for any folder using calling user's credentials
+		//		var folderOpsAsUser = new FolderOperations(serviceUri, filesystem.Name, log, userCred, principalId);
+		//		var folders = folderOpsAsUser.GetAccessibleFolders(folderList, checkForAny: true);
 
-				if (folders.Count > 0)
-					// TODO: Use ConcurrentBag for thread-safety
-					accessibleContainers.Add(filesystem.Name);
-			});
+		//		if (folders.Count > 0)
+		//			// TODO: Use ConcurrentBag for thread-safety
+		//			accessibleContainers.Add(filesystem.Name);
+		//	});
 
-			return accessibleContainers;
-		}
+		//	return accessibleContainers;
+		//}
 
 		private static async Task<IActionResult> FileSystemsPOST(HttpRequest req, ILogger log, string account)
 		{

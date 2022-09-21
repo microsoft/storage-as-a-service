@@ -8,10 +8,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 	{
 		public string Name { get; set; }
 		public string LastModified { get; set; }
-		public string Size { get; set; }        // Not Calculated
-		public string Cost { get; set; }
 		public string FundCode { get; set; }    // Metadata
-		public string Owner { get; set; }       // Metadata
+		public string Owner { get; set; }       // TODO: Determine if this is a Key
 		public string URI { get; set; }
 		public IList<string> UserAccess { get; set; }
 		public string StorageExplorerURI { get; set; }

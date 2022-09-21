@@ -13,12 +13,22 @@ namespace Microsoft.UsEduCsu.Saas.Data
 
 		public bool AllContainers { get; set; }     // Principal has read acces on storage account & list is All containers
 
+		public override bool Equals(object obj)
+		{
+			return Equals(obj as StorageAccountAndContainers);
+		}
+		public override int GetHashCode()
+		{
+			return HashCode.Combine(this.StorageAccountName, this.Containers, this.AllContainers);
+		}
+
 		public bool Equals(StorageAccountAndContainers other)
 		{
+			if (other == null) return false;
 			if (this.StorageAccountName != other.StorageAccountName)
 				return false;
 
-			if (this.Containers != other.Containers)
+			if (!this.Containers.Equals(other.Containers))
 				return false;
 
 			if (this.AllContainers != other.AllContainers)

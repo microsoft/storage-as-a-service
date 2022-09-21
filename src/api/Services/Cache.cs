@@ -1,15 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
+using Microsoft.Rest;
 using Microsoft.UsEduCsu.Saas.Data;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Text.Json;
 
 namespace Microsoft.UsEduCsu.Saas.Services
@@ -148,7 +147,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// Serialization DoubleCheck
 			var cacheValue = GetCacheValue<T>(nameKey);
 			if (value is IEquatable<T> && !value.Equals(cacheValue))
-				throw new Exception("Unable to serialize object.");
+				throw new SerializationException("Unable to serialize object.");
 #endif
 
 			return value;

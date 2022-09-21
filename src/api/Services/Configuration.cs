@@ -3,9 +3,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Collections.Generic;
 
 [assembly: InternalsVisibleTo("tests")]
 
@@ -25,7 +25,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal static string ApiClientSecret = Environment.GetEnvironmentVariable("API_CLIENT_SECRET");
 
 		internal static string CacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
-		private static string ManagedSubscriptions = Environment.GetEnvironmentVariable("MANAGED_SUBSCRIPTIONS");
+		private readonly static string ManagedSubscriptions = Environment.GetEnvironmentVariable("MANAGED_SUBSCRIPTIONS");
 
 		internal static ConfigurationResult GetConfiguration()
 		{

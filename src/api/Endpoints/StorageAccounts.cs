@@ -1,28 +1,28 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Web;
 using Azure.Identity;
 using Azure.Storage.Files.DataLake;
+using Azure.Storage.Files.DataLake.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.UsEduCsu.Saas.Services;
-using static Microsoft.UsEduCsu.Saas.FileSystems;
-using Azure.Storage.Files.DataLake.Models;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Web;
+using static Microsoft.UsEduCsu.Saas.FileSystems;
 
 namespace Microsoft.UsEduCsu.Saas
 {
 	public static class StorageAccounts
 	{
-		[ProducesResponseType(typeof(ContainerDetail), StatusCodes.Status200OK)]
+		[ProducesResponseType(typeof(IList<ContainerDetail>), StatusCodes.Status200OK)]
 		[ProducesResponseType(typeof(IEnumerable<string>), StatusCodes.Status200OK)]
 		[ProducesResponseType(StatusCodes.Status400BadRequest)]
 		[ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -33,7 +33,7 @@ namespace Microsoft.UsEduCsu.Saas
 			ILogger log, string account)
 		{
 			// Validate Authorized Principal
-			ClaimsPrincipalResult cpr = new ClaimsPrincipalResult(UserOperations.GetClaimsPrincipal(req));
+			ClaimsPrincipalResult cpr = new(UserOperations.GetClaimsPrincipal(req));
 
 			if (!cpr.IsValid)
 			{
