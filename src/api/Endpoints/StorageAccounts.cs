@@ -141,7 +141,8 @@ namespace Microsoft.UsEduCsu.Saas
 					RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
 					PrincipalId = r.PrincipalId,
 					PrincipalName = graphOps.GetDisplayName(r.PrincipalId),
-					Order = sortOrderMap.GetValueOrDefault(r.RoleName)
+					Order = sortOrderMap.GetValueOrDefault(r.RoleName),
+					IsInherited = r.IsInherited
 				})
 				.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName
 				).ToList();

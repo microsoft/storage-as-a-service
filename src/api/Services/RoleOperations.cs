@@ -341,7 +341,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 								RoleName = rd.RoleName,
 								Scope = ra.Scope,
 								PrincipalType = ra.PrincipalType,
-								PrincipalId = ra.PrincipalId
+								PrincipalId = ra.PrincipalId,
+								IsInherited = !ra.Scope.Equals(scope)
 							}).ToList();
 
 				return storageDataPlaneRoles;
@@ -400,6 +401,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string PrincipalId { get; set; }
 			public string PrincipalType { get; set; }
 			public string Id { get; set; }
+			public bool IsInherited { get; set; }
 		}
 
 		#region Disposable Pattern
