@@ -122,10 +122,6 @@ namespace Microsoft.UsEduCsu.Saas
 
 			// Get Metadata information
 			var metadata = (properties.Metadata ?? new Dictionary<string, string>());
-			long? size = metadata.ContainsKey("Size") ? long.Parse(metadata["Size"], CultureInfo.CurrentCulture) : null;
-			decimal? cost = (size == null) ? null : size * costPerTB / 1000000000000;
-			metadata["Size"] = size.HasValue ? ConvertFromBytes(size.Value) : String.Empty;
-			metadata["Cost"] = cost.HasValue ? cost.Value.ToString("C", CultureInfo.CurrentCulture) : String.Empty;
 			metadata["LastModified"] = properties.LastModified.ToString("G", CultureInfo.CurrentCulture);
 
 			// Rbac Principal Types to Display
@@ -162,19 +158,6 @@ namespace Microsoft.UsEduCsu.Saas
 			};
 
 			return cd;
-		}
-
-		private static string ConvertFromBytes(long size)
-		{
-			(double result, string postfix) = size switch
-			{
-				>= 1000000000000 => (size / 1000000000000, "TB"),
-				>= 1000000000 => (size / 1000000000, "GB"),
-				>= 1000000 => (size / 1000000, "MB"),
-				>= 1000 => (size / 1000000, "KB"),
-				_ => (size, "Bytes")
-			};
-			return $"{result.ToString("N0", CultureInfo.CurrentCulture)} {postfix}";
 		}
 	}
 }

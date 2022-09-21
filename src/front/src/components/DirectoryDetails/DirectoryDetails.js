@@ -45,19 +45,13 @@ const DirectoryDetails = ({ data, strings }) => {
 			<Grid item xs={12} className='title'>
 				<div className='label'>{strings.folderLabel}:</div>{data.name}
 			</Grid>
-			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.sizeLabel}:</div>{format(data.metadata.Size)}
-			</Grid>
-			<Grid item md={4} sm={6} xs={12} className='detail'>
-				<div className='label'>{strings.costLabel}:</div>{format(data.metadata.Cost)}
-			</Grid>
-			<Grid item md={4} sm={6} xs={12} className='detail'>
+			<Grid item sm={6} xs={12} className='detail'>
 				<div className='label'>{strings.fundCodeLabel}:</div>{format(data.metadata.FundCode)}
 			</Grid>
-			<Grid item md={4} sm={6} xs={12} className='detail'>
+			<Grid item sm={6} xs={12} className='detail'>
 				<div className='label'>{strings.lastModifiedLabel}:</div>{format(data.metadata.LastModified)}
 			</Grid>
-			<Grid item md={4} sm={6} xs={12} className='detail'>
+			<Grid item xs={12} className='detail'>
 				<div className='label'>{strings.ownerLabel}:</div>{format(data.metadata.Owner)}
 			</Grid>
 			<Grid item xs={12} className='detail'>
