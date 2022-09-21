@@ -142,7 +142,8 @@ namespace Microsoft.UsEduCsu.Saas
 					PrincipalId = r.PrincipalId,
 					PrincipalName = graphOps.GetDisplayName(r.PrincipalId),
 					Order = sortOrderMap.GetValueOrDefault(r.RoleName),
-					IsInherited = r.IsInherited
+					IsInherited = r.IsInherited,
+					RoleAssignmentId = r.RoleAssignmentId
 				})
 				.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName
 				).ToList();
