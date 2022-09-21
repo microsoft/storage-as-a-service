@@ -52,6 +52,34 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		}
 
 		/// <summary>
+		/// Returns the cached list of storage account properties
+		/// </summary>
+		/// <returns>Cached value or new value if not cached.</returns>
+		internal StorageAccountProperties GetStorageAccountProperties()
+		{
+			var obj = GetCacheValue<StorageAccountProperties>(SasConfiguration.StorageAccountPropertiesCacheKey);
+			if (obj is null) { obj = new StorageAccountProperties(); }
+			return obj;
+		}
+
+		/// <summary>
+		/// Sets the cached list of storage account properties
+		/// </summary>
+		/// <returns>Cached value or new value if not cached.</returns>
+		internal void SetStorageAccountProperties(StorageAccountProperties properties)
+		{
+			try
+			{
+				SetCacheValue(SasConfiguration.StorageAccountPropertiesCacheKey, properties);
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "Error caching storageaccount properties");
+			}
+		}
+
+
+		/// <summary>
 		/// Returns a cached directory objects
 		/// </summary>
 		/// <param name="principalId">A unique identifier to lookup in the cache</param>
@@ -114,8 +142,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 				expiration = DateTimeOffset.UtcNow.AddHours(1);
 
 			// Build the Key for the cache
-			// If no key is provided, use a default key
-			string nameKey = String.IsNullOrWhiteSpace(key) ? $"{itemName}_default" : $"{itemName}_{key}";
+			string nameKey = $"{itemName}_{key}";
 
 			// Get Value from cache if found
 			// TODO: Handle RedisTimeoutException (retry)
@@ -125,6 +152,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			// TODO: Consider ignoring cached value if 2 bytes only (empty JSON object)
 			if (byteArray != null)
 			{
+				// convert byte array to string
+				string json = Encoding.UTF8.GetString(byteArray);
 				var obj = JsonSerializer.Deserialize<T>(byteArray);
 				_logger.LogDebug($"{nameKey} (bytes: {byteArray.Length}) pulled from cache.");
 				return obj;
@@ -148,7 +177,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return value;
 		}
 
-		public T GetCacheValue<T>(string nameKey)
+		private T GetCacheValue<T>(string nameKey)
 		{
 			// Get Value from cache if found
 			byte[] byteArray = _cache.Get(nameKey);
@@ -162,7 +191,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			return default;
 		}
 
-		public void SetCacheValue<T>(string nameKey, T value, DateTimeOffset? expiration = null)
+		private void SetCacheValue<T>(string nameKey, T value, DateTimeOffset? expiration = null)
 		{
 			MemoryStream s = new();
 			JsonSerializer.Serialize(s, value, typeof(T));

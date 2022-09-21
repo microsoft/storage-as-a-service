@@ -27,9 +27,6 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		private CacheHelper _cache;
 		private bool disposedValue;
 
-		private static string StorageAccountFriendlyTagNameKey { get { return System.Environment.GetEnvironmentVariable("STORAGE_FRIENDLY_TAG_NAME"); } }
-		private static string StorageAccountPropertiesCacheKey { get { return System.Environment.GetEnvironmentVariable("STORAGE_ACCOUNT_PROPERTIES_CACHEKEY"); } }
-
 		private AuthorizationManagementClient AuthMgtClient
 		{
 			get
@@ -112,8 +109,7 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			var rgo = new ResourceGraphOperations(log, TokenCredentials);
 
 			// Get the existing storage account properties from the cache. If there is no cached entry, create a new one.
-			var storageAccountProperties = _cache.GetCacheValue<StorageAccountPropertyCollection>(StorageAccountPropertiesCacheKey);
-			if (storageAccountProperties is null) { storageAccountProperties = new StorageAccountPropertyCollection(); }
+			var storageAccountProperties = _cache.GetStorageAccountProperties();
 
 			// Process the role assignments into storage account and container names
 			foreach (var sdpr in roleAssignments)
@@ -138,23 +134,21 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					var val = storageAccountProperties.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
 
 					// Check for the friendly name in the cache. If it doesn't exist, get it from Azure and add it to the cache.
-					var fname = (val is null) ? String.Empty : val.StorageAccountFriendlyName;
-					if (val is null || fname is null)
+					var fname = (val is null) ? String.Empty : val.FriendlyName;
+					if (val is null)
 					{
-							fname = rgo.GetAccountResourceTagValue(storageAccountName, StorageAccountFriendlyTagNameKey);
+							fname = rgo.GetAccountResourceTagValue(storageAccountName, SasConfiguration.StorageAccountFriendlyTagNameKey);
 							// Save back into cache
-							storageAccountProperties.Value.Add(new StorageAccountProperty
+							storageAccountProperties.Value.Add(new StorageAccount
 							{
 								StorageAccountName = storageAccountName,
-								StorageAccountFriendlyName = fname
+								FriendlyName = fname
 							});
-							_cache.SetCacheValue(StorageAccountPropertiesCacheKey, storageAccountProperties);
 					}
 
-					// If there is no friendly name in the cache or in Azure, use the storage account name as the friendly name
 					fsr = new StorageAccountAndContainers();
 					fsr.Account.StorageAccountName = storageAccountName;
-					fsr.Account.FriendlyName = String.IsNullOrWhiteSpace(fname) ? storageAccountName : fname;
+					fsr.Account.FriendlyName = fname;
 					results.Add(fsr);
 				}
 
@@ -181,6 +175,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 					}
 				}
 			}
+
+			// Update the account properties cache
+			_cache.SetStorageAccountProperties(storageAccountProperties);
 
 			return results;
 		}

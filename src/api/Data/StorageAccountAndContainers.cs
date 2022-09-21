@@ -8,7 +8,7 @@ namespace Microsoft.UsEduCsu.Saas.Data
 	internal class StorageAccountAndContainers : IEquatable<StorageAccountAndContainers>
 	{
 
-		public StorageAccount Account { get; set; }
+		public StorageAccount Account { get; set; } = new();
 
 		public List<string> Containers { get; set; } = new List<string>();
 
@@ -28,8 +28,5 @@ namespace Microsoft.UsEduCsu.Saas.Data
 			return true;
 		}
 
-		public StorageAccountAndContainers() {
-			Account = new StorageAccount();
-		}
 	}
 }

@@ -140,7 +140,7 @@ const FileSystemsPage = ({ strings }) => {
 					<Grid item md={6}>
 						<Selector
 							id='storageAccountSelector'
-							items={storageAccounts}         //{storageAccounts.map((a) => `${a.friendlyName} (${a.storageAccountName})`)}
+							items={storageAccounts}
 							label={strings.storageAccountLabel}
 							onChange={handleStorageAccountChange}
 							selectedItem={selectedStorageAccount}
