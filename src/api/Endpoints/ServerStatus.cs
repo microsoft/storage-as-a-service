@@ -22,7 +22,7 @@ namespace Microsoft.UsEduCsu.Saas
 			// Validate Configuration
 			var (isConfigValid, errors) = SasConfiguration.Validate();
 
-			errors.Select(d => $"{d.Key}: {d.Value}");
+			// Prepare respone with errors if exist
 			var status = new Status()
 			{
 				Message = string.Join(", ", errors.Select(d => $"{d.Key}: {d.Value}")),

@@ -32,8 +32,8 @@ namespace Microsoft.UsEduCsu.Saas
 				// TODO: Change "." to "-" in custom roles because staticwebapp.config.json doesn't support periods.
 				string[] additionalRoles = it.Claims
 					// Find any roles claims in the token
-					.Where(c => c.Type.Equals("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
-							 || c.Type.Equals("roles"))
+					.Where(c => c.Type.Equals("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", System.StringComparison.OrdinalIgnoreCase)
+							 || c.Type.Equals("roles", System.StringComparison.OrdinalIgnoreCase))
 					// Get those values as an array of strings
 					.Select(c => c.Value.Replace(".", ""))
 					.ToArray();
