@@ -22,6 +22,14 @@ const URLS = {
 	createFolder: {
 		method: 'POST',
 		endpoint: '/api/TopLevelFolders/{account}/{filesystem}'
+	},
+	createRoleAssignment: {
+		method: 'POST',
+		endpoint: '/api/FileSystems/{storageaccount}/{container}/authorization'
+	},
+	deleteRoleAssignment: {
+		method: 'DELETE',
+		endpoint: '/api/FileSystems/{storageaccount}/{container}/authorization/{guid}'
 	}
 }
 

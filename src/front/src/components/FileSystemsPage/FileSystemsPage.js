@@ -27,6 +27,7 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import DirectoryDetails from '../DirectoryDetails'
 import ConnectDetails from '../ConnectDetails/ConnnectDetails'
+import EditDetails from '../EditDetails'
 
 /**
  * Renders list of Storage Accounts and FileSystems
@@ -37,6 +38,7 @@ const FileSystemsPage = ({ strings }) => {
 	const { isAuthenticated } = useAuthentication()
 
 	// Setup state hooks
+	const [edit, setEdit] = useState({ show: false, data: {}, storageAccount: '' })
 	const [details, setDetails] = useState({ show: false, data: {} })
 	const [selectedStorageAccount, setSelectedStorageAccount] = useState('')
 	const [storageAccounts, setStorageAccounts] = useState([])
@@ -118,8 +120,12 @@ const FileSystemsPage = ({ strings }) => {
 		setSelectedStorageAccount(id)
 	}, [])
 
-	const onEdit = async () => {
-		// test
+	const onEdit = (rowData, selectedStorageAccount) => {
+		setEdit({ show: true, data: rowData, storageAccount: selectedStorageAccount })
+	}
+
+	const handleCancelEdit = () => {
+		setEdit({ show: false, data: {} })
 	}
 
 	const onDetails = (rowData) => {
@@ -201,7 +207,7 @@ const FileSystemsPage = ({ strings }) => {
 												{row.metadata.FundCode}
 											</td>
 											<td className='actions'>
-												{onEdit && <EditIcon onClick={() => onEdit(row)} className='action' />}
+												{onEdit && <EditIcon onClick={() => onEdit(row, selectedStorageAccount)} className='action' />}
 												{onDetails &&
 													<Tooltip arrow title="Open details" placement='top'>
 														<DetailsIcon onClick={() => onDetails(row)} className='action' />
@@ -223,6 +229,19 @@ const FileSystemsPage = ({ strings }) => {
 					</Grid>
 				</Grid>
 			</Container>
+			{edit.show &&
+				<Dialog onClose={handleCancelEdit} open={edit.show} maxWidth='lg'>
+					<DialogTitle>
+						{strings.editDetailsTitle}
+					</DialogTitle>
+					<DialogContent>
+						<EditDetails data={edit.data} storageAccount={edit.storageAccount} strings={strings.editDetails} />
+					</DialogContent>
+					<DialogActions>
+						<Button variant='outlined' startIcon={<CancelIcon />} onClick={handleCancelEdit}>{strings.close}</Button>
+					</DialogActions>
+				</Dialog>
+			}
 			{details.show &&
 				<Dialog onClose={handleCancelDetails} open={details.show} maxWidth='lg'>
 					<DialogTitle>

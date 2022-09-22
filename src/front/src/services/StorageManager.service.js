@@ -144,3 +144,63 @@ export const createFolder = async (storageAccount, fileSystem, owner, content) =
 		console.error(error);
 	}
 }
+
+
+/**
+ * Delete a user role from the storage account container
+ */
+export const deleteRoleAssignment = async (storageaccount, container, guid) => {
+	const endpoint = URLS.deleteRoleAssignment.endpoint.replace('{storageaccount}', storageaccount).replace('{container}', container).replace('{guid}', guid)
+	const options = getOptions(URLS.deleteRoleAssignment.method)
+
+	return fetch(endpoint, options)
+		.then(response => {
+			if (response.status === 200) {
+				return response.json()
+			} else {
+				throw new HttpException(response.status, response.statusText)
+			}
+		})
+		.catch(error => {
+			console.log(`Call to API (${endpoint}) failed with the following details:`)
+			console.log(error)
+			throw error
+		})
+}
+
+
+/**
+ * Create a role assigment for the storage account container
+ */
+export const createRoleAssignment = async (storageaccount, container, userObject) => {
+	const endpoint = URLS.createRoleAssignment.endpoint.replace('{storageaccount}', storageaccount).replace('{container}', container)
+	const options = getOptions(URLS.createRoleAssignment.method)
+
+	options.body = JSON.stringify({
+		identity: userObject.principalName,
+		role: userObject.roleName
+	})
+
+	try {
+		var response = await fetch(endpoint, options);
+		let roleAssignmentResponse = {
+			role: "",
+			identity: "",
+			Message: ""
+		};
+
+		let body = await response.json();
+
+		// If the result code is success (should always be HTTP 201)
+		if (response.status >= 200 && response.status <= 299)
+			roleAssignmentResponse.identity = body.identity
+
+		// Regardless of success, there can always be a message
+		roleAssignmentResponse.Message = body.message ? body.message : body.Message
+
+		return roleAssignmentResponse
+	}
+	catch (error) {
+		console.error(error);
+	}
+}
