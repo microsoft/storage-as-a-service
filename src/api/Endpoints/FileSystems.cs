@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Text.Json;
 using Azure.Identity;
 using Azure.Storage.Files.DataLake;
 using Microsoft.AspNetCore.Http;
@@ -9,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
 using Microsoft.UsEduCsu.Saas.Services;
 
 namespace Microsoft.UsEduCsu.Saas;
@@ -57,13 +59,16 @@ public static class FileSystems
 	[FunctionName("AuthorizationDelete")]
 	public static IActionResult AuthorizationDelete(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "DELETE", Route = "FileSystems/{account}/{container}/authorization/{rbacId}")]
-		HttpRequest req,
-		ILogger log, string account, string container, string rbacId)
+		HttpRequest req, ILogger log, string account, string container, string rbacId)
 	{
-		if (Services.Extensions.AnyNullOrEmpty(account, container,rbacId))
+		if (Services.Extensions.AnyNullOrEmpty(account, container, rbacId))
 		{
 			return new BadRequestResult();
 		}
+
+		if (req == null)
+			log.LogError("err");
+
 
 		return new NoContentResult();
 	}
@@ -76,27 +81,53 @@ public static class FileSystems
 	[FunctionName("AuthorizationCreate")]
 	public static IActionResult AuthorizationCreate(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "POST", Route = "FileSystems/{account}/{container}/authorization")]
-		HttpRequest req,
-		ILogger log, string account, string container)
+		HttpRequest req, ILogger log, string account, string container)
 	{
+		// Validate Parameters
 		if (Services.Extensions.AnyNullOrEmpty(account, container))
 		{
-			// TODO: log
 			return new BadRequestResult();
 		}
 
-		// Read the Body
-		// {"identity": "user or group","role": "[Reader|Contributor]"}
+		// Request body is supposed to contain the user's identity claim
+		var rbac = (req.Body.Length > 0)
+			? JsonSerializer.Deserialize<AuthorizationRequest>(req.Body)
+			: new AuthorizationRequest();
+		if (Services.Extensions.AnyNullOrEmpty(rbac.Identity, rbac.Role))
+			return new BadRequestResult();
 
-		var dummyRbacEntry = new StorageRbacEntry() {
-			PrincipalId = Guid.NewGuid().ToString(),
-			PrincipalName = "Dummy Principal",
-			RoleName = "Contributor",
-			RoleAssignmentId  = Guid.NewGuid().ToString(),
+		// Convert Identity into principal ID
+		var mgo = new MicrosoftGraphOperations(log, new DefaultAzureCredential());
+		var principalId = mgo.GetObjectId( rbac.Identity);
+		if (Services.Extensions.AnyNullOrEmpty(principalId))
+			return new BadRequestResult();
+
+		// Submit Role Authorization Request
+		var roleOps = new RoleOperations(log);
+		var roleAssignment = roleOps.AssignRole(account, container, rbac.Role, principalId);
+		if (roleAssignment == null)
+			return new NotFoundResult();
+
+		// Get Principal Name
+		var principalName = mgo.GetDisplayName(principalId);
+
+		// Convert to Storage Entry
+		var storageRbacEntry = new StorageRbacEntry()
+		{
+			PrincipalId = roleAssignment.PrincipalId,
+			PrincipalName = principalName,
+			RoleName = roleAssignment.RoleName,
+			RoleAssignmentId = roleAssignment.RoleAssignmentId,
 			IsInherited = false,
 			Order = 0
 		};
 
-		return new OkObjectResult(dummyRbacEntry);
+		return new OkObjectResult(storageRbacEntry);
+	}
+
+	public class AuthorizationRequest
+	{
+		public string Identity { get; set; }
+		public string Role { get; set; }
 	}
 }
