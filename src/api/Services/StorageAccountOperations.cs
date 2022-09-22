@@ -19,19 +19,19 @@ internal sealed class StorageAccountOperations
 		_cache = CacheHelper.GetRedisCacheHelper(_log);
 	}
 
-	internal IEnumerable<string> GetAccessibleStorageAccounts(string principalId)
-	{
-		var result = GetFromCache(principalId);
-		return result.Select(r => r.StorageAccountName);
-	}
+		internal IEnumerable<StorageAccount> GetAccessibleStorageAccounts(string principalId, bool forceRefresh = false)
+		{
+			var result = GetFromCache(principalId);
+			return result.Select(r => r.Account);
+		}
 
-	internal IEnumerable<string> GetAccessibleContainerDetails(string principalId,
-		string storageAccountName)
-	{
-		var result = GetFromCache(principalId);
-		var strAcct = result.FirstOrDefault(r => r.StorageAccountName == storageAccountName);
-		return strAcct?.Containers;
-	}
+		internal IEnumerable<string> GetAccessibleContainerDetails(string principalId,
+			string storageAccountName, bool forceRefresh = false)
+		{
+			var result = GetFromCache(principalId);
+			var strAcct = result.FirstOrDefault(r => r.Account.StorageAccountName == storageAccountName);
+			return strAcct?.Containers;
+		}
 
 	private IList<StorageAccountAndContainers> GetFromCache(string principalId)
 	{

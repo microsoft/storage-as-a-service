@@ -21,11 +21,12 @@ internal sealed class RoleOperations : IDisposable
 {
 	// https://blogs.aaddevsup.xyz/2020/05/using-azure-management-libraries-for-net-to-manage-azure-ad-users-groups-and-rbac-role-assignments/
 
-	private readonly ILogger log;
-	private Rest.TokenCredentials _tokenCredentials;
-	private AccessToken _accessToken;
-	private AuthorizationManagementClient _amClient;
-	private bool disposedValue;
+		private readonly ILogger log;
+		private Rest.TokenCredentials _tokenCredentials;
+		private AccessToken _accessToken;
+		private AuthorizationManagementClient _amClient;
+		private CacheHelper _cache;
+		private bool disposedValue;
 
 	private AuthorizationManagementClient AuthMgtClient
 	{
@@ -43,10 +44,11 @@ internal sealed class RoleOperations : IDisposable
 	// Lock objects for thread-safety
 	private readonly object tokenCredentialsLock = new();
 
-	public RoleOperations(ILogger log)
-	{
-		this.log = log;
-	}
+		public RoleOperations(ILogger log)
+		{
+			this.log = log;
+			_cache = CacheHelper.GetRedisCacheHelper(log);
+		}
 
 	#region Public and Internal Methods
 
@@ -100,55 +102,82 @@ internal sealed class RoleOperations : IDisposable
 
 		List<StorageAccountAndContainers> results = new();
 
-		// Process the role assignments into storage account and container names
-		foreach (var sdpr in roleAssignments)
-		{
-			// Determine if this is a storage account or container assignment
-			// (No support currently for higher-level assignments, it would require a list of storage accounts.)
-			Match m = re.Match(sdpr.Scope);
-			if (!m.Success)
-				continue;   // No Match, move to next one
+			// Create RGO object to get Azure tag information
+			var rgo = new ResourceGraphOperations(log, TokenCredentials);
+
+			// Get the existing storage account properties from the cache. If there is no cached entry, create a new one.
+			var storageAccountProperties = _cache.GetStorageAccountProperties();
+
+			// Process the role assignments into storage account and container names
+			foreach (var sdpr in roleAssignments)
+			{
+				// Determine if this is a storage account or container assignment
+				// (No support currently for higher-level assignments, it would require a list of storage accounts.)
+				Match m = re.Match(sdpr.Scope);
+				if (!m.Success)
+					continue;   // No Match, move to next one
 
 			// There will always be a storage account name if there was a Regex match
 			string storageAccountName = m.Groups["accountName"].Value;
 
-			// Find an existing entry for this storage account in the result set
-			StorageAccountAndContainers fsr = results
-				.SingleOrDefault(x => x.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
+				// Find an existing entry for this storage account in the result set
+				StorageAccountAndContainers fsr = results
+					.SingleOrDefault(x => x.Account.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
 
-			// If this is the first time we've encountered this storage account, Set the storage account name property and add to result set
-			if (fsr == null)
-			{
-				fsr = new StorageAccountAndContainers() { StorageAccountName = storageAccountName };
-				results.Add(fsr);
+				// If this is the first time we've encountered this storage account, Set the storage account name property and add to result set
+				if (fsr == null)
+				{
+					// Check for cached storage account properties for the storage account name
+					var val = storageAccountProperties.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
+
+					// Check for the friendly name in the cache. If it doesn't exist, get it from Azure and add it to the cache.
+					var fname = (val is null) ? String.Empty : val.FriendlyName;
+					if (val is null)
+					{
+							fname = rgo.GetAccountResourceTagValue(storageAccountName, SasConfiguration.StorageAccountFriendlyTagNameKey);
+							// Save back into cache
+							storageAccountProperties.Value.Add(new StorageAccount
+							{
+								StorageAccountName = storageAccountName,
+								FriendlyName = fname
+							});
+					}
+
+					fsr = new StorageAccountAndContainers();
+					fsr.Account.StorageAccountName = storageAccountName;
+					fsr.Account.FriendlyName = fname;
+					results.Add(fsr);
+				}
+
+				// If there are potentially containers in this storage account that aren't listed yet
+				if (!fsr.AllContainers)
+				{
+					var containerGroup = m.Groups["containerName"];
+					// If the container Regex group was successfully parsed
+					// but the container hasn't been added to the list yet
+					if (containerGroup.Success &&
+						!fsr.Containers.Contains(containerGroup.Value))
+					{
+						fsr.Containers.Add(containerGroup.Value);       // Assume access is only to this container
+					}
+					// If this is not a container-level assignment
+					else if (!containerGroup.Success)
+					{
+						// The role assignment applies to the entire storage account (at least)
+						var serviceUri = SasConfiguration.GetStorageUri(fsr.Account.StorageAccountName);
+						var adls = new FileSystemOperations(log, appCred, serviceUri);
+						var containers = adls.GetContainers();                      // Access is to entire storage account; retrieve all containers
+						fsr.Containers = containers.Select(fs => fs.Name).ToList();     // Replace any previously included containers
+						fsr.AllContainers = true;                       // There can't be any more containers in this storage account
+					}
+				}
 			}
 
-			// If there are potentially containers in this storage account that aren't listed yet
-			if (!fsr.AllContainers)
-			{
-				var containerGroup = m.Groups["containerName"];
-				// If the container Regex group was successfully parsed
-				// but the container hasn't been added to the list yet
-				if (containerGroup.Success &&
-					!fsr.Containers.Contains(containerGroup.Value))
-				{
-					fsr.Containers.Add(containerGroup.Value);       // Assume access is only to this container
-				}
-				// If this is not a container-level assignment
-				else if (!containerGroup.Success)
-				{
-					// The role assignment applies to the entire storage account (at least)
-					//var serviceUri = SasConfiguration.GetStorageUri(fsr.StorageAccountName);
-					var adls = new FileSystemOperations(log, appCred, fsr.StorageAccountName);
-					var containers = adls.GetContainers();                      // Access is to entire storage account; retrieve all containers
-					fsr.Containers = containers.Select(fs => fs.Name).ToList();     // Replace any previously included containers
-					fsr.AllContainers = true;                       // There can't be any more containers in this storage account
-				}
-			}
+			// Update the account properties cache
+			_cache.SetStorageAccountProperties(storageAccountProperties);
+
+			return results;
 		}
-
-		return results;
-	}
 
 	private IList<RoleAssignment> GetAllStorageDataPlaneRoleAssignments(string principalId)
 	{

@@ -21,7 +21,8 @@ internal static class SasConfiguration
 	internal static string ClientSecret = Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
 	internal static string CacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
 	private readonly static string ManagedSubscriptions = Environment.GetEnvironmentVariable("MANAGED_SUBSCRIPTIONS");
-
+	internal static string StorageAccountFriendlyTagNameKey = System.Environment.GetEnvironmentVariable("STORAGE_FRIENDLY_TAG_NAME");
+	internal static string StorageAccountPropertiesCacheKey = "storageAccountProperties";
 	/// <summary>
 	/// Parses a configuration item that contains multiple values
 	/// separated by commas or semicolons and returns them as an

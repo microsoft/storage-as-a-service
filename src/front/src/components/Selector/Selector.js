@@ -11,25 +11,31 @@ import Select from "@mui/material/Select"
 /**
  * Renders list of items in a drop down selector
  */
-const Selector = ({ items, id, label, onChange, selectedItem, autoSelectFirst }) => {
+// Added item and value properties to allow for more control over what would be shown in the dropdown
+const Selector = ({ items, id, label, onChange, selectedItem, autoSelectFirst, textProperty, valueProperty }) => {
 	const handleChange = event => {
 		onChange && onChange(event.target.value)
 	}
 
-	return (
-		<FormControl fullWidth>
-			<InputLabel id={`${id}-select-label`}>{label}</InputLabel>
-			<Select
-				labelId={`${id}-select-label`}
-				id={id}
-				label={label}
-				value={selectedItem}
-				onChange={handleChange}
-			>
-				{items.map(item => <MenuItem key={item} value={item}>{item}</MenuItem>)}
-			</Select>
-		</FormControl>
-	)
+	let itemCollection = (textProperty && valueProperty) ?
+		items.map(item => <MenuItem key={item[valueProperty]} value={item[valueProperty]}>{item[textProperty]}</MenuItem>) :
+		items.map(item => <MenuItem key={item} value={item}>{item}</MenuItem>)
+
+		return (
+			<FormControl fullWidth>
+				<InputLabel id={`${id}-select-label`}>{label}</InputLabel>
+				<Select
+					labelId={`${id}-select-label`}
+					id={id}
+					label={label}
+					value={selectedItem}
+					onChange={handleChange}
+				>
+					{itemCollection}
+				</Select>
+			</FormControl>
+		)
+
 }
 
 Selector.propTypes = {

@@ -8,11 +8,12 @@ namespace Microsoft.UsEduCsu.Saas.Data;
 
 internal class StorageAccountAndContainers : IEquatable<StorageAccountAndContainers>
 {
-	public string StorageAccountName { get; set; }
 
-	public IList<string> Containers { get; set; } = new List<string>();
+	public StorageAccount Account { get; set; } = new();
 
-	public bool AllContainers { get; set; }     // Principal has read acces on storage account & list is All containers
+	public List<string> Containers { get; set; } = new List<string>();
+
+public bool AllContainers { get; set; }     // Principal has read acces on storage account & list is All containers
 
 	#region IEquatable implementation
 
@@ -31,15 +32,20 @@ internal class StorageAccountAndContainers : IEquatable<StorageAccountAndContain
 		if (other == null) return false;
 		if (this.StorageAccountName != other.StorageAccountName)
 			return false;
-
-		if (!this.Containers.Equals(other.Containers))
+			return false;
 			return false;
 
-		if (this.AllContainers != other.AllContainers)
-			return false;
+	if (!this.Containers.Equals(other.Containers))
+		return false;
+			return true;
+		}
 
+	}
 		return true;
 	}
 
 	#endregion
+		return true;
+	}
+
 }
