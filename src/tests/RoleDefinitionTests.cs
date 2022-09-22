@@ -1,28 +1,29 @@
-using Microsoft.Extensions.Logging;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
 using System.IO;
 
-namespace Microsoft.UsEduCsu.Saas.Tests
+namespace Microsoft.UsEduCsu.Saas.Tests;
+
+public class RoleDefinitionTests
 {
-	public class RoleDefinitionTests
+	//private readonly ILogger log = new LoggerFactory().CreateLogger<RoleDefinitionTests>();
+
+	public RoleDefinitionTests()
 	{
-		private readonly ILogger log = new LoggerFactory().CreateLogger<RoleDefinitionTests>();
+		ConfigureEnvironmentVariablesFromLocalSettings();
+	}
 
-		public RoleDefinitionTests()
+	static void ConfigureEnvironmentVariablesFromLocalSettings()
+	{
+		var path = Environment.CurrentDirectory;
+		var json = File.ReadAllText(Path.Join(path, "local.settings.json"));
+		var parsed = Newtonsoft.Json.Linq.JObject.Parse(json).Value<Newtonsoft.Json.Linq.JObject>("Values");
+
+		foreach (var item in parsed)
 		{
-			ConfigureEnvironmentVariablesFromLocalSettings();
-		}
-
-		static void ConfigureEnvironmentVariablesFromLocalSettings()
-		{
-			var path = Environment.CurrentDirectory;
-			var json = File.ReadAllText(Path.Join(path, "local.settings.json"));
-			var parsed = Newtonsoft.Json.Linq.JObject.Parse(json).Value<Newtonsoft.Json.Linq.JObject>("Values");
-
-			foreach (var item in parsed)
-			{
-				Environment.SetEnvironmentVariable(item.Key, item.Value.ToString());
-			}
+			Environment.SetEnvironmentVariable(item.Key, item.Value.ToString());
 		}
 	}
 }
