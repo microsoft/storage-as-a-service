@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
@@ -9,34 +10,35 @@ using Microsoft.UsEduCsu.Saas.Services;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Microsoft.UsEduCsu.Saas
+namespace Microsoft.UsEduCsu.Saas;
+
+public static class ServerStatus
 {
-	public static class ServerStatus
+	[ProducesResponseType(typeof(Status), StatusCodes.Status200OK)]
+	[FunctionName("ServerStatus")]
+#pragma warning disable IDE0060 // Remove unused parameter (req, log)
+	public static IActionResult Get(
+		[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "ServerStatus")] HttpRequest req,
+		ILogger log)
+#pragma warning restore IDE0060 // Remove unused parameter
 	{
-		[ProducesResponseType(typeof(ServerStatus.Status), StatusCodes.Status200OK)]
-		[FunctionName("ServerStatus")]
-		public static IActionResult Get(
-			[HttpTrigger(AuthorizationLevel.Anonymous, "GET", Route = "ServerStatus")] HttpRequest req,
-			ILogger log)
+		// Validate Configuration
+		var (isConfigValid, errors) = Configuration.Validate();
+
+		// Prepare respone with errors if exist
+		var status = new Status()
 		{
-			// Validate Configuration
-			var (isConfigValid, errors) = SasConfiguration.Validate();
+			Message = string.Join(", ", errors.Select(d => $"{d.Key}: {d.Value}")),
+			Errors = errors
+		};
 
-			errors.Select(d => $"{d.Key}: {d.Value}");
-			var status = new Status()
-			{
-				Message = string.Join(", ", errors.Select(d => $"{d.Key}: {d.Value}")),
-				Errors = errors
-			};
+		// Return result
+		return new OkObjectResult(status);
+	}
 
-			// Return result
-			return new OkObjectResult(status);
-		}
-
-		public class Status
-		{
-			public string Message { get; set; }
-			public Dictionary<string, string> Errors { get; set; }
-		}
+	public class Status
+	{
+		public string Message { get; set; }
+		public Dictionary<string, string> Errors { get; set; }
 	}
 }
