@@ -16,32 +16,11 @@ namespace Microsoft.UsEduCsu.Saas.Services;
 internal static class SasConfiguration
 {
 	const string FileSystemApiKeySettingName = "FILESYSTEMS_API_KEY";
-	//const string ConfigurationApiKeySettingName = "CONFIGURATION_API_KEY";
-
 	internal static string TenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
 	internal static string ClientId = Environment.GetEnvironmentVariable("AZURE_CLIENT_ID");
 	internal static string ClientSecret = Environment.GetEnvironmentVariable("AZURE_CLIENT_SECRET");
-
-	//internal static string ApiClientId = Environment.GetEnvironmentVariable("API_CLIENT_ID");
-	//internal static string ApiClientSecret = Environment.GetEnvironmentVariable("API_CLIENT_SECRET");
-
 	internal static string CacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
 	private readonly static string ManagedSubscriptions = Environment.GetEnvironmentVariable("MANAGED_SUBSCRIPTIONS");
-
-	//internal static ConfigurationResult GetConfiguration()
-	//{
-	//	//var accounts = ParseMultiValuedConfigurationValue(Environment.GetEnvironmentVariable("DATALAKE_STORAGE_ACCOUNTS"));
-
-	//	// Config
-	//	var result = new ConfigurationResult()
-	//	{
-	//		TenantId = TenantId,
-	//		ClientId = ClientId,
-	//		//StorageAccounts = accounts
-	//	};
-
-	//	return result;
-	//}
 
 	/// <summary>
 	/// Parses a configuration item that contains multiple values
@@ -102,10 +81,6 @@ internal static class SasConfiguration
 				ApiKeySettingName = FileSystemApiKeySettingName;
 				ApiKeyHeaderName = "Saas-FileSystems-Api-Key";
 				break;
-			//case ApiKey.Configuration:
-			//	ApiKeySettingName = ConfigurationApiKeySettingName;
-			//	ApiKeyHeaderName = "Saas-Configuration-Api-Key";
-			//	break;
 			default:
 				throw new ArgumentException($"Unsupported API key.", nameof(key));
 		}
@@ -134,10 +109,6 @@ internal static class SasConfiguration
 			errors.Add("AZURE_CLIENT_ID", "Is missing");
 		if (string.IsNullOrEmpty(ClientSecret))
 			errors.Add("AZURE_CLIENT_SECRET", "Is missing");
-		//if (string.IsNullOrEmpty(ApiClientId))
-		//	errors.Add("API_CLIENT_ID", "Is missing");
-		//if (string.IsNullOrEmpty(ApiClientSecret))
-		//	errors.Add("API_CLIENT_SECRET", "Is missing");
 		if (string.IsNullOrEmpty(CacheConnection))
 			errors.Add("CacheConnection", "Is missing");
 		if (string.IsNullOrEmpty(ManagedSubscriptions))
@@ -149,11 +120,4 @@ internal static class SasConfiguration
 	{
 		FileSystems = 0
 	}
-
-	//internal class ConfigurationResult
-	//{
-	//	//public string[] StorageAccounts { get; set; }
-	//	public string TenantId { get; set; }
-	//	public string ClientId { get; set; }
-	//}
 }

@@ -26,61 +26,6 @@ internal sealed class MicrosoftGraphOperations
 		graphClient = CreateGraphClient(tokenCredential, graphClientCancellationToken).Result;
 	}
 
-	//public string GetObjectIdFromGroupName(string groupName)
-	//{
-	//	try
-	//	{
-	//		// Retrieve groups with displayname matching
-	//		var groupsTask = graphClient.Groups
-	//			.Request()
-	//			.Header("ConsistencyLevel", "eventual")
-	//			.Filter($"displayName eq '{groupName}'")
-	//			.Select("id,displayName")
-	//			.GetAsync(graphClientCancellationToken);
-	//		var groups = groupsTask.Result;
-
-	//		return groups.FirstOrDefault()?.Id; // TODO: Opportunity for caching
-	//	}
-	//	catch (Exception ex)
-	//	{
-	//		log.LogInformation(ex, "Group {0} not found", groupName);
-	//		return null;
-	//	}
-	//}
-
-	/// <summary>
-	/// Looks up the name of the AAD group with the specified object ID.
-	/// </summary>
-	/// <param name="groupObjectId">The group's AAD object ID.</param>
-	/// <returns>The name of the AAD group with the specified object ID, or an empty string if there is no such group.</returns>
-	//public string GetGroupNameFromObjectId(string groupObjectId)
-	//{
-	//	try
-	//	{
-	//		// Retrieve groups with group object ID matching
-	//		var groupTask = graphClient.Groups[groupObjectId]
-	//			.Request()
-	//			.GetAsync(graphClientCancellationToken);
-	//		var group = groupTask.Result;
-
-	//		if (group != null)
-	//			return group.DisplayName;
-
-	//		return string.Empty;
-	//	}
-	//	catch (Exception ex)
-	//	{
-	//		log.LogInformation(ex, "Group {0} not found", groupObjectId);
-	//		return string.Empty;
-	//	}
-	//}
-
-	//public string GetObjectIdFromUPN(string upn)
-	//{
-	//	var dirObj = GetDirectoryObject(upn);
-	//	return dirObj?.Id;
-	//}
-
 	internal string GetDisplayName(string userIdentifier)
 	{
 		var dirObj = GetDirectoryObject(userIdentifier);

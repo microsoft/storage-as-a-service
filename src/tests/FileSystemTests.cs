@@ -15,59 +15,6 @@ public class FileSystemTests
 		ConfigureEnvironmentVariablesFromLocalSettings();
 	}
 
-	//[Fact]
-	//public void GetFileSystemDetails()
-	//{
-	//	var account = "stsaasdemoeastus0202";
-	//	var x = FileSystems.GetFileSystemDetailsForAccount(account);
-
-	//	Assert.True(x.Count > 0);
-
-	//}
-
-	//  [Fact] TODO: Should I remove this?
-	//private async void CreateManyFileSystems()
-	//{
-	//	var owner = "john@contosou.com";
-	//	var userOperations = new UserOperations(log, new DefaultAzureCredential());
-	//	var ownerId = ""; //await userOperations.GetObjectIdFromUPN(owner);
-
-	//	var account = "stsaasdemoeastus0202";
-	//	var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
-	//	var fileSystemOperations = new FileSystemOperations(log, new DefaultAzureCredential(), storageUri);
-	//	var roleOperations = new RoleOperations(log);
-
-	//	var rng = new Random();
-
-	//	// Create Lots of FileSystems
-	//	for (int i = 0; i < 100; i++)
-	//	{
-	//		var rndValue = rng.Next(1000);
-	//		var fileSystem = $"fs{rndValue}";
-	//		var result = await fileSystemOperations.CreateFileSystem(fileSystem, owner, $"{rndValue}");
-
-	//		roleOperations.AssignRoles(account, fileSystem, ownerId);
-
-	//		log.LogTrace(result.Message);
-	//	}
-	//}
-
-	//	[Fact] TODO: Should I remove this?
-	//private void DeleteAllFileSystems()
-	//{
-	//	var account = "stsaasdemoeastus0202";
-	//	var storageUri = new Uri($"https://{account}.dfs.core.windows.net");
-
-	//	var tokenCredential = new DefaultAzureCredential();
-	//	var dlsClient = new DataLakeServiceClient(storageUri, tokenCredential);
-	//	var filesystems = dlsClient.GetFileSystems();
-
-	//	foreach (var filesystem in filesystems)
-	//	{
-	//		dlsClient.DeleteFileSystem(filesystem.Name);
-	//	}
-	//}
-
 	static void ConfigureEnvironmentVariablesFromLocalSettings()
 	{
 		var path = Environment.CurrentDirectory;

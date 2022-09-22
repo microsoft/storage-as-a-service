@@ -17,9 +17,3 @@ internal static class Extensions
 		return args.Any(x => x == null || string.IsNullOrEmpty(x.ToString()));
 	}
 }
-
-//public class Result
-//{
-//	public bool Success { get; set; }
-//	public string Message { get; set; }
-//}
