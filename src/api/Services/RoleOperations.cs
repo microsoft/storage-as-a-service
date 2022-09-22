@@ -370,7 +370,11 @@ namespace Microsoft.UsEduCsu.Saas.Services
 								RoleName = rd.RoleName,
 								Scope = ra.Scope,
 								PrincipalType = ra.PrincipalType,
-								PrincipalId = ra.PrincipalId
+								PrincipalId = ra.PrincipalId,
+								IsInherited = !ra.Scope.Equals(scope),
+								// Return only the GUID part of the assignment ID (not the full resource ID,
+								// because it would leak subscription IDs, etc. to the client)
+								RoleAssignmentId = ra.Id.Substring(ra.Id.LastIndexOf('/') + 1)
 							}).ToList();
 
 				return storageDataPlaneRoles;
@@ -429,6 +433,8 @@ namespace Microsoft.UsEduCsu.Saas.Services
 			public string PrincipalId { get; set; }
 			public string PrincipalType { get; set; }
 			public string Id { get; set; }
+			public bool IsInherited { get; set; }
+			public string RoleAssignmentId { get; set; }
 		}
 
 		#region Disposable Pattern

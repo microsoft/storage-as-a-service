@@ -4,7 +4,7 @@
 		{
 			"name": "Edge - Debug GUI + API",
 			"request": "launch",
-			"type": "pwa-msedge",
+			"type": "msedge",
 			"url": "http://localhost:4280",
 			"preLaunchTask": "Start SWA and Launch Edge",
 			"presentation": {
@@ -19,7 +19,6 @@
 			"type": "coreclr",
 			"request": "attach",
 			"processId": "${command:azureFunctions.pickProcess}",
-			"pickProcessTimeout": 120,
 			"presentation": {
 				"hidden": false,
 				"group": "Debug",
