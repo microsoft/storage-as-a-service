@@ -51,46 +51,46 @@ internal sealed class CacheHelper
 		return obj;
 	}
 
-		/// <summary>
-		/// Returns the cached list of storage account properties
-		/// </summary>
-		/// <returns>Cached value or new value if not cached.</returns>
-		internal StorageAccountProperties GetStorageAccountProperties()
-		{
-			var obj = GetCacheValue<StorageAccountProperties>(SasConfiguration.StorageAccountPropertiesCacheKey);
-			if (obj is null) { obj = new StorageAccountProperties(); }
-			return obj;
-		}
+	/// <summary>
+	/// Returns the cached list of storage account properties
+	/// </summary>
+	/// <returns>Cached value or new value if not cached.</returns>
+	internal StorageAccountProperties GetStorageAccountProperties()
+	{
+		var obj = GetCacheValue<StorageAccountProperties>(Configuration.StorageAccountPropertiesCacheKey);
+		if (obj is null) { obj = new StorageAccountProperties(); }
+		return obj;
+	}
 
-		/// <summary>
-		/// Sets the cached list of storage account properties
-		/// </summary>
-		/// <returns>Cached value or new value if not cached.</returns>
-		internal void SetStorageAccountProperties(StorageAccountProperties properties)
+	/// <summary>
+	/// Sets the cached list of storage account properties
+	/// </summary>
+	/// <returns>Cached value or new value if not cached.</returns>
+	internal void SetStorageAccountProperties(StorageAccountProperties properties)
+	{
+		try
 		{
-			try
-			{
-				SetCacheValue(SasConfiguration.StorageAccountPropertiesCacheKey, properties);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogError(ex, "Error caching storageaccount properties");
-			}
+			SetCacheValue(Configuration.StorageAccountPropertiesCacheKey, properties);
 		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error caching storageaccount properties");
+		}
+	}
 
 
-		/// <summary>
-		/// Returns a cached directory objects
-		/// </summary>
-		/// <param name="principalId">A unique identifier to lookup in the cache</param>
-		/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
-		/// <returns>Cached value or new value if not cached</returns>
-		public string AccessTokens(string principalId, Func<string> updateMethod)
-		{
-			var obj = Items("accessToken", principalId, updateMethod);
-			return obj;
-		}
-		#endregion
+	/// <summary>
+	/// Returns a cached directory objects
+	/// </summary>
+	/// <param name="principalId">A unique identifier to lookup in the cache</param>
+	/// <param name="updateMethod">Parameterless Func method that returns a DirectoryObject</param>
+	/// <returns>Cached value or new value if not cached</returns>
+	public string AccessTokens(string principalId, Func<string> updateMethod)
+	{
+		var obj = Items("accessToken", principalId, updateMethod);
+		return obj;
+	}
+	#endregion
 
 	#region AccessToken Accessors
 	public string GetAccessToken(string principalId)
@@ -148,15 +148,15 @@ internal sealed class CacheHelper
 		// TODO: Handle RedisTimeoutException (retry)
 		byte[] byteArray = _cache.Get(nameKey);
 
-			// The cache will return value if found
-			// TODO: Consider ignoring cached value if 2 bytes only (empty JSON object)
-			if (byteArray != null)
-			{
-				// convert byte array to string
-				var obj = JsonSerializer.Deserialize<T>(byteArray);
-				_logger.LogDebug($"{nameKey} (bytes: {byteArray.Length}) pulled from cache.");
-				return obj;
-			}
+		// The cache will return value if found
+		// TODO: Consider ignoring cached value if 2 bytes only (empty JSON object)
+		if (byteArray != null)
+		{
+			// convert byte array to string
+			var obj = JsonSerializer.Deserialize<T>(byteArray);
+			_logger.LogDebug($"{nameKey} (bytes: {byteArray.Length}) pulled from cache.");
+			return obj;
+		}
 
 		// Get User by invoking Function
 		T value = updateMethod.Invoke();
@@ -164,7 +164,7 @@ internal sealed class CacheHelper
 			return default;
 
 
-			SetCacheValue(nameKey, value, expiration);
+		SetCacheValue(nameKey, value, expiration);
 
 #if DEBUG
 		// Serialization DoubleCheck
@@ -190,18 +190,17 @@ internal sealed class CacheHelper
 		return default;
 	}
 
-		private void SetCacheValue<T>(string nameKey, T value, DateTimeOffset? expiration = null)
-		{
-			MemoryStream s = new();
-			JsonSerializer.Serialize(s, value, typeof(T));
-			s.Flush();
-			var data = s.ToArray();
+	private void SetCacheValue<T>(string nameKey, T value, DateTimeOffset? expiration = null)
+	{
+		MemoryStream s = new();
+		JsonSerializer.Serialize(s, value, typeof(T));
+		s.Flush();
+		var data = s.ToArray();
 
-			// Add the list of accounts to the cache for the specified user, item will expire one hour from now
-			_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
-			_logger.LogDebug($"{nameKey} (bytes: {data.Length}) written to cache.");
-		}
-
-		#endregion
+		// Add the list of accounts to the cache for the specified user, item will expire one hour from now
+		_cache.Set(nameKey, data, new() { AbsoluteExpiration = expiration });
+		_logger.LogDebug($"{nameKey} (bytes: {data.Length}) written to cache.");
 	}
+
+	#endregion
 }

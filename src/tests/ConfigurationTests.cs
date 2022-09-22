@@ -13,21 +13,21 @@ public class ConfigurationTests
 	public void GetStorageUri_Simple_Test()
 	{
 		Assert.Equal("https://accountname.dfs.core.windows.net/",
-			SasConfiguration.GetStorageUri("accountname").ToString());
+			Configuration.GetStorageUri("accountname").ToString());
 	}
 
 	[Fact]
 	public void GetStorageUri_WithFileSystem_Test()
 	{
 		Assert.Equal("https://accountname.dfs.core.windows.net/container",
-			SasConfiguration.GetStorageUri("accountname", "container").ToString());
+			Configuration.GetStorageUri("accountname", "container").ToString());
 	}
 
 	[Fact]
 	public void GetStorageUri_InvalidAccount_Test()
 	{
 		UriFormatException ex = Assert.ThrowsAny<UriFormatException>(
-			() => SasConfiguration.GetStorageUri(string.Empty));
+			() => Configuration.GetStorageUri(string.Empty));
 		Assert.Contains("hostname could not be parsed", ex.Message);
 	}
 }

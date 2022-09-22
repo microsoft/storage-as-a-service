@@ -13,7 +13,7 @@ internal class StorageAccountAndContainers : IEquatable<StorageAccountAndContain
 
 	public List<string> Containers { get; set; } = new List<string>();
 
-public bool AllContainers { get; set; }     // Principal has read acces on storage account & list is All containers
+	public bool AllContainers { get; set; }     // Principal has read acces on storage account & list is All containers
 
 	#region IEquatable implementation
 
@@ -24,28 +24,23 @@ public bool AllContainers { get; set; }     // Principal has read acces on stora
 
 	public override int GetHashCode()
 	{
-		return HashCode.Combine(this.StorageAccountName, this.Containers, this.AllContainers);
+		return HashCode.Combine(this.Account.StorageAccountName, this.Containers, this.AllContainers);
 	}
 
 	public bool Equals(StorageAccountAndContainers other)
 	{
 		if (other == null) return false;
-		if (this.StorageAccountName != other.StorageAccountName)
-			return false;
-			return false;
+		if (this.Account.StorageAccountName != other.Account.StorageAccountName)
 			return false;
 
-	if (!this.Containers.Equals(other.Containers))
-		return false;
-			return true;
-		}
+		if (!this.Containers.Equals(other.Containers))
+			return false;
 
-	}
+		if (this.AllContainers != other.AllContainers)
+			return false;
+
+		// Ergo it matches
 		return true;
 	}
-
 	#endregion
-		return true;
-	}
-
 }

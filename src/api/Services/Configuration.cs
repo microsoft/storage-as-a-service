@@ -13,7 +13,7 @@ using System.Runtime.CompilerServices;
 namespace Microsoft.UsEduCsu.Saas.Services;
 
 // TODO: Rename class
-internal static class SasConfiguration
+internal static class Configuration
 {
 	const string FileSystemApiKeySettingName = "FILESYSTEMS_API_KEY";
 	internal static string TenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
@@ -114,6 +114,8 @@ internal static class SasConfiguration
 			errors.Add("CacheConnection", "Is missing");
 		if (string.IsNullOrEmpty(ManagedSubscriptions))
 			errors.Add("MANAGED_SUBSCRIPTIONS", "Is missing");
+		if (string.IsNullOrEmpty(ManagedSubscriptions))
+			errors.Add("STORAGE_FRIENDLY_TAG_NAME", "Is missing");
 		return (errors.Count == 0, errors);
 	}
 

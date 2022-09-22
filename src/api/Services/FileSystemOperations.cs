@@ -22,7 +22,7 @@ internal sealed class FileSystemOperations
 		DataLakeClientOptions opts = null)
 	{
 		_logger = log;
-		dlsClient = new DataLakeServiceClient(SasConfiguration.GetStorageUri(storageAccountName), tokenCredential, opts);
+		dlsClient = new DataLakeServiceClient(Configuration.GetStorageUri(storageAccountName), tokenCredential, opts);
 	}
 
 	internal FileSystemDetail GetFileSystemDetail(string containerName)
@@ -51,7 +51,7 @@ internal sealed class FileSystemOperations
 	{
 		var seEndpoint = HttpUtility.UrlEncode(dlfs.Uri.ToString());
 
-		return $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={dlfs.Name}&serviceEndpoint={seEndpoint}";
+		return $"storageexplorer://?v=2&tenantId={Configuration.TenantId}&type=fileSystem&container={dlfs.Name}&serviceEndpoint={seEndpoint}";
 	}
 
 	/// <summary>

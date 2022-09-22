@@ -24,7 +24,7 @@ public static class FileSystems
 		HttpRequest req,
 		ILogger log, string account, string container)
 	{
-		if (!SasConfiguration.ValidateSharedKey(req, SasConfiguration.ApiKey.FileSystems))
+		if (!Configuration.ValidateSharedKey(req, Configuration.ApiKey.FileSystems))
 		{
 			// TODO: Log
 			return new UnauthorizedResult();

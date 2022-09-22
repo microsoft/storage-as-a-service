@@ -23,7 +23,7 @@ public static class ServerStatus
 #pragma warning restore IDE0060 // Remove unused parameter
 	{
 		// Validate Configuration
-		var (isConfigValid, errors) = SasConfiguration.Validate();
+		var (isConfigValid, errors) = Configuration.Validate();
 
 		// Prepare respone with errors if exist
 		var status = new Status()

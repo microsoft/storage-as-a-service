@@ -63,7 +63,7 @@ public static class StorageAccounts
 		// TODO: Move to FileSystemOperations
 
 		// Get Storage Account Uri
-		var storageUri = SasConfiguration.GetStorageUri(account);
+		var storageUri = Configuration.GetStorageUri(account);
 
 		// Get Storage Account Client
 		var ApiCredential = new DefaultAzureCredential();
@@ -152,13 +152,13 @@ public static class StorageAccounts
 			).ToList();
 
 		// Package in ContainerDetail
-		var uri = SasConfiguration.GetStorageUri(account, container).ToString();
+		var uri = Configuration.GetStorageUri(account, container).ToString();
 		var cd = new ContainerDetail()
 		{
 			Name = container,
 			Metadata = metadata,
 			Access = rbacEntries,
-			StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={SasConfiguration.TenantId}&type=fileSystem&container={container}&serviceEndpoint={HttpUtility.UrlEncode(uri)}",
+			StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={Configuration.TenantId}&type=fileSystem&container={container}&serviceEndpoint={HttpUtility.UrlEncode(uri)}",
 			Uri = uri
 		};
 

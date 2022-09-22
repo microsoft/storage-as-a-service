@@ -44,9 +44,9 @@ internal sealed class UserOperations
 		// Add default claims
 		principal.Claims ??= new List<ClientPrincipal.Claim>()
 		{
-			new ClientPrincipal.Claim("iss", $"https://login.microsoftonline.com/{SasConfiguration.TenantId}/v2.0"),
-			new ClientPrincipal.Claim("aud", SasConfiguration.ClientId),
-			new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/tenantid", SasConfiguration.TenantId),
+			new ClientPrincipal.Claim("iss", $"https://login.microsoftonline.com/{Configuration.TenantId}/v2.0"),
+			new ClientPrincipal.Claim("aud", Configuration.ClientId),
+			new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/tenantid", Configuration.TenantId),
 			new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", principal.UserId)
 		};
 

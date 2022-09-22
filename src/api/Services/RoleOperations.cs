@@ -25,7 +25,7 @@ internal sealed class RoleOperations : IDisposable
 		private Rest.TokenCredentials _tokenCredentials;
 		private AccessToken _accessToken;
 		private AuthorizationManagementClient _amClient;
-		private CacheHelper _cache;
+		private readonly CacheHelper _cache;
 		private bool disposedValue;
 
 	private AuthorizationManagementClient AuthMgtClient
@@ -134,7 +134,7 @@ internal sealed class RoleOperations : IDisposable
 					var fname = (val is null) ? String.Empty : val.FriendlyName;
 					if (val is null)
 					{
-							fname = rgo.GetAccountResourceTagValue(storageAccountName, SasConfiguration.StorageAccountFriendlyTagNameKey);
+							fname = rgo.GetAccountResourceTagValue(storageAccountName, Configuration.StorageAccountFriendlyTagNameKey);
 							// Save back into cache
 							storageAccountProperties.Value.Add(new StorageAccount
 							{
@@ -164,8 +164,7 @@ internal sealed class RoleOperations : IDisposable
 					else if (!containerGroup.Success)
 					{
 						// The role assignment applies to the entire storage account (at least)
-						var serviceUri = SasConfiguration.GetStorageUri(fsr.Account.StorageAccountName);
-						var adls = new FileSystemOperations(log, appCred, serviceUri);
+						var adls = new FileSystemOperations(log, appCred, fsr.Account.StorageAccountName);
 						var containers = adls.GetContainers();                      // Access is to entire storage account; retrieve all containers
 						fsr.Containers = containers.Select(fs => fs.Name).ToList();     // Replace any previously included containers
 						fsr.AllContainers = true;                       // There can't be any more containers in this storage account
@@ -181,7 +180,7 @@ internal sealed class RoleOperations : IDisposable
 
 	private IList<RoleAssignment> GetAllStorageDataPlaneRoleAssignments(string principalId)
 	{
-		var subscriptions = SasConfiguration.GetSubscriptions();
+		var subscriptions = Configuration.GetSubscriptions();
 		// Use a thread-safe unordered collection
 		var roleAssignments = new ConcurrentBag<RoleAssignment>();
 
