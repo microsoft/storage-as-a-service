@@ -5,6 +5,7 @@ using Microsoft.Azure.Management.ResourceGraph;
 using Microsoft.Azure.Management.ResourceGraph.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -59,45 +60,76 @@ public class ResourceGraphOperations
 	/// Uses the Azure Resource Graph to retrieve the Azure resource ID
 	/// of the specified ADLS Gen 2 storage account.
 	/// </summary>
-	/// <param name="storageAccountName">The name of the storage account.</param>
+	/// <param name="storageAccountName">The name of the storage account</param>
 	/// <returns>The Azure resource ID.</returns>
 	public string GetAccountResourceId(string storageAccountName)
 	{
-		string accountResourceId = string.Empty; // TODO: Why not null?
 
-		try
+		var accountResourceId = GetGraphStorageAccountQueryResponse(storageAccountName, "id");
+		if (accountResourceId is null)
 		{
+			log.LogWarning("Azure Resource Graph query for storage account {0} did not return results. The application identity might not have access to this storage account.", storageAccountName);
+			return String.Empty;
+		}
+		return accountResourceId.ToString();
+	}
+
+	/// <summary>
+	/// Uses the Azure Resource Graph to retrieve a Tag value for the specified Tag name
+	/// </summary>
+	/// <param name="storageAccountName">The name of the storage account</param>
+	/// <param name="tagName">The name of the Tag</param>
+	/// <returns>Tag value</returns>
+	public string GetAccountResourceTagValue(string storageAccountName, string tagName)
+	{
+		var tags = GetGraphStorageAccountQueryResponse(storageAccountName, "tags");
+		if (tags is null)
+		{
+			log.LogWarning("No tag {0} was found matching storage account {1}", tagName, storageAccountName);
+			return String.Empty;
+		}
+		return (string)tags?[tagName];
+	}
+
+	/// <summary>
+	/// Queries the Azure Resource Graph for the specified storage account
+	/// </summary>
+	/// <param name="storageAccountName">The name of the storage account</param>
+	/// <param name="selectToken">The specific token property to be returned</param>
+	/// <returns>Token property value</returns>
+	private JToken GetGraphStorageAccountQueryResponse(string storageAccountName, string selectToken)
+	{
 			string queryText = $@"resources
 					| where name == '{storageAccountName}' and type == 'microsoft.storage/storageaccounts' and kind == 'StorageV2' and properties['isHnsEnabled']
-					| project id";
+					| project {selectToken}" ;
 			QueryResponse queryResponse;
 
-			using (var resourceGraphClient = new ResourceGraphClient(_tokenCredentials))
+			try
 			{
-				var query = new QueryRequest(queryText);
-				queryResponse = resourceGraphClient.Resources(query);
-			}
+				using (var resourceGraphClient = new ResourceGraphClient(_tokenCredentials))
+				{
+					var query = new QueryRequest(queryText);
+					queryResponse = resourceGraphClient.Resources(query);
+				}
 
-			if (queryResponse.Count > 0)
+				if (queryResponse.Count > 0)
+				{
+					dynamic data = queryResponse;
+
+					var data2 = (Newtonsoft.Json.Linq.JArray)queryResponse.Data;
+					var data3 = data2.First;
+					return data3.SelectToken(selectToken);
+
+				}
+				else
+				{
+					return null;
+				}
+			}
+			catch (Exception ex)
 			{
-				dynamic data = queryResponse;
-
-				var data2 = (Newtonsoft.Json.Linq.JArray)queryResponse.Data;
-				var data3 = data2.First;
-				accountResourceId = data3.SelectToken("id").ToString();
+				log.LogError($"Exception in GetGraphStorageAccountQueryResponse: {ex} ", ex);
+				return null;
 			}
-			else
-			{
-				log.LogWarning("Azure Resource Graph query for storage account {0} did not return results. The application identity might not have access to this storage account.", storageAccountName);
-				// TODO: Throw custom exception?
-			}
-		}
-		catch (Exception)
-		{
-			// TODO: Log
-			throw;
-		}
-
-		return accountResourceId;
 	}
 }

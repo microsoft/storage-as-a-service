@@ -7,7 +7,8 @@ namespace Microsoft.UsEduCsu.Saas.Data
 {
 	internal class StorageAccountAndContainers : IEquatable<StorageAccountAndContainers>
 	{
-		public string StorageAccountName { get; set; }
+
+		public StorageAccount Account { get; set; } = new();
 
 		public List<string> Containers { get; set; } = new List<string>();
 
@@ -15,7 +16,7 @@ namespace Microsoft.UsEduCsu.Saas.Data
 
 		public bool Equals(StorageAccountAndContainers other)
 		{
-			if (this.StorageAccountName != other.StorageAccountName)
+			if (this.Account.StorageAccountName != other.Account.StorageAccountName)
 				return false;
 
 			if (this.Containers != other.Containers)
@@ -26,5 +27,6 @@ namespace Microsoft.UsEduCsu.Saas.Data
 
 			return true;
 		}
+
 	}
 }

@@ -27,6 +27,9 @@ namespace Microsoft.UsEduCsu.Saas.Services
 		internal static string CacheConnection = Environment.GetEnvironmentVariable("CacheConnection");
 		private static string ManagedSubscriptions = Environment.GetEnvironmentVariable("MANAGED_SUBSCRIPTIONS");
 
+		internal static string StorageAccountFriendlyTagNameKey = System.Environment.GetEnvironmentVariable("STORAGE_FRIENDLY_TAG_NAME");
+		internal static string StorageAccountPropertiesCacheKey = "storageAccountProperties";
+
 		internal static ConfigurationResult GetConfiguration()
 		{
 			var accounts = ParseMultiValuedConfigurationValue(Environment.GetEnvironmentVariable("DATALAKE_STORAGE_ACCOUNTS"));
