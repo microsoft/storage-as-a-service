@@ -2,17 +2,12 @@
 	"IsEncrypted": false,
 	"Values": {
 		"FUNCTIONS_WORKER_RUNTIME": "dotnet",
-		"DATALAKE_STORAGE_ACCOUNTS": "storageaccountname1,storageaccountname2",
-		"MANAGED_SUBSCRIPTIONS": "subscription-id",
-		"COST_PER_TB": 1,
+		"MANAGED_SUBSCRIPTIONS": "subscription-id-1,subscription-id-2",
 		"AZURE_TENANT_ID": "c725...",
 		"AZURE_CLIENT_ID": "4d3f...",
 		"AZURE_CLIENT_SECRET": "A1B2...",
 		"FILESYSTEMS_API_KEY": "somerandomkey",
-		"CONFIGURATION_API_KEY": "anotherkey",
-		"CacheConnection": "<endpoint>.redis.cache.windows.net:6380,password=<key>,ssl=True,abortConnect=False",
-		"API_CLIENT_ID": "c3d4...",
-		"API_CLIENT_SECRET": "abcd..."
+		"CacheConnection": "<endpoint>.redis.cache.windows.net:6380,password=<key>,ssl=True,abortConnect=False"
 	},
 	"Host": {
 		"LocalHttpPort": 7071,

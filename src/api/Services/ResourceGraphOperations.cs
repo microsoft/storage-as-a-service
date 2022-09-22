@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
+
 using Azure.Core;
 using Microsoft.Azure.Management.ResourceGraph;
 using Microsoft.Azure.Management.ResourceGraph.Models;
@@ -12,7 +13,7 @@ using System.Threading;
 
 namespace Microsoft.UsEduCsu.Saas.Services;
 
-public class ResourceGraphOperations
+internal sealed class ResourceGraphOperations
 {
 	private ILogger log;
 	private TokenCredentials _tokenCredentials;
@@ -24,7 +25,7 @@ public class ResourceGraphOperations
 		var tokenRequestContext = new TokenRequestContext(new[] { "https://management.azure.com/.default" });
 		var accessToken = cred.GetToken(tokenRequestContext, new CancellationToken());
 
-		_tokenCredentials = new Rest.TokenCredentials(accessToken.Token);
+		_tokenCredentials = new TokenCredentials(accessToken.Token);
 	}
 
 	public ResourceGraphOperations(ILogger logger, TokenCredentials creds)

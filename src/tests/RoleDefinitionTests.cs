@@ -1,34 +1,29 @@
-using Azure.Identity;
-using Azure.Storage;
-using Azure.Storage.Files.DataLake;
-using Microsoft.Extensions.Logging;
-using Microsoft.UsEduCsu.Saas.Services;
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 using System;
 using System.IO;
-using System.Linq;
-using Xunit;
 
-namespace Microsoft.UsEduCsu.Saas.Tests
+namespace Microsoft.UsEduCsu.Saas.Tests;
+
+public class RoleDefinitionTests
 {
-	public class RoleDefinitionTests
+	//private readonly ILogger log = new LoggerFactory().CreateLogger<RoleDefinitionTests>();
+
+	public RoleDefinitionTests()
 	{
-		private readonly ILogger log = new LoggerFactory().CreateLogger<RoleDefinitionTests>();
+		ConfigureEnvironmentVariablesFromLocalSettings();
+	}
 
-		public RoleDefinitionTests()
+	static void ConfigureEnvironmentVariablesFromLocalSettings()
+	{
+		var path = Environment.CurrentDirectory;
+		var json = File.ReadAllText(Path.Join(path, "local.settings.json"));
+		var parsed = Newtonsoft.Json.Linq.JObject.Parse(json).Value<Newtonsoft.Json.Linq.JObject>("Values");
+
+		foreach (var item in parsed)
 		{
-			ConfigureEnvironmentVariablesFromLocalSettings();
-		}
-
-		static void ConfigureEnvironmentVariablesFromLocalSettings()
-		{
-			var path = Environment.CurrentDirectory;
-			var json = File.ReadAllText(Path.Join(path, "local.settings.json"));
-			var parsed = Newtonsoft.Json.Linq.JObject.Parse(json).Value<Newtonsoft.Json.Linq.JObject>("Values");
-
-			foreach (var item in parsed)
-			{
-				Environment.SetEnvironmentVariable(item.Key, item.Value.ToString());
-			}
+			Environment.SetEnvironmentVariable(item.Key, item.Value.ToString());
 		}
 	}
 }

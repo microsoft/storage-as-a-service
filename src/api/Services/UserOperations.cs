@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
-using Azure.Core;
+
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,17 +11,9 @@ using System.Text.Json;
 
 namespace Microsoft.UsEduCsu.Saas.Services;
 
-public class UserOperations
+internal sealed class UserOperations
 {
-	private ILogger log;
-
-	public UserOperations(ILogger log, TokenCredential tokenCredential)
-	{
-		this.log = log;
-	}
-
-	#region  Public and Internal Methods
-	public static ClaimsPrincipal GetClaimsPrincipal(HttpRequest req)
+	internal static ClaimsPrincipal GetClaimsPrincipal(HttpRequest req)
 	{
 		var principal = new ClientPrincipal();
 
@@ -51,16 +42,13 @@ public class UserOperations
 		identity.AddClaims(principal.UserRoles.Select(r => new Claim(ClaimTypes.Role, r)));
 
 		// Add default claims
-		if (principal.Claims is null)
+		principal.Claims ??= new List<ClientPrincipal.Claim>()
 		{
-			principal.Claims = new List<ClientPrincipal.Claim>()
-				{
-					new ClientPrincipal.Claim("iss", $"https://login.microsoftonline.com/{SasConfiguration.TenantId}/v2.0"),
-					new ClientPrincipal.Claim("aud", SasConfiguration.ClientId),
-					new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/tenantid", SasConfiguration.TenantId),
-					new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", principal.UserId)
-				};
-		}
+			new ClientPrincipal.Claim("iss", $"https://login.microsoftonline.com/{Configuration.TenantId}/v2.0"),
+			new ClientPrincipal.Claim("aud", Configuration.ClientId),
+			new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/tenantid", Configuration.TenantId),
+			new ClientPrincipal.Claim("http://schemas.microsoft.com/identity/claims/objectidentifier", principal.UserId)
+		};
 
 		// Join all the existing claims
 		foreach (var principalClaim in principal.Claims)
@@ -75,8 +63,6 @@ public class UserOperations
 	{
 		return claimsPrincipal.Claims.FirstOrDefault(fa => fa.Type == ClaimTypes.NameIdentifier)?.Value;
 	}
-
-	#endregion
 
 	private class ClientPrincipal
 	{
