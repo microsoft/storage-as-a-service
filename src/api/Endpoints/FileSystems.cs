@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System;
 using Azure.Identity;
 using Azure.Storage.Files.DataLake;
 using Microsoft.AspNetCore.Http;
@@ -47,5 +48,55 @@ public static class FileSystems
 		return detail is not null
 			? new OkObjectResult(detail)
 			: new NotFoundObjectResult("Container or storage account doesn't exist");
+	}
+
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[FunctionName("AuthorizationDelete")]
+	public static IActionResult AuthorizationDelete(
+		[HttpTrigger(AuthorizationLevel.Anonymous, "DELETE", Route = "FileSystems/{account}/{container}/authorization/{rbacId}")]
+		HttpRequest req,
+		ILogger log, string account, string container, string rbacId)
+	{
+		if (Services.Extensions.AnyNullOrEmpty(account, container,rbacId))
+		{
+			return new BadRequestResult();
+		}
+
+		return new NoContentResult();
+	}
+
+
+	[ProducesResponseType(typeof(StorageRbacEntry), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(StatusCodes.Status401Unauthorized)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[FunctionName("AuthorizationCreate")]
+	public static IActionResult AuthorizationCreate(
+		[HttpTrigger(AuthorizationLevel.Anonymous, "POST", Route = "FileSystems/{account}/{container}/authorization")]
+		HttpRequest req,
+		ILogger log, string account, string container)
+	{
+		if (Services.Extensions.AnyNullOrEmpty(account, container))
+		{
+			// TODO: log
+			return new BadRequestResult();
+		}
+
+		// Read the Body
+		// {"identity": "user or group","role": "[Reader|Contributor]"}
+
+		var dummyRbacEntry = new StorageRbacEntry() {
+			PrincipalId = Guid.NewGuid().ToString(),
+			PrincipalName = "Dummy Principal",
+			RoleName = "Contributor",
+			RoleAssignmentId  = Guid.NewGuid().ToString(),
+			IsInherited = false,
+			Order = 0
+		};
+
+		return new OkObjectResult(dummyRbacEntry);
 	}
 }
