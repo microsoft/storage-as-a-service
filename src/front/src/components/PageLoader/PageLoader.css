@@ -1,0 +1,14 @@
+#loader-overlay {
+	position:fixed;
+	top:0;
+	left:0;
+	height:100%;
+	width:100%;
+	background:white;
+	opacity:0.85;
+	z-index: 7000;
+}
+
+.loader-linear {
+	color: red;
+}
