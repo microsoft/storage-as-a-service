@@ -1,5 +1,4 @@
-import React, { useState } from 'react'
-import PropTypes from 'prop-types';
+import React from 'react'
 import { styled } from '@mui/material/styles';
 import LinearProgress, { linearProgressClasses } from '@mui/material/LinearProgress';
 import './PageLoader.css'
@@ -20,7 +19,7 @@ const PageLoader = ({state}) => {
 
 	return (
 		<>
-			{state ? <div id="loader-wrapper"><div id="loader-overlay"> <LinearProgress  variant="indeterminate" className={"loader-linear"} /></div></div> : <></>}
+			{state ? <div id="loader-wrapper"><div id="loader-overlay"> <BorderLinearProgress /></div></div> : <></>}
 		</>
 	);
 
