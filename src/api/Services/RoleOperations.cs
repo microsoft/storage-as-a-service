@@ -128,15 +128,15 @@ internal sealed class RoleOperations : IDisposable
 				if (fsr == null)
 				{
 					// Check for cached storage account properties for the storage account name
-					var val = (storageAccountProperties is null) ? null : storageAccountProperties.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
+					var val = storageAccountProperties?.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
 
 					// Check for the friendly name in the cache. If it doesn't exist, get it from Azure and add it to the cache.
-					var fname = (val is null) ? null : val.FriendlyName;
+					var fname = val?.FriendlyName;
 					if (val is null)
 					{
 							// Get the friendly name from Azure
 							// If there is no friendly name tag specified in settings configuration, this will end up displaying the storage account name instead using the property definition
-							fname = (String.IsNullOrWhiteSpace(Configuration.StorageAccountFriendlyTagNameKey)) ? null : rgo.GetAccountResourceTagValue(storageAccountName, Configuration.StorageAccountFriendlyTagNameKey);
+							fname = rgo.GetAccountResourceTagValue(storageAccountName, Configuration.StorageAccountFriendlyTagNameKey);
 							// Save back into cache
 							storageAccountProperties.Value.Add(new StorageAccount
 							{

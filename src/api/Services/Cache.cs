@@ -61,6 +61,7 @@ internal sealed class CacheHelper
 		var obj = GetCacheValue<StorageAccountProperties>(Configuration.StorageAccountPropertiesCacheKey);
 		if (obj is null) { obj = new StorageAccountProperties(); }
 		return obj;
+
 	}
 
 	/// <summary>

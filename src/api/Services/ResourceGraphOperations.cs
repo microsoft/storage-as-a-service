@@ -83,6 +83,11 @@ internal sealed class ResourceGraphOperations
 	/// <returns>Tag value</returns>
 	public string GetAccountResourceTagValue(string storageAccountName, string tagName)
 	{
+		if (String.IsNullOrWhiteSpace(tagName))
+		{
+			log.LogWarning("No tagname argument was provided. Please check configuration.");
+			return null;
+		}
 		var tags = GetGraphStorageAccountQueryResponse(storageAccountName, "tags");
 		if (tags is null)
 		{
