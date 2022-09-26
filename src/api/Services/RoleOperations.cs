@@ -117,8 +117,8 @@ internal sealed class RoleOperations : IDisposable
 				if (!m.Success)
 					continue;   // No Match, move to next one
 
-			// There will always be a storage account name if there was a Regex match
-			string storageAccountName = m.Groups["accountName"].Value;
+				// There will always be a storage account name if there was a Regex match
+				string storageAccountName = m.Groups["accountName"].Value;
 
 				// Find an existing entry for this storage account in the result set
 				StorageAccountAndContainers fsr = results
@@ -128,12 +128,14 @@ internal sealed class RoleOperations : IDisposable
 				if (fsr == null)
 				{
 					// Check for cached storage account properties for the storage account name
-					var val = storageAccountProperties.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
+					var val = storageAccountProperties?.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
 
 					// Check for the friendly name in the cache. If it doesn't exist, get it from Azure and add it to the cache.
-					var fname = (val is null) ? String.Empty : val.FriendlyName;
+					var fname = val?.FriendlyName;
 					if (val is null)
 					{
+							// Get the friendly name from Azure
+							// If there is no friendly name tag specified in settings configuration, this will end up displaying the storage account name instead using the property definition
 							fname = rgo.GetAccountResourceTagValue(storageAccountName, Configuration.StorageAccountFriendlyTagNameKey);
 							// Save back into cache
 							storageAccountProperties.Value.Add(new StorageAccount
@@ -173,7 +175,8 @@ internal sealed class RoleOperations : IDisposable
 			}
 
 			// Update the account properties cache
-			_cache.SetStorageAccountProperties(storageAccountProperties);
+			if (storageAccountProperties is not null)
+				_cache.SetStorageAccountProperties(storageAccountProperties);
 
 			return results;
 		}

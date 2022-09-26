@@ -57,9 +57,11 @@ internal sealed class CacheHelper
 	/// <returns>Cached value or new value if not cached.</returns>
 	internal StorageAccountProperties GetStorageAccountProperties()
 	{
+		if (String.IsNullOrWhiteSpace(Configuration.StorageAccountPropertiesCacheKey)) { return null; }
 		var obj = GetCacheValue<StorageAccountProperties>(Configuration.StorageAccountPropertiesCacheKey);
 		if (obj is null) { obj = new StorageAccountProperties(); }
 		return obj;
+
 	}
 
 	/// <summary>
