@@ -69,8 +69,14 @@ public static class FileSystems
 		if (req == null)
 			log.LogError("err");
 
+		// Submit Role Authorization Request
+		var roleOps = new RoleOperations(log);
+		var roleAssignment = roleOps.DeleteRole(account, container, rbacId);
+		if (roleAssignment == null)
+			return new NotFoundResult();
 
-		return new NoContentResult();
+		// Http Accepted 202
+		return new AcceptedResult();
 	}
 
 

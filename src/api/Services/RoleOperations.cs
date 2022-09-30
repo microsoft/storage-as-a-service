@@ -55,8 +55,8 @@ internal sealed class RoleOperations : IDisposable
 	{
 		try
 		{
-			ResourceGraphOperations rgo = new(log, TokenCredentials);
 			// Get Storage Account Resource ID
+			ResourceGraphOperations rgo = new(log, TokenCredentials);
 			var accountResourceId = rgo.GetAccountResourceId(account);
 
 			// Create Role Assignments
@@ -64,6 +64,43 @@ internal sealed class RoleOperations : IDisposable
 
 			// Allow user to manage ACL for container
 			var roleAssignment = AddRoleAssignment(containerScope, role, principalId);
+
+			return roleAssignment;
+		}
+		catch (Exception ex)
+		{
+			log.LogError(ex, ex.Message);
+			return null;
+		}
+	}
+
+	internal RoleAssignment DeleteRole(string account, string container, string rbacId)
+	{
+		try
+		{
+			// Get Storage Account Resource ID
+			ResourceGraphOperations rgo = new(log, TokenCredentials);
+			var accountResourceId = rgo.GetAccountResourceId(account);
+			var containerResourceId = $"{accountResourceId}/blobServices/default/containers/{container}";
+
+			// Get All Role Assignments for Scope
+			var roleAssignments = GetRoleAssignments(containerResourceId);
+			var authRoleAssignment = roleAssignments.FirstOrDefault(ra => ra.Id.EndsWith(rbacId));
+			if (authRoleAssignment == null)
+				return null;
+
+			// Try and delete
+			authRoleAssignment = AuthMgtClient.RoleAssignments.DeleteById(authRoleAssignment.Id);
+
+			// Convert to Internal Role Assignment
+			var roleAssignment = new RoleAssignment()
+			{
+				RoleAssignmentId = authRoleAssignment.Id,
+				RoleName = authRoleAssignment.Name,
+				PrincipalId = authRoleAssignment.PrincipalId,
+				PrincipalType = authRoleAssignment.PrincipalType,
+				IsInherited = false
+			};
 
 			return roleAssignment;
 		}
@@ -188,39 +225,6 @@ internal sealed class RoleOperations : IDisposable
 
 		return GetStorageDataPlaneRolesByScope(scope);
 	}
-
-	/// <summary>
-	/// Return a list of containers where the specified AAD principal has data plane access.
-	/// </summary>
-	/// <param name="account">The storage account for which to retrieve container access.</param>
-	/// <param name="principalId">The AAD principal for which to retrieve role assignments.</param>
-	/// <returns>An List<ContainerRole>.</returns>
-	//public IList<ContainerRoleAssignment> GetContainerRoleAssignments(string account, string principalId)
-	//{
-	//	ResourceGraphOperations rgo = new(log, TokenCredentials);
-	//	var accountResourceId = rgo.GetAccountResourceId(account);
-
-	//	IList<RoleDefinition> ScopedRoleDefinitions = GetRoleDefinitions(accountResourceId);
-
-	//	// Retrieve the applicable role assignments scoped to containers for the specified AAD principal
-	//	var roleDefinitionIds = ScopedRoleDefinitions.Select(rd => rd.Id);    // Create an IList<string> of the role definition IDs
-
-	//	// Project Role Assignments into Container Roles
-	//	var roleAssignments = GetRoleAssignments(account, principalId)
-	//		?.Where(ra => ra.Scope.Contains("/blobServices/default/containers/")
-	//			&& roleDefinitionIds.Contains(ra.RoleDefinitionId))
-	//		// Transform matching role assignments into the method's return value
-	//		.Select(ra => new ContainerRoleAssignment()
-	//		{
-	//			RoleName = ScopedRoleDefinitions.Single(rd => rd.Id.Equals(ra.RoleDefinitionId, StringComparison.Ordinal)).RoleName,
-	//			Container = ra.Scope.Split('/').Last(),
-	//			PrincipalId = ra.PrincipalId,
-	//			Id = ra.Id
-	//		})
-	//		.ToList();
-
-	//	return roleAssignments;
-	//}
 
 	#endregion
 
