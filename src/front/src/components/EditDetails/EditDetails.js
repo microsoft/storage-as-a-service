@@ -137,9 +137,10 @@ const EditDetails = ({ data, storageAccount, strings }) => {
 	function onCustomDelete(event) {
 		const index = event.index
 		const deleteAssignment = assignmentData[index]
-		console.log("I just deleted " + deleteAssignment.roleAssignmentId)
 		deleteRoleAssignment(selectedStorageAccount, newData.name, deleteAssignment.roleAssignmentId)
-		setAssignmentData(assignmentData.filter(item => assignmentData.indexOf(item) != index))
+		console.log("I just deleted " + deleteAssignment.roleAssignmentId)
+		setAssignmentData(assignmentData.filter(item => assignmentData.indexOf(item) !== index))
+		newData.access = newData.access.filter( item => item.roleAssignmentId !== deleteAssignment.roleAssignmentId)
 	}
 
 	function handleAdd() {
@@ -149,6 +150,8 @@ const EditDetails = ({ data, storageAccount, strings }) => {
 		setPrincipalName('')
 		setRoleName('')
 	}
+
+	let chipCount = 0;
 
 	return (
 		<Grid container className='EditDetails' spacing={4}>
@@ -191,7 +194,7 @@ const EditDetails = ({ data, storageAccount, strings }) => {
 					<div {...getRootProps()}>
 						<InputWrapper xs={12} md={12} ref={setAnchorEl} className={focused ? 'focused' : ''}>
 							{value.map((option, index) => (
-								<Chip label={<div>
+								<Chip key={chipCount++} label={<div>
 									<span>{option.roleName + " : " + option.principalName}</span>
 									<CloseIcon sx={{ m:1, color: red[500] }} onClick={() => onCustomDelete({index})} />
 								</div>} />
