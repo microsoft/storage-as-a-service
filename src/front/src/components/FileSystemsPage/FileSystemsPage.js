@@ -27,7 +27,9 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import DirectoryDetails from '../DirectoryDetails'
 import ConnectDetails from '../ConnectDetails/ConnnectDetails'
+import PageLoader from '../PageLoader/PageLoader'
 import EditDetails from '../EditDetails'
+
 
 /**
  * Renders list of Storage Accounts and FileSystems
@@ -44,6 +46,7 @@ const FileSystemsPage = ({ strings }) => {
 	const [storageAccounts, setStorageAccounts] = useState([])
 	const [fileSystems, setFileSystems] = useState([])
 	const [toastMessage, setToastMessage] = useState()
+	const [loading, setLoading] = useState(false)
 	const [isToastOpen, setToastOpen] = useState(false)
 	const [toastSeverity, setToastSeverity] = useState('success')
 
@@ -51,6 +54,7 @@ const FileSystemsPage = ({ strings }) => {
 	useEffect(() => {
 		const retrieveAccountsAndFileSystems = async () => {
 			try {
+				setLoading(true);
 				let _storageAccounts = await getStorageAccounts()
 				_storageAccounts = _storageAccounts.map((a) => ({...a, concatenatedName : `${a.friendlyName} (${a.storageAccountName})`}));
 				setStorageAccounts(_storageAccounts)
@@ -81,8 +85,10 @@ const FileSystemsPage = ({ strings }) => {
 
 		const populateFileSystems = async (storageAccount) => {
 			try {
+				setLoading(true);
 				const _fileSystems = await getFileSystems(storageAccount)
 				setFileSystems(_fileSystems)
+				setLoading(false);
 
 				if (_fileSystems.length > 0) {
 					displayToast(strings.containersLoaded)
@@ -141,7 +147,9 @@ const FileSystemsPage = ({ strings }) => {
 	// Emit HTML
 	return (
 		<>
+
 			<Container>
+			<PageLoader state={loading} />
 				<Grid container spacing={2} sx={{ justifyContent: 'center', marginBottom: '10px' }}>
 					<Grid item md={6}>
 						<Selector
