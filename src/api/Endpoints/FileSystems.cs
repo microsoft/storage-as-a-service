@@ -108,6 +108,10 @@ public static class FileSystems
 		if (Services.Extensions.AnyNullOrEmpty(principalId))
 			return new BadRequestResult();
 
+		// Convert Shortened Rolls to Full Names
+		if (!rbac.Role.Contains("Storage Blob Data"))
+			rbac.role = $"Storage Blob Data {rbac.Role}";
+
 		// Submit Role Authorization Request
 		var roleOps = new RoleOperations(log);
 		var roleAssignment = roleOps.AssignRole(account, container, rbac.Role, principalId);
@@ -122,8 +126,8 @@ public static class FileSystems
 		{
 			PrincipalId = roleAssignment.PrincipalId,
 			PrincipalName = principalName,
-			RoleName = roleAssignment.RoleName,
-			RoleAssignmentId = roleAssignment.RoleAssignmentId,
+			RoleName = roleAssignment.RoleName.Replace("Storage Blob Data ", string.Empty),
+			RoleAssignmentId = roleAssignment.RoleAssignmentId[(roleAssignment.RoleAssignmentId.LastIndexOf('/') + 1)..],
 			IsInherited = false,
 			Order = 0
 		};
@@ -131,9 +135,18 @@ public static class FileSystems
 		return new OkObjectResult(storageRbacEntry);
 	}
 
+
+	// TODO:Convert from camelCase to ProperCase during serialization
 	public class AuthorizationRequest
 	{
-		public string Identity { get; set; }
-		public string Role { get; set; }
+		public string identity { get; set; }
+		public string role { get; set; }
+
+		public string Identity {
+			get => identity;
+		}
+		public string Role {
+			get => role;
+		}
 	}
 }

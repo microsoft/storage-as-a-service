@@ -25,7 +25,6 @@ import HttpException from './HttpException'
 		})
 }
 
-
 /**
  * Returns the list of storage accounts and their file systems (containers)
  */
@@ -48,7 +47,6 @@ import HttpException from './HttpException'
 			throw error
 		})
 }
-
 
 /**
  * Returns the list of file systems (containers) for a storage account
@@ -73,29 +71,6 @@ export const getFileSystems = async (storageAccount) => {
 }
 
 /**
- * Returns the list of directories
- */
-export const getDirectories = async (storageAccount, fileSystem) => {
-	const endpoint = URLS.listDirectories.endpoint.replace('{account}', storageAccount).replace('{filesystem}', fileSystem)
-	const options = getOptions(URLS.listDirectories.method)
-
-	return fetch(endpoint, options)
-		.then(response => {
-			if (response.status === 200) {
-				return response.json()
-			} else {
-				throw new HttpException(response.status, response.statusText)
-			}
-		})
-		.catch(error => {
-			console.log(`Call to API (${endpoint}) failed with the following details:`)
-			console.log(error)
-			throw error
-		})
-}
-
-
-/**
  * Create the options object to pass to the API call
  */
 const getOptions = (method) => {
@@ -106,46 +81,6 @@ const getOptions = (method) => {
 	return options
 }
 
-
-/**
- * Create a new folder in the storage account container
- */
-export const createFolder = async (storageAccount, fileSystem, owner, content) => {
-	const endpoint = URLS.createFolder.endpoint.replace('{account}', storageAccount).replace('{filesystem}', fileSystem)
-	const options = getOptions(URLS.createFolder.method)
-	let userAccessList = content.userAccess ? content.userAccess.replace(" ", "").replace(";", ",").split(",") : ''
-
-	options.body = JSON.stringify({
-		Folder: content.name,
-		FundCode: content.fundCode,
-		FolderOwner: owner,
-		UserAccessList: userAccessList
-	})
-
-	try {
-		var response = await fetch(endpoint, options);
-		let folderResponse = {
-			Folder: "",
-			Message: ""
-		};
-
-		let body = await response.json();
-
-		// If the result code is success (should always be HTTP 201)
-		if (response.status >= 200 && response.status <= 299)
-			folderResponse.Folder = body.folderDetail
-
-		// Regardless of success, there can always be a message
-		folderResponse.Message = body.message ? body.message : body.Message
-
-		return folderResponse
-	}
-	catch (error) {
-		console.error(error);
-	}
-}
-
-
 /**
  * Delete a user role from the storage account container
  */
@@ -153,21 +88,27 @@ export const deleteRoleAssignment = async (storageaccount, container, guid) => {
 	const endpoint = URLS.deleteRoleAssignment.endpoint.replace('{storageaccount}', storageaccount).replace('{container}', container).replace('{guid}', guid)
 	const options = getOptions(URLS.deleteRoleAssignment.method)
 
-	return fetch(endpoint, options)
-		.then(response => {
-			if (response.status === 200) {
-				return response.json()
-			} else {
-				throw new HttpException(response.status, response.statusText)
-			}
-		})
-		.catch(error => {
-			console.log(`Call to API (${endpoint}) failed with the following details:`)
-			console.log(error)
-			throw error
-		})
-}
+	try {
+		var response = await fetch(endpoint, options);
+		let deleteResponse = {
+			IsSucces: false,
+			Message: ""
+		};
 
+		// If the result code is success (should always be HTTP 201)
+		if (response.ok) {
+			deleteResponse.IsSuccess = true
+			deleteResponse.Message = "Deleted."
+		} else {
+			deleteResponse.Message = "Failed to delete."
+		}
+
+		return deleteResponse
+	}
+	catch (error) {
+		console.error(error);
+	}
+}
 
 /**
  * Create a role assigment for the storage account container
@@ -184,19 +125,23 @@ export const createRoleAssignment = async (storageaccount, container, userObject
 	try {
 		var response = await fetch(endpoint, options);
 		let roleAssignmentResponse = {
-			role: "",
-			identity: "",
-			Message: ""
+			roleAssignment: {},
+			Message: "",
+			isSuccess: false
 		};
 
-		let body = await response.json();
-
 		// If the result code is success (should always be HTTP 201)
-		if (response.status >= 200 && response.status <= 299)
-			roleAssignmentResponse.identity = body.identity
-
-		// Regardless of success, there can always be a message
-		roleAssignmentResponse.Message = body.message ? body.message : body.Message
+		if (response.ok)
+		{
+			let body = await response.json();
+			roleAssignmentResponse.roleAssignment = body
+			roleAssignmentResponse.isSuccess = true
+			roleAssignmentResponse.Message = "Role assignment successful"
+		}
+		else
+		{
+			roleAssignmentResponse.Message = response.statusText;
+		}
 
 		return roleAssignmentResponse
 	}

@@ -31,7 +31,7 @@ const MenuProps = {
 	},
 };
 
-const roles = ["Contributor", "Reader"]
+const roles = ["Owner", "Contributor", "Reader"]
 
 function getStyles(role, roleName, theme) {
 	return {
@@ -135,20 +135,30 @@ const EditDetails = ({ data, storageAccount, strings }) => {
 	}
 
 	function onCustomDelete(event) {
-		const index = event.index
-		const deleteAssignment = assignmentData[index]
-		deleteRoleAssignment(selectedStorageAccount, newData.name, deleteAssignment.roleAssignmentId)
-		console.log("I just deleted " + deleteAssignment.roleAssignmentId)
-		setAssignmentData(assignmentData.filter(item => assignmentData.indexOf(item) !== index))
-		newData.access = newData.access.filter( item => item.roleAssignmentId !== deleteAssignment.roleAssignmentId)
+		const deleteStuff = async() => {
+			const index = event.index
+			const deleteAssignment = assignmentData[index]
+			await deleteRoleAssignment(selectedStorageAccount, newData.name, deleteAssignment.roleAssignmentId)
+			console.log("I just deleted " + deleteAssignment.roleAssignmentId)
+			setAssignmentData(assignmentData.filter(item => assignmentData.indexOf(item) !== index))
+			newData.access = newData.access.filter( item => item.roleAssignmentId !== deleteAssignment.roleAssignmentId)
+		}
+		deleteStuff();
 	}
 
 	function handleAdd() {
-		const currData = assignmentData.concat({ "roleName": roleName, "principalName": principalName })
-		createRoleAssignment(selectedStorageAccount, newData.name, { "roleName": roleName, "principalName": principalName })
-		setAssignmentData(currData)
-		setPrincipalName('')
-		setRoleName('')
+		const addStuff = async() => {
+			let roleAssignmentResponse = await createRoleAssignment(selectedStorageAccount, newData.name,
+												{ "roleName": roleName, "principalName": principalName })
+			if (roleAssignmentResponse.isSuccess) {
+				setAssignmentData(assignmentData.concat(roleAssignmentResponse.roleAssignment))
+				newData.access = newData.access.concat(roleAssignmentResponse.roleAssignment)
+				setPrincipalName('')
+				setRoleName('')
+			}
+		}
+		// TODO: Set Message in dialog
+		addStuff();
 	}
 
 	let chipCount = 0;
@@ -159,45 +169,34 @@ const EditDetails = ({ data, storageAccount, strings }) => {
 				<div className='label'>{(<Chip key={newData.name} label={newData.name} />)} <AssignmentIndIcon /> {strings.editorTitle}  </div>
 			</Grid>
 			<Grid item xs={12} className='AddRoleAssignment'>
-				<TextField sx={{ margin: 2 }}
-					id="outlined-multiline-flexible"
-					label="Name"
-					multiline
-					maxRows={4}
+				<TextField id="outlined-multiline-flexible" label="Email / UPN"
+					sx={{ width: 500, margin: 2 }}
 					value={principalName}
 					onChange={handlePrincipalChange}
 				/>
-				<Select sx={{ width: 300,margin: 2 }}
-					labelId="demo-multiple-chip-label"
-					id="demo-multiple-chip"
+				<Select	id="outlined-multiline-select" label="Role"
+				 	sx={{ width: 300, margin: 2 }}
 					value={roleName}
 					onChange={handleRoleChange}
-					input={<OutlinedInput id="select-multiple-chip" label="Chip" />}
-					renderValue={(selected) => (
-						<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-							{(<Chip key={selected} label={selected} />)}
-						</Box>
-					)}
-					MenuProps={MenuProps}>
-					{roles.map((name) => (
-						<MenuItem
-							key={name}
-							value={name}
-							style={getStyles(name, roleName, theme)}
-						>{name}</MenuItem>
-					))}
+					MenuProps={MenuProps}
+					>
+					{
+						roles.map((name) => (<MenuItem key={name} value={name} style={getStyles(name, roleName, theme)}>{name}</MenuItem>))
+					}
 				</Select>
-				<Button sx={{ margin: 2 }} variant="outlined" onClick={handleAdd}>Add</Button>
+				<Button sx={{ margin: 2 }} xs={1} variant="outlined" onClick={handleAdd}>Add</Button>
 			</Grid>
 			<Grid item xs={12} md={12} className='RoleAssignmentList'>
 				<Root>
 					<div {...getRootProps()}>
 						<InputWrapper xs={12} md={12} ref={setAnchorEl} className={focused ? 'focused' : ''}>
 							{value.map((option, index) => (
-								<Chip key={chipCount++} label={<div>
-									<span>{option.roleName + " : " + option.principalName}</span>
-									<CloseIcon sx={{ m:1, color: red[500] }} onClick={() => onCustomDelete({index})} />
-								</div>} />
+								<Chip key={chipCount++}
+									label={<div>
+											<span>{option.roleName + " : " + option.principalName}</span>
+											<CloseIcon sx={{ m:1, color: red[500] }} onClick={() => onCustomDelete({index})} />
+										  </div>}
+								/>
 								))}
 								<input {...getInputProps()} />
 						</InputWrapper>

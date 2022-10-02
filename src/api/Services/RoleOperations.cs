@@ -318,7 +318,7 @@ internal sealed class RoleOperations : IDisposable
 				var roleAssignment = new RoleAssignment()
 				{
 					RoleAssignmentId = authRoleAssignment.Id,
-					RoleName = authRoleAssignment.Name,
+					RoleName = roleDefinition.RoleName,
 					PrincipalId = authRoleAssignment.PrincipalId,
 					PrincipalType = authRoleAssignment.PrincipalType,
 					Scope = scope,
