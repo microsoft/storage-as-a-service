@@ -9,10 +9,7 @@ import { useAutocomplete } from '@mui/base/AutocompleteUnstyled';
 import { createRoleAssignment, deleteRoleAssignment } from '../../services/StorageManager.service'
 import CloseIcon from '@mui/icons-material/Close';
 import { red } from '@mui/material/colors';
-import { styled } from '@mui/material/styles';
-import { useTheme } from '@mui/material/styles';
-import Box from '@mui/material/Box';
-import OutlinedInput from '@mui/material/OutlinedInput';
+import { styled, useTheme } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
 import Select from '@mui/material/Select';
