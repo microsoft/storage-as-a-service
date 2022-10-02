@@ -45,11 +45,9 @@ const LandingPage = ({ strings }) => {
 						What you can do here?
 					</h5>
 					<ol className='cando'>
-						<li>Ask for a new space to store your data files in a highly scalable way in the cloud.</li>
+						<li>Find what Azure Storage you have access to use.</li>
 						<li>Manage who has access to the space you are creating.</li>
-						<li>Have a view about capacity of your space, cost and more.</li>
-						<li>Move data between different layers as the data changes in terms of priority.</li>
-						<li>Decommission the storage when it is no longer needed.</li>
+						<li>Easily connect to the storage accounts and containers.</li>
 					</ol>
 				</div>
 			</div>
