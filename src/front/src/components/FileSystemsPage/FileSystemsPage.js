@@ -215,7 +215,7 @@ const FileSystemsPage = ({ strings }) => {
 												{row.metadata.FundCode}
 											</td>
 											<td className='actions'>
-												{onEdit && <EditIcon onClick={() => onEdit(row, selectedStorageAccount)} className='action' />}
+												{onEdit && row.canModifyRbac && <EditIcon onClick={() => onEdit(row, selectedStorageAccount)} className='action' />}
 												{onDetails &&
 													<Tooltip arrow title="Open details" placement='top'>
 														<DetailsIcon onClick={() => onDetails(row)} className='action' />

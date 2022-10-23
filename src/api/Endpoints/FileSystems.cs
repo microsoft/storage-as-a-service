@@ -12,6 +12,7 @@ using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.UsEduCsu.Saas.Services;
+using System.Linq;
 
 namespace Microsoft.UsEduCsu.Saas;
 
@@ -61,6 +62,7 @@ public static class FileSystems
 		[HttpTrigger(AuthorizationLevel.Anonymous, "DELETE", Route = "FileSystems/{account}/{container}/authorization/{rbacId}")]
 		HttpRequest req, ILogger log, string account, string container, string rbacId)
 	{
+		// Verify Parameter
 		if (Services.Extensions.AnyNullOrEmpty(account, container, rbacId))
 		{
 			return new BadRequestResult();
@@ -69,8 +71,28 @@ public static class FileSystems
 		if (req == null)
 			log.LogError("err");
 
-		// Submit Role Authorization Request
+		// Validate Authorized Principal
+		ClaimsPrincipalResult cpr = new(UserOperations.GetClaimsPrincipal(req));
+
+		if (!cpr.IsValid)
+		{
+			log.LogWarning("No valid ClaimsPrincipal found in the request: '{0}'", cpr.Message);
+			return new UnauthorizedResult();
+		}
+
+		var principalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
+
+		// Get Role Operations Setup
 		var roleOps = new RoleOperations(log);
+
+		// Verify user can delete RBAC
+		ResourceGraphOperations rgo = new(log, new DefaultAzureCredential());
+		string accountResourceId = rgo.GetAccountResourceId(account);
+		var canModifyRbac = CanModifyRbac(roleOps, accountResourceId, container, principalId);
+		if (!canModifyRbac)
+			return new UnauthorizedResult();
+
+		// Submit Role Authorization Request
 		var roleAssignment = roleOps.DeleteRole(account, container, rbacId);
 		if (roleAssignment == null)
 			return new NotFoundResult();
@@ -95,6 +117,25 @@ public static class FileSystems
 			return new BadRequestResult();
 		}
 
+		// Validate Authorized Principal
+		ClaimsPrincipalResult cpr = new(UserOperations.GetClaimsPrincipal(req));
+		if (!cpr.IsValid)
+		{
+			log.LogWarning("No valid ClaimsPrincipal found in the request: '{0}'", cpr.Message);
+			return new UnauthorizedResult();
+		}
+		var ownerPrincipalId = UserOperations.GetUserPrincipalId(cpr.ClaimsPrincipal);
+
+		// Get Role Operations Setup
+		var roleOps = new RoleOperations(log);
+
+		// Verify user can delete RBAC
+		ResourceGraphOperations rgo = new(log, new DefaultAzureCredential());
+		string accountResourceId = rgo.GetAccountResourceId(account);
+		var canModifyRbac = CanModifyRbac(roleOps, accountResourceId, container, ownerPrincipalId);
+		if (!canModifyRbac)
+			return new UnauthorizedResult();
+
 		// Request body is supposed to contain the user's identity claim
 		var rbac = (req.Body.Length > 0)
 			? JsonSerializer.Deserialize<AuthorizationRequest>(req.Body)
@@ -104,8 +145,8 @@ public static class FileSystems
 
 		// Convert Identity into principal ID
 		var mgo = new MicrosoftGraphOperations(log, new DefaultAzureCredential());
-		var principalId = mgo.GetObjectId( rbac.Identity);
-		if (Services.Extensions.AnyNullOrEmpty(principalId))
+		var targetPrincipalId = mgo.GetObjectId( rbac.Identity);
+		if (Services.Extensions.AnyNullOrEmpty(targetPrincipalId))
 			return new BadRequestResult();
 
 		// Convert Shortened Rolls to Full Names
@@ -113,13 +154,12 @@ public static class FileSystems
 			rbac.role = $"Storage Blob Data {rbac.Role}";
 
 		// Submit Role Authorization Request
-		var roleOps = new RoleOperations(log);
-		var roleAssignment = roleOps.AssignRole(account, container, rbac.Role, principalId);
+		var roleAssignment = roleOps.AssignRole(account, container, rbac.Role, targetPrincipalId);
 		if (roleAssignment == null)
 			return new NotFoundResult();
 
 		// Get Principal Name
-		var principalName = mgo.GetDisplayName(principalId);
+		var principalName = mgo.GetDisplayName(targetPrincipalId);
 
 		// Convert to Storage Entry
 		var storageRbacEntry = new StorageRbacEntry()
@@ -135,6 +175,16 @@ public static class FileSystems
 		return new OkObjectResult(storageRbacEntry);
 	}
 
+	private static bool CanModifyRbac(RoleOperations roleOps, string accountResourceId, string container, string principalId)
+	{
+		// Determine Access Roles
+		// TODO: Optimization opportunity: Retrieve the role assignments for the account once, and then only the assignments at the container scope
+		var roles = roleOps.GetStorageDataPlaneRoleAssignments(accountResourceId, container);
+		var canModifyRbac = roles
+			.Any(r => r.PrincipalId == principalId && r.RoleName == "Owner");
+
+		return canModifyRbac;
+	}
 
 	// TODO:Convert from camelCase to ProperCase during serialization
 	public class AuthorizationRequest

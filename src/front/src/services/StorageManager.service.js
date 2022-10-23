@@ -32,7 +32,7 @@ import HttpException from './HttpException'
 	const { endpoint, method } = URLS.storageAccounts
 	const options = getOptions(method)
 
-	return fetch(endpoint, options)
+	return await fetch(endpoint, options)
 		.then(response => {
 			if (response.status === 200) {
 				var json = response.json();
@@ -55,7 +55,7 @@ export const getFileSystems = async (storageAccount) => {
 	const endpoint = URLS.fileSystems.endpoint.replace('{account}', storageAccount)
 	const options = getOptions(URLS.fileSystems.method)
 
-	return fetch(endpoint, options)
+	return await fetch(endpoint, options)
 		.then(response => {
 			if (response.status === 200) {
 				return response.json()

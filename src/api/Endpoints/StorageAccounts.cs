@@ -97,7 +97,7 @@ public static class StorageAccounts
 			Parallel.ForEach(filesystems, (fs) =>
 			{
 				var cd = GetContainerDetail(roleOperations, graphOps, account, accountResourceId,
-					fs.Name, fs.Properties);
+					fs.Name, fs.Properties, principalId);
 				containerDetails.Add(cd);
 			});
 		}
@@ -114,7 +114,7 @@ public static class StorageAccounts
 	}
 
 	private static ContainerDetail GetContainerDetail(RoleOperations roleOps, MicrosoftGraphOperations graphOps,
-		string account, string accountResourceId, string container, FileSystemProperties properties)
+		string account, string accountResourceId, string container, FileSystemProperties properties, string principalId)
 	{
 		// TODO: Move to FileSystemOperations
 
@@ -148,8 +148,10 @@ public static class StorageAccounts
 				IsInherited = r.IsInherited,
 				RoleAssignmentId = r.RoleAssignmentId
 			})
-			.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName
-			).ToList();
+			.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName).ToList();
+
+		// User Can modify RBAC
+		var canModifyRbac = rbacEntries.Any( r => r.RoleName == "Owner" && r.PrincipalId == principalId);
 
 		// Package in ContainerDetail
 		var uri = Configuration.GetStorageUri(account, container).ToString();
@@ -159,7 +161,8 @@ public static class StorageAccounts
 			Metadata = metadata,
 			Access = rbacEntries,
 			StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={Configuration.TenantId}&type=fileSystem&container={container}&serviceEndpoint={HttpUtility.UrlEncode(uri)}",
-			Uri = uri
+			Uri = uri,
+			CanModifyRbac = canModifyRbac
 		};
 
 		return cd;

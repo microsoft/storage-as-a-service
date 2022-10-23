@@ -12,4 +12,5 @@ public class ContainerDetail
 	public string StorageExplorerDirectLink { get; set; }
 	public IDictionary<string, string> Metadata { get; internal set; }
 	public IList<StorageRbacEntry> Access { get; set; }
+	public bool CanModifyRbac { get; set; }
 }
