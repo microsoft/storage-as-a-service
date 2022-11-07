@@ -51,18 +51,13 @@ internal sealed class RoleOperations : IDisposable
 
 	#region Internal Methods
 
-	internal RoleAssignment AssignRole(string account, string container, string role, string principalId)
+	internal RoleAssignment AssignRole(string accountResourceId, string container, string role, string principalId)
 	{
 		try
 		{
-			// Get Storage Account Resource ID
-			ResourceGraphOperations rgo = new(log, TokenCredentials);
-			var accountResourceId = rgo.GetAccountResourceId(account);
-
-			// Create Role Assignments
+			// Create container resource ID
 			string containerScope = $"{accountResourceId}/blobServices/default/containers/{container}";
 
-			// Allow user to manage ACL for container
 			var roleAssignment = AddRoleAssignment(containerScope, role, principalId);
 
 			return roleAssignment;
@@ -74,33 +69,24 @@ internal sealed class RoleOperations : IDisposable
 		}
 	}
 
-	internal RoleAssignment DeleteRole(string account, string container, string rbacId)
+	internal RoleAssignment DeleteRoleAssignment(string accountResourceId, string container, string rbacId)
 	{
 		try
 		{
-			// Get Storage Account Resource ID
-			ResourceGraphOperations rgo = new(log, TokenCredentials);
-			var accountResourceId = rgo.GetAccountResourceId(account);
+			// Get the container resource ID
 			var containerResourceId = $"{accountResourceId}/blobServices/default/containers/{container}";
 
-			// Get All Role Assignments for Scope
+			// Find the role assignment to be deleted
 			var roleAssignments = GetRoleAssignments(containerResourceId);
-			var authRoleAssignment = roleAssignments.FirstOrDefault(ra => ra.Id.EndsWith(rbacId));
-			if (authRoleAssignment == null)
+			var authRoleAssignment = roleAssignments.FirstOrDefault(ra => ra.Id.EndsWith($"/{rbacId}", StringComparison.OrdinalIgnoreCase));
+			if (authRoleAssignment is null)
 				return null;
 
-			// Try and delete
+			// Try to delete
 			authRoleAssignment = AuthMgtClient.RoleAssignments.DeleteById(authRoleAssignment.Id);
 
 			// Convert to Internal Role Assignment
-			var roleAssignment = new RoleAssignment()
-			{
-				RoleAssignmentId = authRoleAssignment.Id,
-				RoleName = authRoleAssignment.Name,
-				PrincipalId = authRoleAssignment.PrincipalId,
-				PrincipalType = authRoleAssignment.PrincipalType,
-				IsInherited = false
-			};
+			var roleAssignment = new RoleAssignment(authRoleAssignment, null, false);
 
 			return roleAssignment;
 		}
@@ -109,6 +95,32 @@ internal sealed class RoleOperations : IDisposable
 			log.LogError(ex, ex.Message);
 			return null;
 		}
+	}
+
+	internal bool CanModifyRbac(string accountResourceId, string container, string principalId)
+	{
+		// Determine Access Roles
+		// TODO: This might not work if role assignment is via group membership
+		var roleAssignments = GetStorageDataPlaneRoleAssignments(accountResourceId, container);
+
+		var canModifyRbac = roleAssignments
+			.Any(ra => CanModifyRbac(ra, principalId));
+
+		return canModifyRbac;
+	}
+
+	/// <summary>
+	/// Determines whether the specified principal ID can modify RBAC assignments
+	/// based on the specified role assignment.
+	/// </summary>
+	/// <param name="ra">The role assignment to verify against.</param>
+	/// <param name="principalId">The principal to verify.</param>
+	/// <returns></returns>
+	/// <remarks>This method is meant to be called from a lambda processing a enumerable of role assignments.</remarks>
+	internal bool CanModifyRbac(RoleAssignment ra, string principalId)
+	{
+		return ra.RoleName.Equals("Storage Blob Data Owner", StringComparison.OrdinalIgnoreCase)
+			&& ra.PrincipalId.Equals(principalId, StringComparison.OrdinalIgnoreCase);
 	}
 
 	/// <summary>
@@ -148,33 +160,33 @@ internal sealed class RoleOperations : IDisposable
 			if (!m.Success)
 				continue;   // No Match, move to next one
 
-				// There will always be a storage account name if there was a Regex match
-				string storageAccountName = m.Groups["accountName"].Value;
+			// There will always be a storage account name if there was a Regex match
+			string storageAccountName = m.Groups["accountName"].Value;
 
 			// Find an existing entry for this storage account in the result set
 			StorageAccountAndContainers fsr = results
 				.SingleOrDefault(x => x.Account.StorageAccountName.Equals(storageAccountName, StringComparison.OrdinalIgnoreCase));
 
-				// If this is the first time we've encountered this storage account, Set the storage account name property and add to result set
-				if (fsr == null)
-				{
-					// Check for cached storage account properties for the storage account name
-					var val = storageAccountProperties?.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
+			// If this is the first time we've encountered this storage account, Set the storage account name property and add to result set
+			if (fsr == null)
+			{
+				// Check for cached storage account properties for the storage account name
+				var val = storageAccountProperties?.Value.FirstOrDefault(x => x.StorageAccountName == storageAccountName);
 
-					// Check for the friendly name in the cache. If it doesn't exist, get it from Azure and add it to the cache.
-					var fname = val?.FriendlyName;
-					if (val is null)
+				// Check for the friendly name in the cache. If it doesn't exist, get it from Azure and add it to the cache.
+				var fname = val?.FriendlyName;
+				if (val is null)
+				{
+					// Get the friendly name from Azure
+					// If there is no friendly name tag specified in settings configuration, this will end up displaying the storage account name instead using the property definition
+					fname = rgo.GetAccountResourceTagValue(storageAccountName, Configuration.StorageAccountFriendlyTagNameKey);
+					// Save back into cache
+					storageAccountProperties.Value.Add(new StorageAccount
 					{
-							// Get the friendly name from Azure
-							// If there is no friendly name tag specified in settings configuration, this will end up displaying the storage account name instead using the property definition
-							fname = rgo.GetAccountResourceTagValue(storageAccountName, Configuration.StorageAccountFriendlyTagNameKey);
-							// Save back into cache
-							storageAccountProperties.Value.Add(new StorageAccount
-							{
-								StorageAccountName = storageAccountName,
-								FriendlyName = fname
-							});
-					}
+						StorageAccountName = storageAccountName,
+						FriendlyName = fname
+					});
+				}
 
 				fsr = new StorageAccountAndContainers();
 				fsr.Account.StorageAccountName = storageAccountName;
@@ -205,9 +217,9 @@ internal sealed class RoleOperations : IDisposable
 			}
 		}
 
-			// Update the account properties cache
-			if (storageAccountProperties is not null)
-				_cache.SetStorageAccountProperties(storageAccountProperties);
+		// Update the account properties cache
+		if (storageAccountProperties is not null)
+			_cache.SetStorageAccountProperties(storageAccountProperties);
 
 		return results;
 	}
@@ -318,17 +330,14 @@ internal sealed class RoleOperations : IDisposable
 				authRoleAssignment = AuthMgtClient.RoleAssignments.Create(scope, roleAssignmentId, racp);
 
 				// Convert to Internal Role Assignment
-				var roleAssignment = new RoleAssignment()
-				{
-					RoleAssignmentId = authRoleAssignment.Id,
-					RoleName = roleDefinition.RoleName,
-					PrincipalId = authRoleAssignment.PrincipalId,
-					PrincipalType = authRoleAssignment.PrincipalType,
-					Scope = scope,
-					IsInherited = false
-				};
+				var roleAssignment = new RoleAssignment(authRoleAssignment, roleDefinition, false);
 
 				return roleAssignment;
+			}
+			else
+			{
+				// This role assignment already exists (but could be inherited)
+				// Should create a return status to indicate that
 			}
 		}
 
@@ -352,17 +361,8 @@ internal sealed class RoleOperations : IDisposable
 		{
 			// Join Role Assignments and Role Definitions
 			var storageDataPlaneRoles = assignments.Join(ScopedRoleDefinitions, ra => ra.RoleDefinitionId, rd => rd.Id,
-						(ra, rd) => new RoleAssignment()
-						{
-							RoleName = rd.RoleName,
-							Scope = ra.Scope,
-							PrincipalType = ra.PrincipalType,
-							PrincipalId = ra.PrincipalId,
-							IsInherited = !ra.Scope.Equals(scope, StringComparison.OrdinalIgnoreCase),
-							// Return only the GUID part of the assignment ID (not the full resource ID,
-							// because it would leak subscription IDs, etc. to the client)
-							RoleAssignmentId = ra.Id[(ra.Id.LastIndexOf('/') + 1)..]
-						}).ToList();
+						(ra, rd) => new RoleAssignment(ra, rd, !ra.Scope.Equals(scope, StringComparison.OrdinalIgnoreCase)))
+						.ToList();
 
 			return storageDataPlaneRoles;
 		}
@@ -372,9 +372,6 @@ internal sealed class RoleOperations : IDisposable
 
 	private IList<Azure.Management.Authorization.Models.RoleAssignment> GetRoleAssignments(string scope, string principalId = null)
 	{
-		// Make sure role definitions for the subscription have been retrieved
-		//_ = GetRoleDefinitions(scope);
-
 		/* Query the scope's role assignments.
 		 * This will only return role assignments where the provided token has Microsoft.Authorization/roleAssignments/read authorization.
 		 * For example, by granting the app registration User Access Administrator on storage accounts
@@ -439,9 +436,25 @@ internal sealed class RoleOperations : IDisposable
 		public string Scope { get; set; }
 		public string PrincipalId { get; set; }
 		public string PrincipalType { get; set; }
-		//public string Id { get; set; }
 		public bool IsInherited { get; set; }
 		public string RoleAssignmentId { get; set; }
+
+		/// <summary>
+		/// Creates a new Microsoft.UsEduCsu.Saas.RoleOperations.RoleAssignment object
+		/// from the specified Azure.Management.Authorization.Models.RoleAssignment object.
+		/// </summary>
+		/// <param name="authRoleAssignment"></param>
+		internal RoleAssignment(Azure.Management.Authorization.Models.RoleAssignment authRoleAssignment,
+			Azure.Management.Authorization.Models.RoleDefinition roleDefinition,
+			bool isInherited)
+		{
+			RoleAssignmentId = authRoleAssignment.Id[(authRoleAssignment.Id.LastIndexOf('/') + 1)..];
+			RoleName = roleDefinition?.RoleName;
+			PrincipalId = authRoleAssignment.PrincipalId;
+			PrincipalType = authRoleAssignment.PrincipalType;
+			Scope = authRoleAssignment.Scope;
+			IsInherited = isInherited;
+		}
 	}
 
 	#region Disposable Pattern

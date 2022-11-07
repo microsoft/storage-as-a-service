@@ -10,9 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
 using Microsoft.UsEduCsu.Saas.Services;
-using System.Linq;
 
 namespace Microsoft.UsEduCsu.Saas;
 
@@ -85,20 +83,21 @@ public static class FileSystems
 		// Get Role Operations Setup
 		var roleOps = new RoleOperations(log);
 
-		// Verify user can delete RBAC
+		// Verify user can manage RBAC
 		ResourceGraphOperations rgo = new(log, new DefaultAzureCredential());
 		string accountResourceId = rgo.GetAccountResourceId(account);
-		var canModifyRbac = CanModifyRbac(roleOps, accountResourceId, container, principalId);
+		var canModifyRbac = roleOps.CanModifyRbac(accountResourceId, container, principalId);
+
 		if (!canModifyRbac)
 			return new UnauthorizedResult();
 
 		// Submit Role Authorization Request
-		var roleAssignment = roleOps.DeleteRole(account, container, rbacId);
-		if (roleAssignment == null)
+		var roleAssignment = roleOps.DeleteRoleAssignment(accountResourceId, container, rbacId);
+		if (roleAssignment is null)
 			return new NotFoundResult();
 
-		// Http Accepted 202
-		return new AcceptedResult();
+		// Http No-Content 204
+		return new NoContentResult();
 	}
 
 
@@ -129,10 +128,11 @@ public static class FileSystems
 		// Get Role Operations Setup
 		var roleOps = new RoleOperations(log);
 
-		// Verify user can delete RBAC
+		// Verify user can manage RBAC
 		ResourceGraphOperations rgo = new(log, new DefaultAzureCredential());
 		string accountResourceId = rgo.GetAccountResourceId(account);
-		var canModifyRbac = CanModifyRbac(roleOps, accountResourceId, container, ownerPrincipalId);
+		var canModifyRbac = roleOps.CanModifyRbac(accountResourceId, container, ownerPrincipalId);
+
 		if (!canModifyRbac)
 			return new UnauthorizedResult();
 
@@ -145,18 +145,18 @@ public static class FileSystems
 
 		// Convert Identity into principal ID
 		var mgo = new MicrosoftGraphOperations(log, new DefaultAzureCredential());
-		var targetPrincipalId = mgo.GetObjectId( rbac.Identity);
+		var targetPrincipalId = mgo.GetObjectId(rbac.Identity);
 		if (Services.Extensions.AnyNullOrEmpty(targetPrincipalId))
 			return new BadRequestResult();
 
 		// Convert Shortened Rolls to Full Names
-		if (!rbac.Role.Contains("Storage Blob Data"))
+		if (!rbac.Role.StartsWith("Storage Blob Data", StringComparison.OrdinalIgnoreCase))
 			rbac.role = $"Storage Blob Data {rbac.Role}";
 
 		// Submit Role Authorization Request
-		var roleAssignment = roleOps.AssignRole(account, container, rbac.Role, targetPrincipalId);
+		var roleAssignment = roleOps.AssignRole(accountResourceId, container, rbac.Role, targetPrincipalId);
 		if (roleAssignment == null)
-			return new NotFoundResult();
+			return new ConflictObjectResult("The role assignment already exists.");
 
 		// Get Principal Name
 		var principalName = mgo.GetDisplayName(targetPrincipalId);
@@ -167,36 +167,12 @@ public static class FileSystems
 			PrincipalId = roleAssignment.PrincipalId,
 			PrincipalName = principalName,
 			RoleName = roleAssignment.RoleName.Replace("Storage Blob Data ", string.Empty),
+			// Preserve only the GUID part of the role assignment ID
 			RoleAssignmentId = roleAssignment.RoleAssignmentId[(roleAssignment.RoleAssignmentId.LastIndexOf('/') + 1)..],
 			IsInherited = false,
 			Order = 0
 		};
 
 		return new OkObjectResult(storageRbacEntry);
-	}
-
-	private static bool CanModifyRbac(RoleOperations roleOps, string accountResourceId, string container, string principalId)
-	{
-		// Determine Access Roles
-		// TODO: Optimization opportunity: Retrieve the role assignments for the account once, and then only the assignments at the container scope
-		var roles = roleOps.GetStorageDataPlaneRoleAssignments(accountResourceId, container);
-		var canModifyRbac = roles
-			.Any(r => r.PrincipalId == principalId && r.RoleName == "Owner");
-
-		return canModifyRbac;
-	}
-
-	// TODO:Convert from camelCase to ProperCase during serialization
-	public class AuthorizationRequest
-	{
-		public string identity { get; set; }
-		public string role { get; set; }
-
-		public string Identity {
-			get => identity;
-		}
-		public string Role {
-			get => role;
-		}
 	}
 }

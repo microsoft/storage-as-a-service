@@ -14,13 +14,13 @@ const LandingPage = ({ strings }) => {
 
 	useEffect(() => {
 		getServerStatus()
-		.then(u => {
-			setServerStatus(u.message);
-		})
+			.then(u => {
+				setServerStatus(u.message);
+			})
 
 		return function cleanup() {
-           //mounted = false
-        }
+			//mounted = false
+		}
 	});
 
 	return (
@@ -28,15 +28,10 @@ const LandingPage = ({ strings }) => {
 			<div className='landingpage'>
 				<div className='access'>
 					<div className='notes'>
-						To have access to the storage as a service platform, you need to use your corporative credentials.
-						If you have it handy, please click on the "Log in" button below.  If you don't, please click on
-						the "How to gain access" link below.
+						To have access to the storage as a service platform, you need to use your work or school account.
 					</div>
 					<div className='login'>
 						<LogInButton strings={strings} />
-					</div>
-					<div className='link'>
-						<Link href=''>How to gain access</Link>
 					</div>
 				</div>
 				<div className='divider' />
@@ -45,7 +40,7 @@ const LandingPage = ({ strings }) => {
 						What you can do here?
 					</h5>
 					<ol className='cando'>
-						<li>Find what Azure Storage you have access to use.</li>
+						<li>Find which Azure Storage blob containers you have access to use.</li>
 						<li>Manage who has access to the space you are creating.</li>
 						<li>Easily connect to the storage accounts and containers.</li>
 					</ol>
@@ -59,15 +54,15 @@ const LandingPage = ({ strings }) => {
 }
 
 LandingPage.propTypes = {
-    strings: PropTypes.shape({
-        logIn: PropTypes.string
-    })
+	strings: PropTypes.shape({
+		logIn: PropTypes.string
+	})
 }
 
 LandingPage.defaultProps = {
-    strings: {
-        logIn: 'Log In'
-    }
+	strings: {
+		logIn: 'Log In'
+	}
 }
 
 export default LandingPage

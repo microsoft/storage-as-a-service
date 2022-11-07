@@ -16,7 +16,6 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
-using static Microsoft.UsEduCsu.Saas.FileSystems;
 
 namespace Microsoft.UsEduCsu.Saas;
 
@@ -136,9 +135,15 @@ public static class StorageAccounts
 
 		// Determine Access Roles
 		// TODO: Optimization opportunity: Retrieve the role assignments for the account once, and then only the assignments at the container scope
-		var roles = roleOps.GetStorageDataPlaneRoleAssignments(accountResourceId, container);
-		var rbacEntries = roles
-			.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
+		var roleAssignments = roleOps.GetStorageDataPlaneRoleAssignments(accountResourceId, container)
+			// TODO: Should this be true every time we get assignments?
+			.Where(r => validTypes.Contains(r.PrincipalType));       // Only display User and Groups (no Service Principals);
+
+		// Determine if the user can modify RBAC on this container
+		var CanModifyRbac = roleAssignments.Any(ra => roleOps.CanModifyRbac(ra, principalId));
+
+		// Cast RoleAssignment to StorageRbacEntry because that's what the client expects
+		var rbacEntries = roleAssignments
 			.Select(r => new StorageRbacEntry()
 			{
 				RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
@@ -150,9 +155,6 @@ public static class StorageAccounts
 			})
 			.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName).ToList();
 
-		// User Can modify RBAC
-		var canModifyRbac = rbacEntries.Any( r => r.RoleName == "Owner" && r.PrincipalId == principalId);
-
 		// Package in ContainerDetail
 		var uri = Configuration.GetStorageUri(account, container).ToString();
 		var cd = new ContainerDetail()
@@ -162,7 +164,7 @@ public static class StorageAccounts
 			Access = rbacEntries,
 			StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={Configuration.TenantId}&type=fileSystem&container={container}&serviceEndpoint={HttpUtility.UrlEncode(uri)}",
 			Uri = uri,
-			CanModifyRbac = canModifyRbac
+			CanModifyRbac = CanModifyRbac
 		};
 
 		return cd;
