@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState } from 'react'
 import PropTypes from 'prop-types'
-import Link from "@mui/material/Link"
 import LogInButton from "../LogInButton"
 import './LandingPage.css'
 import { getServerStatus } from '../../services/StorageManager.service'
