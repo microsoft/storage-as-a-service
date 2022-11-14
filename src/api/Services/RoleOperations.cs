@@ -158,6 +158,7 @@ internal sealed class RoleOperations : IDisposable
 			// (No support currently for higher-level assignments, it would require a list of storage accounts.)
 			Match m = re.Match(sdpr.Scope);
 			if (!m.Success)
+				// TODO: Issue #142: Enable processing all storage accounts in that scope
 				continue;   // No Match, move to next one
 
 			// There will always be a storage account name if there was a Regex match
