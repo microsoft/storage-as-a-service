@@ -5,6 +5,7 @@ using Azure.Core;
 using Azure.Identity;
 using Microsoft.Azure.Management.Authorization;
 using Microsoft.Azure.Management.Authorization.Models;
+using Microsoft.Azure.Management.ResourceGraph;
 using Microsoft.Extensions.Logging;
 using Microsoft.Rest.Azure.OData;
 using Microsoft.UsEduCsu.Saas.Data;
@@ -405,7 +406,11 @@ internal sealed class RoleOperations : IDisposable
 
 	private IList<RoleAssignment> GetAllStorageDataPlaneRoleAssignments(string principalId)
 	{
-		var subscriptions = Configuration.GetSubscriptions();
+		//var subscriptions = Configuration.GetSubscriptions();
+
+		var rgo = new ResourceGraphOperations(log, new DefaultAzureCredential());
+		var subscriptions = rgo.GetSubscriptions().Select(sub => sub.Id);
+
 		// Use a thread-safe unordered collection
 		var roleAssignments = new ConcurrentBag<RoleAssignment>();
 
