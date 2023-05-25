@@ -75,6 +75,8 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 			{ name: strings.azStep2, image: azcopyEntercode }
 		]
 
+	console.log(storageExplorerURI)
+
 	let source = uri
 	let target = "https://[destaccount].dfs.core.windows.net/[container]/[path/to/folder]"
 	let stepCount = 0;
@@ -102,9 +104,9 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 								<Button target='_blank' href={strings.storageExplorerUrl} variant='outlined' startIcon={<CloudDownload />}>{strings.download}</Button>
 								|
 								<Button variant="outlined" aria-label={strings.openInStorageExplorerLabel}
-										startIcon={<img src={StorageExplorerIcon}
+									startIcon={<img src={StorageExplorerIcon}
 										title={strings.openInStorageExplorerLabel} alt={strings.openInStorageExplorerLabel} />}
-										size='large' onClick={() => { window.open(storageExplorerURI); return false }}>
+									size='large' onClick={() => { window.open(storageExplorerURI); return false }}>
 									Click to open in Storage Explorer
 								</Button>
 							</div>
@@ -150,27 +152,27 @@ const ConnectDetails = ({ uri, storageExplorerURI, strings }) => {
 			<TabPanel value={value} index={2}>
 				<div className="storageExplorer">
 					<div className='storageExplorer-steps'>
-					<div className='step' key={stepCount++}>
-						<div className='step-label'>Use azcopy command</div>
-						<div className='step-content'>
-							<p align="left">Using the azcopy command makes it easy to move and copy files in
-							command line or automated processes. Note that when copying files from a folder to a folder, ensure
-							the target folder has a / at the end.</p>
-							<p align="left">
-								azcopy cp "{source}" "{target}"
-								--overwrite=prompt
-								--s2s-preserve-access-tier=false
-								--include-directory-stub=false
-								--recursive
-								--log-level=INFO</p>
+						<div className='step' key={stepCount++}>
+							<div className='step-label'>Use azcopy command</div>
+							<div className='step-content'>
+								<p align="left">Using the azcopy command makes it easy to move and copy files in
+									command line or automated processes. Note that when copying files from a folder to a folder, ensure
+									the target folder has a / at the end.</p>
+								<p align="left">
+									azcopy cp "{source}" "{target}"
+									--overwrite=prompt
+									--s2s-preserve-access-tier=false
+									--include-directory-stub=false
+									--recursive
+									--log-level=INFO</p>
+							</div>
 						</div>
-					</div>
 						<div className='step' key={stepCount++}>
 							<div className='step-divider' />
-							<div className='step-label'>1.	Download AzCopy version 10.15 or later</div>
+							<div className='step-label'>1. Download AzCopy version 10.15 or later</div>
 							<div className='step-content'>
-								<a  rel="noopener noreferrer" target="_blank"
-									href="https://docs.microsoft.com/en-us/azure/storage/common/storage-use-azcopy-v10#download-azcopy">
+								<a rel="noopener noreferrer" target="_blank"
+									href="https://learn.microsoft.com/azure/storage/common/storage-use-azcopy-v10#download-azcopy">
 									Download AzCopy
 								</a>
 							</div>
