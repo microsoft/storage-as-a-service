@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using Azure.Core;
+using Microsoft.Azure.Management.Authorization.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
@@ -39,6 +40,49 @@ internal sealed class MicrosoftGraphOperations
 			return ((Group)dirObj).DisplayName;
 
 		return dirObj.AdditionalData["displayName"]?.ToString();
+	}
+
+	internal string GetObjectId(string principalName)
+	{
+		// If this looks like a UPN
+		if (principalName.Contains('@'))
+		{
+			try
+			{
+				// Retrieve a user by userPrincipalName
+				var myTask = graphClient
+					.Users[principalName]
+					.Request()
+					.GetAsync(graphClientCancellationToken);
+
+				var directoryObject = myTask.Result;
+				return directoryObject?.Id;
+			}
+			catch (Exception ex)
+			{
+				log.LogInformation(ex, "User '{0}' not found.", principalName);
+			}
+		}
+		else
+		{
+			try
+			{
+				// Retrieve a group by name
+				var myTask = graphClient
+					.Groups[principalName]
+					.Request()
+					.GetAsync(graphClientCancellationToken);
+
+				var directoryObject = myTask.Result;
+				return directoryObject?.Id;
+			}
+			catch (Exception ex)
+			{
+				log.LogInformation(ex, "Group '{0}' not found.", principalName);
+			}
+		}
+
+		return null;
 	}
 
 	private DirectoryObject GetDirectoryObject(string principalId)

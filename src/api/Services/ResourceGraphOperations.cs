@@ -8,8 +8,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Microsoft.UsEduCsu.Saas.Data;
 
 namespace Microsoft.UsEduCsu.Saas.Services;
 
@@ -95,6 +97,74 @@ internal sealed class ResourceGraphOperations
 			return String.Empty;
 		}
 		return (string)tags?[tagName];
+	}
+
+	public List<Subscription> GetSubscriptions()
+	{
+		string queryText = $@"resourcecontainers
+								| where type == 'microsoft.resources/subscriptions'
+								| project subscriptionId, name, tenantId";
+		QueryResponse queryResponse;
+
+		try
+		{
+			var subs = new List<Subscription>();
+			using (var resourceGraphClient = new ResourceGraphClient(_tokenCredentials))
+			{
+				var query = new QueryRequest(queryText);
+				queryResponse = resourceGraphClient.Resources(query);
+			}
+
+			if (queryResponse.Count == 0)
+				return null;
+
+			// Transform results into Subscription objects
+			dynamic data = queryResponse;
+			foreach (var d in data.Data)
+			{
+				subs.Add(new Subscription() { Id = d.subscriptionId, Name = d.name, TenantId = d.tenantId });
+			}
+			return subs;
+		}
+		catch (Exception ex)
+		{
+			log.LogError($"Exception in GetGraphStorageAccountQueryResponse: {ex} ", ex);
+			return null;
+		}
+	}
+
+	public List<StorageAccount> GetStorageAccounts()
+	{
+		string queryText = $@"resources
+			| where type == 'microsoft.storage/storageaccounts'	
+			| project name";
+		QueryResponse queryResponse;
+
+		try
+		{
+			var subs = new List<StorageAccount>();
+			using (var resourceGraphClient = new ResourceGraphClient(_tokenCredentials))
+			{
+				var query = new QueryRequest(queryText);
+				queryResponse = resourceGraphClient.Resources(query);
+			}
+
+			if (queryResponse.Count == 0)
+				return null;
+
+			// Transform results into Subscription objects
+			dynamic data = queryResponse;
+			foreach (var d in data.Data)
+			{
+				subs.Add(new StorageAccount() { StorageAccountName = d.name });
+			}
+			return subs;
+		}
+		catch (Exception ex)
+		{
+			log.LogError($"Exception in GetGraphStorageAccountQueryResponse: {ex} ", ex);
+			return null;
+		}
 	}
 
 	/// <summary>

@@ -16,7 +16,6 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
-using static Microsoft.UsEduCsu.Saas.FileSystems;
 
 namespace Microsoft.UsEduCsu.Saas;
 
@@ -97,7 +96,7 @@ public static class StorageAccounts
 			Parallel.ForEach(filesystems, (fs) =>
 			{
 				var cd = GetContainerDetail(roleOperations, graphOps, account, accountResourceId,
-					fs.Name, fs.Properties);
+					fs.Name, fs.Properties, principalId);
 				containerDetails.Add(cd);
 			});
 		}
@@ -114,7 +113,7 @@ public static class StorageAccounts
 	}
 
 	private static ContainerDetail GetContainerDetail(RoleOperations roleOps, MicrosoftGraphOperations graphOps,
-		string account, string accountResourceId, string container, FileSystemProperties properties)
+		string account, string accountResourceId, string container, FileSystemProperties properties, string principalId)
 	{
 		// TODO: Move to FileSystemOperations
 
@@ -136,9 +135,15 @@ public static class StorageAccounts
 
 		// Determine Access Roles
 		// TODO: Optimization opportunity: Retrieve the role assignments for the account once, and then only the assignments at the container scope
-		var roles = roleOps.GetStorageDataPlaneRoleAssignments(accountResourceId, container);
-		var rbacEntries = roles
-			.Where(r => validTypes.Contains(r.PrincipalType))       // Only display User and Groups (no Service Principals)
+		var roleAssignments = roleOps.GetStorageDataPlaneRoleAssignments(accountResourceId, container)
+			// TODO: Should this be true every time we get assignments?
+			.Where(r => validTypes.Contains(r.PrincipalType));       // Only display User and Groups (no Service Principals);
+
+		// Determine if the user can modify RBAC on this container
+		var CanModifyRbac = roleAssignments.Any(ra => roleOps.CanModifyRbac(ra, principalId));
+
+		// Cast RoleAssignment to StorageRbacEntry because that's what the client expects
+		var rbacEntries = roleAssignments
 			.Select(r => new StorageRbacEntry()
 			{
 				RoleName = r.RoleName.Replace("Storage Blob Data ", string.Empty),
@@ -148,8 +153,7 @@ public static class StorageAccounts
 				IsInherited = r.IsInherited,
 				RoleAssignmentId = r.RoleAssignmentId
 			})
-			.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName
-			).ToList();
+			.OrderBy(r => r.Order).ThenBy(r => r.PrincipalName).ToList();
 
 		// Package in ContainerDetail
 		var uri = Configuration.GetStorageUri(account, container).ToString();
@@ -159,7 +163,8 @@ public static class StorageAccounts
 			Metadata = metadata,
 			Access = rbacEntries,
 			StorageExplorerDirectLink = $"storageexplorer://?v=2&tenantId={Configuration.TenantId}&type=fileSystem&container={container}&serviceEndpoint={HttpUtility.UrlEncode(uri)}",
-			Uri = uri
+			Uri = uri,
+			CanModifyRbac = CanModifyRbac
 		};
 
 		return cd;
