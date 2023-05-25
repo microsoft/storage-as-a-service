@@ -9,6 +9,7 @@ using Microsoft.Rest;
 using Microsoft.UsEduCsu.Saas.Data;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
 
@@ -150,6 +151,9 @@ internal sealed class CacheHelper
 		// TODO: Handle RedisTimeoutException (retry)
 		byte[] byteArray = _cache.Get(nameKey);
 
+#if DEBUG
+		Debug.WriteLine("Debug skipping cache: {0} {1}", nameKey, byteArray?.Length);
+#else
 		// The cache will return value if found
 		// TODO: Consider ignoring cached value if 2 bytes only (empty JSON object)
 		if (byteArray != null)
@@ -159,6 +163,7 @@ internal sealed class CacheHelper
 			_logger.LogDebug($"{nameKey} (bytes: {byteArray.Length}) pulled from cache.");
 			return obj;
 		}
+#endif
 
 		// Get User by invoking Function
 		T value = updateMethod.Invoke();
@@ -204,5 +209,5 @@ internal sealed class CacheHelper
 		_logger.LogDebug($"{nameKey} (bytes: {data.Length}) written to cache.");
 	}
 
-	#endregion
+#endregion
 }
